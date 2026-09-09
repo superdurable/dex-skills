@@ -1,0 +1,100 @@
+# TypeScript handbook
+
+Read this page first for TypeScript application work, then open only the topic reference needed. The [baseline package](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/package.json) uses `@superdurable/dex@0.3.2` on Node.js 22 or 24. Always inspect the application's lockfile and installed declarations before using a precise API.
+
+## Project shape
+
+Keep Flow/Step definitions separate from HTTP handlers, construct all Flow instances in one registry module, and create one `Registry`, `BlobCache`, `Worker`, and `Client` per process. Pass the Client into adapters or a controlled holder when async Steps start or interact with other Flows. Values cross the boundary through `Codec<T>`.
+
+## Minimal Flow
+
+[Pinned runnable source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/primitives/flow/example-flow.ts)
+<!-- dex-source: examples/typescript/src/primitives/flow/example-flow.ts -->
+```typescript
+export class ExampleFlow implements Flow<number> {
+  private readonly finish = new FinishStep();
+  private readonly example = new ExampleStep(this.finish);
+
+  public getFlowType(): string {
+    return "ExampleFlow";
+  }
+
+  public getSteps(): StepList<number> {
+    return StepList.startStep<number>(this.example).otherSteps(this.finish);
+  }
+
+  public getPersistenceSchema(): PersistenceSchema {
+    return { attributes: [status], channels: [notify] };
+  }
+```
+
+Each Step supplies a stable `getStepType()` and an input codec when a non-default wire form is required. A Flow returns all registered Step instances once. The starting Step input must match `Flow<I>`.
+
+[Pinned Step source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/primitives/flow/example-flow.ts)
+<!-- dex-source: examples/typescript/src/primitives/flow/example-flow.ts -->
+```typescript
+class ExampleStep implements Step<number> {
+  public readonly inputCodec = doubleCodec;
+
+  public constructor(private readonly finish: FinishStep) {}
+
+  public getStepType(): string {
+    return "ExampleStep";
+  }
+
+  public waitFor(context: Context, _input: number): Wait {
+    status.set(context, "running");
+    return Wait.skipImmediately();
+  }
+
+  public execute(_context: Context, input: number): StepDecision {
+    return goTo(FinishStep, input + 1);
+  }
+}
+```
+
+## Registry, Worker, and Client
+
+[Pinned process bootstrap](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/main.ts)
+<!-- dex-source: examples/typescript/src/main.ts -->
+```typescript
+  const registry = createExampleRegistry();
+  const blobCache = openBlobCache({
+    directory: env.blobCacheDir,
+    maxBytes: 1 << 30,
+  });
+  const worker = new Worker(registry, blobCache, {
+    bindAddress: env.workerBindAddress,
+    serverAddress: env.serverAddress,
+    ...(env.workerTarget !== undefined
+      ? { workerTarget: { address: env.workerTarget } }
+      : {}),
+  });
+  await worker.start();
+  const client = new Client(registry, blobCache, {
+    serverAddress: env.serverAddress,
+    workerTarget: worker.workerTarget,
+  });
+```
+
+Await Worker startup before accepting application traffic. Close Client and Worker and then close BlobCache on shutdown.
+
+Install the application's resolved `@superdurable/dex` version with its package manager. Adapters call the shared Client and `await` starts, Channel publishes, RPCs, waits, searches, and stops.
+
+## Run locally
+
+```bash
+dexcli dev
+cd examples/typescript
+npm install
+npm start
+```
+
+Use `npm run test:integ` with Dex already running, or `./run-integration-tests.sh` for the managed suite.
+
+## Continue reading
+
+- [Primitives](primitives.md) and [patterns](patterns.md) for modeling.
+- [Testing](testing.md) and [error handling](error-handling.md) before delivery.
+- [Data](data-handling.md), [observability](observability.md), and [versioning](versioning.md) for production.
+- [Gotchas](gotchas.md) and [advanced features](advanced-features.md) for async, loading, heartbeat, and cancellation details.

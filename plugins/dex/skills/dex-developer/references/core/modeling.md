@@ -30,7 +30,7 @@ Use stable domain names. A Step type is part of the durable contract of open exe
 
 ## Persist only durable coordination state
 
-Use Attributes for state that later Steps, RPCs, Clients, search, or recovery need. Large size alone does not require a separate application store: Dex can keep large values as blobs and hydrate them through the SDK BlobCache. Read [large-attributes-and-locality.md](large-attributes-and-locality.md) before designing another blob or cache layer.
+Use Attributes for state that later Steps, RPCs, Clients, search, or recovery need. Large size alone does not require a separate application store: Dex can keep large values as blobs and hydrate them through the SDK BlobCache. Read [data-handling.md](data-handling.md) before designing another blob or cache layer.
 
 Keep authoritative long-lived business records in the application's database when their lifetime exceeds the Flow or they need relational querying, independent pagination, cross-Flow access, analytics, or retention policies that differ from the Flow.
 

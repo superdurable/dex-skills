@@ -1,0 +1,61 @@
+# Java design patterns
+
+Select the smallest shape that preserves the business invariant. Every link below is pinned to the Dex baseline.
+
+## Catalog
+
+| Pattern | Java-native shape | Critical invariant | Runnable implementation |
+| --- | --- | --- | --- |
+| Static parallel Steps | `StepDecision.goToMany(StepMovement.of(...))` | All branches are known in code | [StaticParallelStepsFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallel/StaticParallelStepsFlow.java) |
+| Dynamic parallel Steps | build `List<StepMovement<?>>` from input | Branch identity and input remain deterministic | [DynamicParallelStepsFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallel/DynamicParallelStepsFlow.java) |
+| Await all Steps | completion Channel plus `Wait.until(channel.forN(n))` | Workers publish exactly one completion per branch | [AwaitParallelStepsFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallel/AwaitParallelStepsFlow.java) |
+| First win | successful decision cancels sibling Step type | Losing side effects remain idempotent and cancellation-aware | [FirstWinParallelStepsFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallel/FirstWinParallelStepsFlow.java) |
+| Basic parallel SubFlows | `Wait.allOf(SubFlow.run(...))` | Parent waits for every child terminal result | [BasicParentFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallelsubflows/BasicParentFlow.java) |
+| Wait for half | child branches publish completion; coordinator waits for quorum | Define loser stop behavior before starting children | [WaitForHalfParentFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallelsubflows/WaitForHalfParentFlow.java) |
+| Long-lived parent | fixed handlers loop over a request Channel | Bound the queue and expose stop semantics | [AdvancedLongLiveParentFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallelsubflows/AdvancedLongLiveParentFlow.java) |
+| Short-lived parent | count active children and conditionally complete | Counter update and queue drain share a lock | [AdvancedShortLiveParentFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallelsubflows/AdvancedShortLiveParentFlow.java) |
+| Partition and back pressure | stable hash chooses parent; RPC returns acceptance | Start-if-missing is race-safe and rejection is retried intentionally | [SubmitRequestFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallelsubflows/SubmitRequestFlow.java) |
+| Poll with Timer | loop Step waits on a Timer | Polling does not occupy a thread between attempts | [PollingWithTimerFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/polling/PollingWithTimerFlow.java) |
+| Backoff polling | retry policy drives repeated Execute attempts | Exhaustion has an explicit terminal/recovery path | [BackoffPollingFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/polling/BackoffPollingFlow.java) |
+| Iteration polling | Step returns `goTo` to itself with next cursor | Persist or pass the exact next position | [IterationFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/polling/IterationFlow.java) |
+| Cron | external scheduler starts a Flow on a schedule | Flow ID/reuse policy defines overlap semantics | [CronScheduleFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/cron/CronScheduleFlow.java) |
+| Reminder | Timer and opt-out Channel race | Opt-out affects future reminders, not unrelated work | [ReminderFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/reminders/ReminderFlow.java) |
+| Inactivity tracking | resettable timestamp plus Timer loop | Late activity must not close a newer active window | [InactivenessTrackerFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/inactivenesstracker/InactivenessTrackerFlow.java) |
+| Execute recovery | `onExecuteFailureProceedTo` compensation Step | Compensation is idempotent and uses persisted facts | [FailureRecoveryFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/recovery/FailureRecoveryFlow.java) |
+| WaitFor recovery | `waitForFailure(WaitForFailurePolicy.PROCEED)` | Recovery distinguishes wait failure from readiness | [ProceedOnWaitFailureFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/primitives/proceedonwaitfailure/ProceedOnWaitFailureFlow.java) |
+| Manual recovery | exhausted work proceeds to a Step waiting on retry/skip Channels | Operators receive a safe, auditable choice | [ManualRecoveryFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/intervention/ManualRecoveryFlow.java) |
+| Graceful timeout | `Flow.handleTimeout` returns a business decision | Timeout outcome is distinct from infrastructure failure | [FlowGracefulTimeout](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/timeout/FlowGracefulTimeout.java) |
+| Drain internal Channel | side Step loops until final marker | Main completion does not strand durable messages | [DrainInternalChannelFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/drainchannels/internal/DrainInternalChannelFlow.java) |
+| Drain external publishing | conditional completion checks queue emptiness | Concurrent publishers cannot race with close | [DrainingExternalChannelFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/drainchannels/externalpublishing/DrainingExternalChannelFlow.java) |
+| Interruptible execution | cancellation Channel/RPC cancels the active Step | Handler cooperates; remote effects still need compensation | [InterruptibleFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/interruptible/InterruptibleFlow.java) |
+| Responsive Step update | client waits for Step completion | StepExecution ID is stable and deadline bounded | [WaitForStepCompletionFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/waitforstepcompletion/WaitForStepCompletionFlow.java) |
+| Responsive Attribute update | client waits for an indexed/scalar Attribute predicate | Attribute is authoritative; timeout means still unknown | [Client APIs](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/primitives/clientapis/ClientApisFlow.java) |
+| Responsive Stream update | client reads best-effort messages with resume token | Reconnect tolerates retention gaps; state comes from Attributes | [StreamFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamFlow.java) |
+| Entity store | long-lived Flow per entity, RPC mutations, Attribute Store projection | Flow ID is entity key and commands serialize mutations | [UserProfileFlow](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/entitystore/UserProfileFlow.java) |
+
+## Representative shapes
+
+[Pinned static-parallel source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/parallel/StaticParallelStepsFlow.java)
+<!-- dex-source: examples/java/src/main/java/io/superdurable/dex/patterns/parallel/StaticParallelStepsFlow.java -->
+```java
+        @Override
+        public StepDecision execute(final Context context, final String input) {
+            return StepDecision.goToMany(
+                    StepMovement.of(WorkAStep.class, input),
+                    StepMovement.of(WorkBStep.class, input));
+        }
+```
+
+[Pinned recovery source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/java/src/main/java/io/superdurable/dex/patterns/recovery/FailureRecoveryFlow.java)
+<!-- dex-source: examples/java/src/main/java/io/superdurable/dex/patterns/recovery/FailureRecoveryFlow.java -->
+```java
+        @Override
+        public StepOptions getStepOptions() {
+            return StepOptions.newBuilder()
+                    .onExecuteFailureProceedTo(UpdateQuantityRecovery.class)
+                    .executeRetry(RetryPolicy.newBuilder().maximumAttempts(5).build())
+                    .build();
+        }
+```
+
+Before implementing, write the terminal states, cancellation target, queue bound, deduplication key, and recovery behavior. Prefer one pattern over combining several unless their invariants are independently necessary.

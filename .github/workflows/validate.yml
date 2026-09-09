@@ -19,8 +19,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Read Dex baseline
+        id: dex-baseline
+        shell: bash
+        run: echo "sha=$(cat DEX_BASELINE)" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: superdurable/dex
+          ref: ${{ steps.dex-baseline.outputs.sha }}
+          path: upstream-dex
       - name: Validate package
         run: python3 script/check-package.py
+      - name: Validate reference sources
+        run: python3 script/check-reference-sources.py --dex-root upstream-dex
       - name: Enforce release metadata
         if: github.event_name == 'pull_request'
         run: python3 script/check-package.py --base-ref "${{ github.event.pull_request.base.sha }}"

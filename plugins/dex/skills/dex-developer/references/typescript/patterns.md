@@ -1,0 +1,70 @@
+# TypeScript design patterns
+
+Select a pattern by its invariant. The TypeScript implementations below are pinned to the Dex baseline.
+
+## Catalog
+
+| Pattern | TypeScript-native shape | Critical invariant | Runnable implementation |
+| --- | --- | --- | --- |
+| Static parallel Steps | `goToMany(StepMovement.of(...))` | Branch set is fixed | [parallel-step-flows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel/parallel-step-flows.ts) |
+| Dynamic parallel Steps | map input to `StepMovement` | Branch identity/input is deterministic | [parallel-step-flows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel/parallel-step-flows.ts) |
+| Await all Steps | completion Channel and `forN(count)` | One completion message per branch | [parallel-step-flows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel/parallel-step-flows.ts) |
+| First win | `withCancelingSiblingSteps` | Losers are cancellation-aware and idempotent | [parallel-step-flows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel/parallel-step-flows.ts) |
+| Basic parallel SubFlows | `Wait.allOf(...SubFlow.run(...))` | Parent waits for every child | [parallel-subflows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel-subflows/parallel-subflows.ts) |
+| Wait for half | coordinator waits for quorum Channel | Loser stop behavior is explicit | [parallel-subflows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel-subflows/parallel-subflows.ts) |
+| Long-lived parent | fixed handlers loop over request Channel | Queue is bounded and stop is explicit | [parallel-subflows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel-subflows/parallel-subflows.ts) |
+| Short-lived parent | active-child Attribute plus conditional close | Counter/queue changes are serialized | [parallel-subflows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel-subflows/parallel-subflows.ts) |
+| Partition and back pressure | stable hash + acceptance RPC + start-if-missing | Same key chooses same parent; rejection is handled | [parallel-subflows.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel-subflows/parallel-subflows.ts) |
+| Poll with Timer | self-loop around `Timer.byDuration` | No Worker resource while waiting | [simple-polling-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/polling/simple-polling-flow.ts) |
+| Backoff polling | Execute retry policy | Exhaustion has a modeled outcome | [backoff-polling-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/polling/backoff-polling-flow.ts) |
+| Iteration polling | `goTo` same Step with next cursor | Cursor advances exactly once per committed iteration | [iteration-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/polling/iteration-flow.ts) |
+| Cron | scheduler calls `startFlow` | ID/reuse policy defines overlap | [cron-schedule-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/cron/cron-schedule-flow.ts) |
+| Reminder | Timer races opt-out Channel | Opt-out does not cancel unrelated work | [reminder-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/reminders/reminder-flow.ts) |
+| Inactivity tracking | durable activity time plus Timer loop | Stale timer cannot close a newer activity window | [inactiveness-tracker-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/inactiveness-tracker-timer/inactiveness-tracker-flow.ts) |
+| Execute recovery | `ExecuteFailure.proceedTo` compensation | Persist compensation facts before risky work | [failure-recovery-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/recovery/failure-recovery-flow.ts) |
+| WaitFor recovery | `WaitForFailure` / proceed-on-failure | Execute distinguishes readiness from failed wait | [proceed-on-wait-failure-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/primitives/proceed-on-wait-failure/proceed-on-wait-failure-flow.ts) |
+| Manual recovery | failed Step proceeds to Channel wait | Operator retry/skip is auditable and safe | [manual-recovery-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/intervention/manual-recovery-flow.ts) |
+| Graceful timeout | `handleTimeout` returns business decision | Deadline outcome is explicit | [flow-graceful-timeout.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/timeout/flow-graceful-timeout.ts) |
+| Drain internal Channel | side Step loops until final marker | Main path cannot strand queued work | [drain-internal-channels-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/drain-channels/internal/drain-internal-channels-flow.ts) |
+| Drain external publishing | `forceCompleteIfChannelsEmpty` | Publish and close cannot race | [draining-channel-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/drain-channels/external-publishing/draining-channel-flow.ts) |
+| Interruptible execution | cancellation selector + `AbortSignal` | Handler cooperates; remote effects compensate | [interruptible-execution-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/interruptible/interruptible-execution-flow.ts) |
+| Responsive Step update | `waitForStepCompletion` | StepExecution ID is exact and wait is bounded | [wait-for-step-completion-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/wait-for-step-completion/wait-for-step-completion-flow.ts) |
+| Responsive Attribute update | `waitForAttributeEqual` | Attribute is truth; timeout means still open/unknown | [client-apis-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/primitives/client-apis/client-apis-flow.ts) |
+| Responsive Stream update | `readStream` with resume token | Best effort; reconstruct from durable state | [stream-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/primitives/stream/stream-flow.ts) |
+| Entity store | Flow per entity, RPC mutation, Attribute Store projection | Flow ID is entity key and writes serialize | [user-profile-flow.ts](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/entity-store/user-profile-flow.ts) |
+
+## Representative shapes
+
+[Pinned parallel source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel/parallel-step-flows.ts)
+<!-- dex-source: examples/typescript/src/patterns/parallel/parallel-step-flows.ts -->
+```typescript
+  public execute(_context: Context, input: string): StepDecision {
+    return goToMany(
+      StepMovement.of(WorkAStep, input),
+      StepMovement.of(WorkBStep, input),
+    );
+  }
+```
+
+[Pinned quorum source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/parallel-subflows/parallel-subflows.ts)
+<!-- dex-source: examples/typescript/src/patterns/parallel-subflows/parallel-subflows.ts -->
+```typescript
+  public waitFor(_context: Context, total: number): Wait {
+    return Wait.until(subFlowCompletedCh.forN(Math.ceil(total / 2)));
+  }
+```
+
+[Pinned recovery source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/patterns/recovery/failure-recovery-flow.ts)
+<!-- dex-source: examples/typescript/src/patterns/recovery/failure-recovery-flow.ts -->
+```typescript
+  public getStepOptions(): StepOptions {
+    return {
+      executeFailure: ExecuteFailure.proceedTo(UpdateQuantityRecovery, {
+        executeRetry: { maximumAttempts: 5 },
+      }),
+      executeRetry: { maximumAttempts: 5 },
+    };
+  }
+```
+
+Before coding, write down terminal states, queue bounds, cancellation target, idempotency key, and recovery behavior. Combine patterns only when each invariant is required.
