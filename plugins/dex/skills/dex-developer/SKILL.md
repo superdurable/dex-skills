@@ -1,123 +1,67 @@
 ---
 name: dex-developer
-description: Develop, debug, test, and operate applications built with Superdurable Dex in Python, Go, Java, TypeScript, or Rust. Use when a user mentions Dex Flows, Steps, Attributes, Channels, Streams, RPCs, SubFlows, Workers, Dex Web, Dex Server, or dexcli. Do not activate for unrelated uses of the word "dex" or for Dex framework/server implementation work.
+description: Develop, debug, test, and operate applications built with Superdurable Dex in Python, Go, Java, TypeScript, or Rust. Use when a user mentions Dex Flows, Steps, Attributes, Channels, Streams, RPCs, SubFlows, Workers, Dex Web, or dexcli. Do not activate for unrelated uses of the word "dex" or for Dex framework/server implementation work.
 ---
 
 # Dex Developer
 
-Build reliable applications through Dex's public programming model. Keep the user's experience entirely in Dex terms and APIs.
+Build reliable applications through Dex's public programming model. Keep the user's experience in Dex terms and APIs.
 
-## Stay at the Dex boundary
+## Stay at the application boundary
 
-- Model application behavior with Flows, Steps, Waits, Attributes, Channels, Streams, RPCs, Timers, SubFlows, Workers, and the Client.
+- Model behavior with Flows, Steps, Waits, Attributes, Channels, Streams, RPCs, Timers, SubFlows, Workers, and the Client.
 - Use Dex Web, dexcli, SDK errors, and application logs for inspection and recovery.
-- Do not require users to understand, install, configure, or inspect the execution engine inside Dex Server.
-- Do not expose internal server concepts as application requirements. Only discuss internals when the user explicitly asks to develop or debug Dex itself.
+- Do not expose Dex Server internals as application requirements. Discuss them only when the user explicitly asks to develop Dex itself.
+- Diagnose read-only by default. Do not stop, time travel, publish, invoke, delete, edit, or otherwise mutate a Flow unless the user authorizes it.
 
-## Establish the project context
+## Establish source authority
 
-Before writing code:
+Before writing code, identify the language, package manager, installed Dex SDK version, registry, Worker and Client bootstrap, and repository test commands.
 
-1. Identify the language, package manager, installed Dex SDK version, existing Flow registry, Worker bootstrap, Client bootstrap, and test commands.
-2. Preserve the project's SDK version unless the user asks to upgrade. Do not mix APIs copied from another version.
-3. Prefer the project's existing Dex code and conventions. In a Dex source checkout, use runnable files under **examples/** as the API source of truth.
-4. For a new project, use the current official docs at https://docs.superdurable.io and the matching language examples at https://github.com/superdurable/dex/tree/main/examples.
-5. Never invent Dex APIs. If an exact signature is uncertain, inspect the installed SDK or a version-matched example before coding.
+Preserve the installed SDK version unless the user asks to upgrade. The project's source, lockfile, installed SDK, and version-matched examples are authoritative. This bundle's exact API excerpts are pinned to the commit in `DEX_BASELINE`; use them as guidance, not as evidence that a different installed version has the same signature.
 
-Read [getting-started.md](references/getting-started.md) when installing Dex, creating the first Flow, or wiring a Worker and Client. Read [languages.md](references/languages.md) for language-specific package names, source locations, and verification commands.
+If the project version differs from the baseline, name the matching installed-source path or immutable tag/commit used before writing exact API code. If that source is unavailable, stop at the version-independent Flow model, identify what is needed, and ask to inspect or fetch it. Never claim verification without an auditable version-matched source, label baseline syntax as compatible with an unverified version, or invent a Dex API.
 
-## Model the application first
+## Load references progressively
 
-Write a short application-level design before a non-trivial implementation:
+Always read the entry page for the project's language first:
 
-- Flow type and business identity
-- start input and completion output
-- Step types and transitions
-- durable state held in Attributes
-- durable commands or events carried by Channels
-- synchronous interactions exposed as RPCs
-- low-latency, best-effort updates exposed as Streams
-- timers, retries, timeouts, and failure paths
-- SubFlow boundaries and concurrency limits
+- [Python](references/python/python.md)
+- [Go](references/go/go.md)
+- [Java](references/java/java.md)
+- [TypeScript](references/typescript/typescript.md)
+- [Rust](references/rust/rust.md)
 
-Keep external side effects in **Execute**. Use **WaitFor** to declare durable Conditions and prepare state needed for the wait. Make every Step transition and terminal decision explicit.
+Then load only the references required by the task:
 
-Treat each **WaitFor**, **Execute**, and RPC invocation as its own commit boundary. Dex Server stages all Attribute writes and Channel publications from one method, then commits them together only after that method succeeds. If the method fails, none become visible. **WaitFor** and **Execute** do not share a commit. This atomicity does not include external API calls, which still need idempotency or compensation.
+| Task | Core reference | Language reference |
+| --- | --- | --- |
+| First application or architecture | [Getting started](references/core/getting-started.md) | language entry |
+| Flow boundary or state model | [Modeling](references/core/modeling.md) | selected language's **primitives.md** |
+| Primitive selection or exact API | [Primitives](references/core/primitives.md) | selected language's **primitives.md** |
+| Design-pattern choice | [Patterns](references/core/patterns.md) | selected language's **patterns.md** |
+| Integration or failure-path tests | [Testing](references/core/testing.md) | selected language's **testing.md** |
+| Failure diagnosis | [Troubleshooting](references/core/troubleshooting.md) | selected language's **error-handling.md** and **gotchas.md** |
+| Production inspection or mutation | [Operations](references/core/operations.md) | selected language's **observability.md** |
+| Large state, maps, or projections | [Data handling](references/core/data-handling.md) | selected language's **data-handling.md** |
+| Open-Flow compatibility or upgrade | [Versioning](references/core/versioning.md) | selected language's **versioning.md** |
+| Heartbeats, cancellation, selective loading, locks, BlobCache, or async durability | relevant core topic | selected language's **advanced-features.md** |
+| Durable AI agent | [AI agents](references/core/ai-agents.md) | selected language's primitives, data, patterns, and advanced features |
 
-Heartbeat and Stream progress frames precede the final Step result and are outside that commit. Stream persistence is best-effort and unacknowledged.
+The language directory is the routing unit. Do not load all five languages.
 
-When a Step forwards streaming LLM text to a Stream, create one buffered text writer and pass its bound write method to the LLM helper. Do not send each token or delta with direct Stream writes. Read [primitives.md](references/primitives.md) for the language-specific APIs and lifecycle.
+## Model before implementation
 
-When a status Attribute means “waiting for X,” write it in the target Step's **WaitFor** beside the wait for X. Do not write it in the previous Step's **Execute**: the transition may fail before the target wait becomes active. A reminder self-loop may idempotently write the same status when it re-enters **WaitFor**.
+For non-trivial work, first state the Flow identity and lifecycle, typed start input and completion output, Steps and transitions, durable state, messages, synchronous RPCs, best-effort Streams, timers, retries, timeouts, recovery, and SubFlow boundaries.
 
-Read [modeling.md](references/modeling.md) for design rules and [primitives.md](references/primitives.md) when choosing or combining primitives.
+Keep external side effects in **Execute**. Use **WaitFor** to declare durable conditions and prepare wait-local state. Make every transition and terminal decision explicit. Treat each WaitFor, Execute, and RPC invocation as a separate commit boundary; external effects still require idempotency or compensation.
 
-## Visualize a Flow model
+Prefer the nearest official pattern to an ad hoc coordination loop. Preserve its Flow shape while replacing the domain and integrations. When changing a Go or Python Flow, use `dexcli visualize SOURCE` after the shape is explicit; the visualizer does not currently support Java, TypeScript, or Rust.
 
-When modeling or changing a Go or Python Flow, run `dexcli visualize SOURCE`
-after the Flow shape is explicit. It opens a local Flow Rendering page that
-shows every statically known path. Use `dexcli visualize SOURCE --json --out
-PATH` only when another tool needs a checked-in or shareable Flow Definition
-Graph JSON artifact.
+## Complete the vertical slice
 
-The visualizer currently supports only Go and Python. To make a Flow
-visualizable, keep one Flow per source file and define its static Step
-registration, Step handlers, WaitFor definitions, transitions, RPC next Steps,
-resource definitions and access, and execute-failure recovery targets directly
-in that file. Business helpers are allowed, but they must not hide Dex control
-flow, WaitFor, resource, or recovery semantics. Keep Flow, Step, and resource
-names static; do not use reflection, dynamic imports or classes, wildcard Dex
-imports, getattr targets, monkeypatching, or movement collections that escape a
-handler. Unsupported dynamic semantics become Unknown nodes and blocking
-diagnostics rather than an incomplete graph.
+Application changes should include typed inputs, outputs, and failures; Flow and Step definitions; every persistence schema entry; constructor-injected dependencies; registry wiring; Worker and Client wiring when absent; an application boundary; and a real Dex Server integration test.
 
-Go input must type-check in its module. Python requires Python 3.11+; analysis
-uses an isolated AST parser and never imports or executes the application
-module.
+Keep stable Flow, Step, Attribute, Channel, Stream, and RPC names compatible with open executions unless the user has an explicit migration. Use unique Flow IDs and convergence polling rather than fixed sleeps.
 
-Read [large-attributes-and-locality.md](references/large-attributes-and-locality.md) when a Flow keeps large documents, conversation history, or API/MCP results in Attributes; when choosing AttributeMap instances or external projections for a growing collection; or when deploying replicated Workers. Do not add an application-managed blob store, cache, or dual-write path solely because an Attribute is large; first evaluate Dex blob hydration, the SDK BlobCache, headless Worker locality, and Attribute Store synchronization.
-
-Read [ai-agents.md](references/ai-agents.md) when an Agent owns model context, calls MCP or other tools, waits for approval, compacts conversation history, or exposes a durable wait tool.
-
-For selective Step or timeout-handler state loading, Flow timeout recovery, queued-message inspection, deletion, editing, steering, or an application snapshot RPC, also read [primitives.md](references/primitives.md) and [operations.md](references/operations.md). These operations apply only to pending Channel messages, not conversation history.
-
-## Choose proven Flow shapes
-
-Prefer an existing Dex pattern over an ad hoc coordination loop. Read [patterns.md](references/patterns.md) when the request involves retries with compensation, polling, reminders, inactivity, parallel work, fan-out, back pressure, interruption, external publishing, responsive updates, or durable entity state.
-
-Adapt the nearest runnable example to the project's language and SDK version. Preserve the example's Flow shape while replacing only the application domain and integrations.
-
-## Implement a complete vertical slice
-
-For application changes, include the pieces needed to run and exercise the behavior:
-
-- typed inputs, outputs, and application errors
-- Flow and Step definitions
-- persistence schema entries for every used Attribute and Channel
-- constructor-injected application dependencies
-- Flow registry entry
-- Worker and Client wiring when not already present
-- an application boundary such as an HTTP handler, CLI command, or service method
-- an integration test that starts and interacts with a real Flow
-
-Do not add global mutable dependencies or post-construction setter injection. Keep stable Flow, Step, Attribute, Channel, Stream, and RPC names compatible with open executions unless the user explicitly plans a migration.
-
-## Verify and operate
-
-Use the repository's own build and test entrypoints. Prefer an integration test against **dexcli dev** for behavior that crosses Worker, Client, persistence, waiting, retry, or RPC boundaries. Use unique Flow IDs and poll for convergence instead of fixed sleeps.
-
-For diagnosis, begin with read-only evidence: application logs, Dex Web, and **dexcli flow inspect**. Do not stop, time travel, publish, invoke, or mutate a Flow unless the user requested that action. Resolve the exact Flow and run before any mutation.
-
-Read [operations.md](references/operations.md) for test scenarios, diagnostic order, safe recovery, and versioning constraints.
-
-## Completion criteria
-
-Before handing off application code:
-
-- build or type-check succeeds
-- the relevant integration scenario passes
-- every used durable primitive is registered
-- retry, timeout-handler execution and recovery, duplicate request, and terminal behavior are intentional
-- heartbeat cadence, checkpoint recovery, and best-effort progress behavior are intentional
-- Worker and Client share compatible registry and payload/blob configuration
-- user-facing instructions mention only Dex components and commands
+Before handoff, verify build or type-check, the relevant integration scenario, registration of every durable primitive, retry and timeout recovery, duplicate requests, terminal behavior, heartbeat cadence, Stream best-effort semantics, and compatible Worker/Client registry and payload configuration.

@@ -36,7 +36,7 @@ Steps, timeout handlers, and RPCs receive regular Attribute values automatically
 
 Lock the exact AttributeMap instance when Steps or RPCs can race on it. Do not treat an AttributeMap index as an index over its instances: all instances share one Flow search field, later writes replace that field, and instance keys are not searchable. AttributeMap enumeration is not server-side pagination.
 
-Read [large-attributes-and-locality.md](large-attributes-and-locality.md) for large values, map chunking, BlobCache locality, and external projections.
+Read [data-handling.md](data-handling.md) for large values, map chunking, BlobCache locality, and external projections.
 
 Docs: https://docs.superdurable.io/primitives/attribute
 
@@ -58,7 +58,7 @@ Use a transactional RPC to move or edit a pending message atomically. The caller
 
 Attribute locking already selects transactional execution. Channel deletion without an Attribute lock must explicitly select the SDK's transactional RPC option. Transactional validation protects an ID-only move from concurrent consumption, but it does not isolate decisions based on the whole snapshot. For those decisions, every cooperating Step and RPC writer must use the same Attribute lock. The lock does not implicitly load map entries or Channel messages.
 
-Without transactional execution, a signal RPC treats a missing deletion as a no-op and commits its other effects. Cadence implements the operation as query followed by signal and cannot provide the same atomic guarantee.
+Without transactional execution, a missing deletion may be a no-op while other RPC effects commit. When a deployment cannot provide the required atomic guarantee, reconcile from a fresh pending-message list.
 
 Docs: https://docs.superdurable.io/primitives/channel
 

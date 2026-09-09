@@ -1,0 +1,32 @@
+# Versioning Go applications
+
+## Check first
+
+```bash
+go list -m github.com/superdurable/dex/sdk-go
+go list -m -json github.com/superdurable/dex/sdk-go
+```
+
+The selected SDK source is authoritative. Baseline snippets are evidence only for the pinned Dex commit.
+
+## Open-Flow compatibility
+
+An open Flow can resume on new Worker code. Preserve Flow type, reachable Step type strings, registered schemas, and decodable payloads. Do not rename a Step as a refactor. Add a new Flow/Step type for incompatible behavior and route new starts there.
+
+Additive fields with defaults are usually safer. Removing registered Steps, changing state types, repurposing enum values, or changing retry/terminal invariants is risky.
+
+## Rollout
+
+Deploy a Worker able to serve old and new runs, then move traffic deliberately. Updating a process does not replace durable execution state.
+
+[Pinned runnable source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/go/primitives/flow/controller.go)
+<!-- dex-source: examples/go/primitives/flow/controller.go -->
+```go
+func rerouteActiveFlow(ctx context.Context, client *sdk.Client, flowID string) error {
+	return client.UpdateFlowConfig(ctx, flowID, sdk.FlowConfig{
+		WorkerTarget: &sdk.WorkerTarget{Address: "worker-canary:8803"},
+	})
+}
+```
+
+Choose ID reuse and already-started behavior as product semantics. Test active and closed prior runs. Before rollout, start representative Flows on old code, stop at durable boundaries, replace the Worker, and complete them on new code. Include maps, Channels, Timer, RPC, retry, and timeout handler.
