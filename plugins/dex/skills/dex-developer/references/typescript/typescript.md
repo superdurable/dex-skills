@@ -1,6 +1,6 @@
 # TypeScript handbook
 
-Read this page first for TypeScript application work, then open only the topic reference needed. The [baseline package](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/package.json) uses `@superdurable/dex@0.3.2` on Node.js 22 or 24. Always inspect the application's lockfile and installed declarations before using a precise API.
+Read this page first for TypeScript application work, then open only the topic reference needed. The [baseline package](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/examples/typescript/package.json) uses `@superdurable/dex@0.3.2` on Node.js 22 or 24. Always inspect the application's lockfile and installed declarations before using a precise API.
 
 ## Project shape
 
@@ -8,7 +8,7 @@ Keep Flow/Step definitions separate from HTTP handlers, construct all Flow insta
 
 ## Minimal Flow
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/primitives/flow/example-flow.ts)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/examples/typescript/src/primitives/flow/example-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/flow/example-flow.ts -->
 ```typescript
 export class ExampleFlow implements Flow<number> {
@@ -30,7 +30,7 @@ export class ExampleFlow implements Flow<number> {
 
 Each Step supplies a stable `getStepType()` and an input codec when a non-default wire form is required. A Flow returns all registered Step instances once. The starting Step input must match `Flow<I>`.
 
-[Pinned Step source](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/primitives/flow/example-flow.ts)
+[Pinned Step source](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/examples/typescript/src/primitives/flow/example-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/flow/example-flow.ts -->
 ```typescript
 class ExampleStep implements Step<number> {
@@ -55,7 +55,7 @@ class ExampleStep implements Step<number> {
 
 ## Registry, Worker, and Client
 
-[Pinned process bootstrap](https://github.com/superdurable/dex/blob/c498d430518008347222a8f1ef027215fd894ac2/examples/typescript/src/main.ts)
+[Pinned process bootstrap](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/examples/typescript/src/main.ts)
 <!-- dex-source: examples/typescript/src/main.ts -->
 ```typescript
   const registry = createExampleRegistry();

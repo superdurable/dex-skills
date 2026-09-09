@@ -61,10 +61,16 @@ Write interruption intent to an Attribute through an RPC and check it at bounded
 ## Responsive update
 
 - **Step completion**: wait for a selected named Step to commit when the caller needs durable acceptance before full Flow completion.
-- **Attribute condition**: wait for durable state to equal the required value when recovery after disconnect matters.
+- **Attribute match**: wait for an application-owned revision Attribute to advance, then reload canonical state through a Describe or read RPC.
 - **Stream**: publish low-latency progress when loss or duplication is acceptable; reload durable Attributes for canonical state.
 
 Use Channels for durable commands, Attributes for durable state, and Streams for best-effort progress.
+
+Initialize the revision to zero. Every Step and RPC that advances the represented state must declare the same Attribute lock, then read, increment, and write the revision inside that invocation. Do not advance it through concurrent Client Attribute writes.
+
+Call **WaitForAttributeMatch** with greater-than and the last observed revision. The wait returns the current matched revision; use that value as the next watermark, then call the application's Describe or read RPC. A rapid `0 → 1 → 2 → 3` transition may return `3` from one wait for greater than `0`. This is coalescing, not an event stream, and it does not expose history, run IDs, or Temporal event IDs.
+
+String and Boolean Attributes support equal and not-equal. Integer and floating-point Attributes support all six comparison operators. Missing Attributes never match. Cross-type comparisons do not match. Object, bytes, null, blob-backed, non-finite floating-point, invalid operator, and invalid ordering operands fail. Attribute match waits target the current active Flow and require Temporal; Cadence returns Unimplemented.
 
 ## Entity store
 
@@ -82,4 +88,4 @@ Represent one entity lifecycle as a Flow, keep its current state in Attributes, 
 Sources:
 
 - Pattern catalog: https://docs.superdurable.io/design-patterns
-- Baseline runnable implementations: https://github.com/superdurable/dex/tree/c498d430518008347222a8f1ef027215fd894ac2/examples
+- Baseline runnable implementations: https://github.com/superdurable/dex/tree/4881ef2c2acd1c234e2c91320443fdffcd034f2c/examples

@@ -66,7 +66,7 @@ package version source.
 
 ## Release
 
-For `0.2.0`, validate the package and pinned source, smoke-test Codex, Claude
+For `0.3.0`, validate the package and pinned source, smoke-test Codex, Claude
 Code, Cursor, and `npx skills add`, and complete the five language evaluations.
 The pull request remains a draft until CI and those checks pass.
 

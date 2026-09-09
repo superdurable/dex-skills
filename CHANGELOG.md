@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.3.0 - 2026-09-09
+
+- Replace equality-only Attribute waits with typed Attribute matches across Python, Go, Java, TypeScript, and Rust.
+- Document locked revision Attributes as coalescing watermarks for responsive application refreshes.
+- Pin runnable matcher and read-RPC examples to Dex commit `4881ef2c`.
+
 ## 0.2.0 - 2026-09-09
 
 - Add progressive-disclosure core and language handbooks for Python, Go, Java, TypeScript, and Rust.
