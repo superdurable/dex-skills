@@ -1,0 +1,26 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Validate package
+        run: python3 script/check-package.py
+      - name: Enforce release metadata
+        if: github.event_name == 'pull_request'
+        run: python3 script/check-package.py --base-ref "${{ github.event.pull_request.base.sha }}"
