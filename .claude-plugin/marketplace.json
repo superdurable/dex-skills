@@ -1,0 +1,16 @@
+{
+  "name": "superdurable",
+  "owner": {
+    "name": "Super Durable"
+  },
+  "metadata": {
+    "description": "Official plugins for Superdurable developer tools"
+  },
+  "plugins": [
+    {
+      "name": "dex",
+      "source": "./plugins/dex",
+      "description": "Build and operate durable applications with Dex"
+    }
+  ]
+}

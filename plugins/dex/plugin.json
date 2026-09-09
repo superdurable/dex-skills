@@ -1,0 +1,19 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dex",
+  "version": "0.1.0",
+  "description": "Build, debug, test, and operate durable applications with Superdurable Dex.",
+  "author": {
+    "name": "Super Durable",
+    "url": "https://superdurable.io"
+  },
+  "homepage": "https://docs.superdurable.io/build-with-ai/dex-developer-skill",
+  "repository": "https://github.com/superdurable/skill-dex-developer",
+  "license": "MIT",
+  "keywords": [
+    "dex",
+    "durable-execution",
+    "workflow",
+    "coding-agent"
+  ]
+}

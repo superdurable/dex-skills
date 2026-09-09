@@ -1,0 +1,29 @@
+{
+  "name": "dex",
+  "version": "0.1.0",
+  "description": "Build, debug, test, and operate durable applications with Superdurable Dex.",
+  "author": {
+    "name": "Super Durable",
+    "url": "https://superdurable.io"
+  },
+  "homepage": "https://docs.superdurable.io/build-with-ai/dex-developer-skill",
+  "repository": "https://github.com/superdurable/skill-dex-developer",
+  "license": "MIT",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Dex",
+    "shortDescription": "Build and operate durable applications with Dex",
+    "longDescription": "Guidance for building, debugging, testing, and operating applications through the public Dex programming model.",
+    "developerName": "Super Durable",
+    "category": "Productivity",
+    "capabilities": [
+      "Guidance"
+    ],
+    "websiteURL": "https://docs.superdurable.io/build-with-ai/dex-developer-skill",
+    "defaultPrompt": [
+      "Use $dex-developer to design a reliable Dex Flow.",
+      "Use $dex-developer to diagnose this Dex application.",
+      "Use $dex-developer to review this Dex Flow model."
+    ]
+  }
+}
