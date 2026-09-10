@@ -6,7 +6,7 @@ Read core primitive semantics first. This page supplies Go API shapes at the pin
 
 A Flow implements `dex.Flow`; embedding `dex.FlowDefaults` supplies optional behavior. Register the start Step with `dex.DefineStartStep` and every reachable Step with `dex.DefineStep`. Embed `dex.StepDefaultsNoWaitFor[T]` when there is no WaitFor; otherwise implement both methods.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/go/primitives/flow/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/flow/workflow.go)
 <!-- dex-source: examples/go/primitives/flow/workflow.go -->
 ```go
 func (ExampleStep) WaitFor(ctx dex.Context, _ int) (*dex.Wait, error) {
@@ -27,7 +27,7 @@ Use `GoTo`, `GoToMany`, or `DeadEnd` to keep work open. Graceful completion wait
 
 `dex.Until(condition)` waits for one condition; `AllOf` and `AnyOf` combine conditions. Timers are durable conditions, not sleeps inside Execute.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/go/primitives/timer/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/timer/workflow.go)
 <!-- dex-source: examples/go/primitives/timer/workflow.go -->
 ```go
 func (timerStep) WaitFor(_ dex.Context, input int) (*dex.Wait, error) {
@@ -47,7 +47,7 @@ Define typed state at package scope with `DefineAttribute[T]` or `DefineAttribut
 
 Channels are durable queues. `ForOne` and `ForN` create conditions; after firing, read condition results and delete/move messages deliberately. ChannelMap separates queues by validated instance name. External producers use Client; Flow-local RPCs publish through context.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/go/primitives/channel/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/channel/workflow.go)
 <!-- dex-source: examples/go/primitives/channel/workflow.go -->
 ```go
 func (channelWaitStep) WaitFor(_ dex.Context, input int) (*dex.Wait, error) {
@@ -66,7 +66,7 @@ An exported Flow method shaped `(dex.Context, Input) (*dex.RPCResult[Output], er
 
 Define a Stream with a byte limit and register it. A Step writes ordered progress; consumers resume from the Client token. A Stream is a feed, not authoritative state.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/go/primitives/stream/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/stream/workflow.go)
 <!-- dex-source: examples/go/primitives/stream/workflow.go -->
 ```go
 var Progress = dex.DefineStream[string]("Progress", 10<<20)
@@ -75,6 +75,24 @@ type StreamFlow struct {
 	dex.FlowDefaults
 }
 ```
+
+Use `Client.ReadStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.ListStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `NextPageToken` unchanged to the next call until it is empty.
+
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/stream/controller.go)
+<!-- dex-source: examples/go/primitives/stream/controller.go -->
+```go
+	var page sdk.StreamMessagesPage[string]
+	err = controller.client.ListStreamMessages(
+		request.Request.Context(),
+		flowID,
+		Progress,
+		int32(pageSize),
+		request.Query("beforePageToken"),
+		&page,
+	)
+```
+
+The before-page token is exclusive and scope-bound. The first page uses an empty token. Listing is a best-effort retained snapshot: concurrent newer writes stay outside the older-page chain, while trimming may remove messages. A trimmed anchor returns an empty page. The server requires a positive page size and caps it at 1000 by default.
 
 ## SubFlow and Client
 

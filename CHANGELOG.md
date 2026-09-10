@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.4.0 - 2026-09-10
+
+- Add reverse, non-blocking retained Stream pagination guidance for Python, Go, Java, TypeScript, and Rust.
+- Distinguish best-effort newest-first listing from forward, resumable Stream consumption.
+- Pin runnable listing examples and the released Dex SDK 0.5.0 dependencies to Dex commit `ffe799a3`.
+
 ## 0.3.1 - 2026-09-09
 
 - Add the Super Durable brand mark to Codex and Cursor plugin surfaces.

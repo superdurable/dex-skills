@@ -88,6 +88,10 @@ Continue using direct Stream writes for semantically complete, independent messa
 
 Step messages use **#StepExecutionID** as source metadata. The source is not an idempotency key: attempts and messages may share it, and every write appends. Client Stream writes require a nonempty source, which may repeat or contain **#**.
 
+Stream clients have two distinct read paths. **ReadStream** consumes forward one message at a time, resumes from a message token, and can long-poll for the next write. **ListStreamMessages** immediately returns a retained-message page in newest-first order. Its empty before-page token starts at the retained tail; each nonempty next-page token is an exclusive, scope-bound anchor for older messages. An empty next-page token marks the end.
+
+Treat reverse listing as a best-effort retained-message snapshot. Writes after the first page do not enter the older-page chain, but trimming can create gaps. If trimming moves the retained head past the anchor, Dex returns an empty page instead of restarting from the tail. Page size must be positive and cannot exceed the Server **streamStore.maxReadMessages** limit, which defaults to 1000.
+
 Docs: https://docs.superdurable.io/primitives/stream
 
 ## Timer

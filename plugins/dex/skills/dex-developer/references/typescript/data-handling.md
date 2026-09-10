@@ -10,7 +10,7 @@ Stable Flow, Step, Attribute, Channel, Stream, RPC, and codec type names are par
 
 Use Attributes for authoritative current state, AttributeMaps for independently loaded records, Channels for durable FIFO commands, ChannelMaps for per-key queues, and Streams for best-effort progress. Register each definition in one Flow schema.
 
-[Pinned typed state source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/typescript/src/primitives/attribute/attribute-flow.ts)
+[Pinned typed state source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/typescript/src/primitives/attribute/attribute-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/attribute/attribute-flow.ts -->
 ```typescript
 const status = new Attribute("primitive-attribute-status", stringCodec, {

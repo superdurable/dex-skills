@@ -6,7 +6,7 @@ Use Node's test runner or the application's framework for assertions, but run du
 
 Create an isolated Registry, free Worker port, temporary BlobCache directory, Worker, and Client. Close them in `finally`. Generate a UUID-based Flow ID for every test.
 
-[Pinned test environment](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/sdk-typescript/test/integ/environment.ts)
+[Pinned test environment](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/sdk-typescript/test/integ/environment.ts)
 <!-- dex-source: sdk-typescript/test/integ/environment.ts -->
 ```typescript
 export async function withEnvironment(
@@ -37,7 +37,7 @@ export function flowId(prefix: string): string {
 7. Post-terminal publish/RPC/stop behavior with typed SDK errors.
 8. Heartbeat checkpoint recovery, cancellation through `AbortSignal`, and Stream resume tokens.
 
-[Pinned terminal assertion](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/sdk-typescript/test/integ/basic.integration.test.ts)
+[Pinned terminal assertion](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/sdk-typescript/test/integ/basic.integration.test.ts)
 <!-- dex-source: sdk-typescript/test/integ/basic.integration.test.ts -->
 ```typescript
 test("basic workflow completes and disallows duplicate IDs", async () => {
