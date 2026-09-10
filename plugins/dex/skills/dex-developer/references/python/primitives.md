@@ -6,7 +6,7 @@ Read core semantics first; this page gives Python shapes at the pinned baseline.
 
 Subclass `Flow[InputT]` and `Step[InputT]`. `get_steps` returns `StepList.start_step(instance).other_steps(...)`. A Step without `wait_for` executes immediately. `Wait.until`, all/any condition APIs, and `Wait.skip_immediately` control waiting. Return `go_to`, `go_to_many`, `dead_end`, graceful, or force decisions.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/python/dex_examples/primitives/flow/example_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/python/dex_examples/primitives/flow/example_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/example_flow.py -->
 ```python
 class ExampleStep(Step[int]):
@@ -33,7 +33,7 @@ Timer belongs in `wait_for` as a durable condition, never `asyncio.sleep` for du
 
 Streams are typed feeds registered in persistence schema. In sync generator handlers, `yield` every Stream output. In async handlers, Stream writes are synchronous API calls at the pinned surface while heartbeat is awaited. Consumers resume from tokens.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/python/dex_examples/primitives/stream/stream_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/python/dex_examples/primitives/stream/stream_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/stream/stream_flow.py -->
 ```python
 class RenderPreview(Step[str]):

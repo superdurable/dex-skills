@@ -17,7 +17,7 @@ Choose primitives from the business behavior first, then encode them with the SD
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
+[Pinned wait example](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/wait-types/wait-types-flow.ts -->
 ```typescript
     if (input.mode === "any") {
@@ -42,7 +42,7 @@ Use `stringCodec`, `booleanCodec`, `int64Codec`, `doubleCodec`, `bytesCodec`, or
 
 ## State, locks, and transaction
 
-[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/typescript/src/primitives/channel/channel-flow.ts)
+[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/typescript/src/primitives/channel/channel-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/channel/channel-flow.ts -->
 ```typescript
   @rpc({ isTransactional: true, loadChannels: [queued], inputCodec: moveMessageCodec })
