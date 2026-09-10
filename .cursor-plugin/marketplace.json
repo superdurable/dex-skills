@@ -10,7 +10,8 @@
     {
       "name": "dex",
       "source": "plugins/dex",
-      "description": "Build and operate durable applications with Dex"
+      "description": "Build and operate durable applications with Dex",
+      "logo": "plugins/dex/assets/logo.png"
     }
   ]
 }

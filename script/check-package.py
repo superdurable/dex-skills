@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugins" / "dex"
+LOGO = PLUGIN / "assets" / "logo.png"
 SKILL = PLUGIN / "skills" / "dex-developer"
 REFERENCES = SKILL / "references"
 MANIFESTS = (
@@ -173,6 +174,17 @@ def check_manifests(version: str) -> None:
         if manifest.get("version") != version:
             fail(f"{path.relative_to(ROOT)} version must be {version}")
 
+    if not LOGO.is_file() or not LOGO.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"):
+        fail("plugins/dex/assets/logo.png must be a PNG file")
+
+    for path in (PLUGIN / "plugin.json", PLUGIN / ".codex-plugin" / "plugin.json"):
+        interface = load_json(path).get("interface")
+        if not isinstance(interface, dict):
+            fail(f"{path.relative_to(ROOT)} must define interface metadata")
+        for field in ("composerIcon", "logo"):
+            if interface.get(field) != "./assets/logo.png":
+                fail(f"{path.relative_to(ROOT)} {field} must use ./assets/logo.png")
+
     for path in MARKETPLACES:
         marketplace = load_json(path)
         if marketplace.get("name") != "superdurable":
@@ -187,6 +199,11 @@ def check_manifests(version: str) -> None:
         source_path = source.get("path") if isinstance(source, dict) else source
         if source_path not in {"./plugins/dex", "plugins/dex"}:
             fail(f"{path.relative_to(ROOT)} must point to plugins/dex")
+
+    cursor_marketplace = load_json(ROOT / ".cursor-plugin" / "marketplace.json")
+    cursor_plugin = cursor_marketplace["plugins"][0]
+    if cursor_plugin.get("logo") != "plugins/dex/assets/logo.png":
+        fail("Cursor marketplace must use plugins/dex/assets/logo.png")
 
 
 def git_output(*arguments: str) -> str:

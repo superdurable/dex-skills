@@ -1,6 +1,6 @@
 {
   "name": "dex",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Build, debug, test, and operate durable applications with Superdurable Dex.",
   "author": {
     "name": "Super Durable",
@@ -24,6 +24,9 @@
       "Use $dex-developer to design a reliable Dex Flow.",
       "Use $dex-developer to diagnose this Dex application.",
       "Use $dex-developer to review this Dex Flow model."
-    ]
+    ],
+    "brandColor": "#78C51C",
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png"
   }
 }
