@@ -15,4 +15,4 @@
 - Long-poll timeout is not Flow failure.
 - Graceful and force terminal decisions have different branch/cancellation behavior.
 
-Use the pinned [typecheck contracts](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/sdk-python/tests/typecheck_contracts.py) and runnable examples rather than remembered names.
+Use the pinned [typecheck contracts](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/sdk-python/tests/typecheck_contracts.py) and runnable examples rather than remembered names.

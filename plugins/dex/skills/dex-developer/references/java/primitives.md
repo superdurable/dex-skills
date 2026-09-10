@@ -17,7 +17,7 @@ Choose the primitive from the behavior the application needs, not from a preferr
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java)
+[Pinned wait example](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java -->
 ```java
                 case "any":
@@ -40,7 +40,7 @@ Use condition IDs when code must distinguish winners, and for every condition in
 
 ## Durable state and locking
 
-[Pinned Attribute example](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java)
+[Pinned Attribute example](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java -->
 ```java
         @Override
@@ -55,6 +55,22 @@ Use condition IDs when code must distinguish winners, and for every condition in
 ```
 
 Locks coordinate only Steps and RPCs that request the same lock. They do not make external calls transactional. AttributeMap and ChannelMap instance names must be stable business keys.
+
+## Stream reads
+
+Use `Client.readStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.listStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `getNextPageToken()` unchanged until it is empty.
+
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java)
+<!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java -->
+```java
+        final StreamMessagesPage<String> page = client.listStreamMessages(
+                workflowId,
+                flow.progress,
+                pageSize,
+                beforePageToken);
+```
+
+The before-page token is exclusive and scope-bound. The first page uses an empty token. Listing is a best-effort retained snapshot: concurrent newer writes stay outside the older-page chain, while trimming may remove messages. A trimmed anchor returns an empty page. The server requires a positive page size and caps it at 1000 by default.
 
 ## Decisions and commit boundary
 

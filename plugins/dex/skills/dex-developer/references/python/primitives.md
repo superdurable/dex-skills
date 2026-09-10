@@ -6,7 +6,7 @@ Read core semantics first; this page gives Python shapes at the pinned baseline.
 
 Subclass `Flow[InputT]` and `Step[InputT]`. `get_steps` returns `StepList.start_step(instance).other_steps(...)`. A Step without `wait_for` executes immediately. `Wait.until`, all/any condition APIs, and `Wait.skip_immediately` control waiting. Return `go_to`, `go_to_many`, `dead_end`, graceful, or force decisions.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/python/dex_examples/primitives/flow/example_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/python/dex_examples/primitives/flow/example_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/example_flow.py -->
 ```python
 class ExampleStep(Step[int]):
@@ -33,7 +33,7 @@ Timer belongs in `wait_for` as a durable condition, never `asyncio.sleep` for du
 
 Streams are typed feeds registered in persistence schema. In sync generator handlers, `yield` every Stream output. In async handlers, Stream writes are synchronous API calls at the pinned surface while heartbeat is awaited. Consumers resume from tokens.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/python/dex_examples/primitives/stream/stream_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/python/dex_examples/primitives/stream/stream_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/stream/stream_flow.py -->
 ```python
 class RenderPreview(Step[str]):
@@ -47,11 +47,26 @@ class RenderPreview(Step[str]):
         return graceful_complete(f"Rendered {input}")
 ```
 
+Use `read_stream` for forward, one-at-a-time, optionally long-polling consumption. Use `list_stream_messages` on `Client` or `AsyncClient` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `next_page_token` unchanged until it is empty.
+
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/python/dex_examples/primitives/stream/controller.py)
+<!-- dex-source: examples/python/dex_examples/primitives/stream/controller.py -->
+```python
+        page = await app_state.client.list_stream_messages(
+            required_query("workflowId"),
+            app_state.stream.progress,
+            required_int_query("pageSize"),
+            optional_query("beforePageToken", ""),
+        )
+```
+
+The before-page token is exclusive and scope-bound. The first page uses an empty token. Listing is a best-effort retained snapshot: concurrent newer writes stay outside the older-page chain, while trimming may remove messages. A trimmed anchor returns an empty page. The server requires a positive page size and caps it at 1000 by default.
+
 `SubFlow(child, input)` is a parent Wait condition. Register both definitions and model unfinished-child behavior explicitly.
 
 ## Client
 
-`Client` and `AsyncClient` own start/wait/stop, Channel publish, RPC, Stream read, Attributes, history, search, config, timers, and reset. Async calls must be awaited; sync calls must not run on an event loop thread. Use typed exceptions and explicit deadlines.
+`Client` and `AsyncClient` own start/wait/stop, Channel publish, RPC, Stream read/list, Attributes, history, search, config, timers, and reset. Async calls must be awaited; sync calls must not run on an event loop thread. Use typed exceptions and explicit deadlines.
 
 ## Selection
 

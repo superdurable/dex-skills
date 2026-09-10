@@ -17,7 +17,7 @@ Choose primitives from the business behavior first, then encode them with the SD
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
+[Pinned wait example](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/wait-types/wait-types-flow.ts -->
 ```typescript
     if (input.mode === "any") {
@@ -40,9 +40,26 @@ Use condition IDs when execution must distinguish winners and for every conditio
 
 Use `stringCodec`, `booleanCodec`, `int64Codec`, `doubleCodec`, `bytesCodec`, or a deliberate `jsonCodec<T>` with validation for application models. Default JSON encoding does not validate TypeScript shapes at runtime. Register every Attribute, Channel, and Stream in exactly one Flow schema.
 
+## Stream reads
+
+Use `Client.readStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.listStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `nextPageToken` unchanged until it is empty.
+
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/typescript/src/primitives/stream/controller.ts)
+<!-- dex-source: examples/typescript/src/primitives/stream/controller.ts -->
+```typescript
+    const page = await client.listStreamMessages(
+      String(request.query.workflowId ?? ""),
+      progress,
+      Number(request.query.pageSize),
+      String(request.query.beforePageToken ?? ""),
+    );
+```
+
+The before-page token is exclusive and scope-bound. The first page uses an empty token. Listing is a best-effort retained snapshot: concurrent newer writes stay outside the older-page chain, while trimming may remove messages. A trimmed anchor returns an empty page. The server requires a positive page size and caps it at 1000 by default.
+
 ## State, locks, and transaction
 
-[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/847960c61e59cd0ab2d578744965eae3b111b909/examples/typescript/src/primitives/channel/channel-flow.ts)
+[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/typescript/src/primitives/channel/channel-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/channel/channel-flow.ts -->
 ```typescript
   @rpc({ isTransactional: true, loadChannels: [queued], inputCodec: moveMessageCodec })
