@@ -6,7 +6,7 @@ Read core primitive semantics first. This page supplies Go API shapes at the pin
 
 A Flow implements `dex.Flow`; embedding `dex.FlowDefaults` supplies optional behavior. Register the start Step with `dex.DefineStartStep` and every reachable Step with `dex.DefineStep`. Embed `dex.StepDefaultsNoWaitFor[T]` when there is no WaitFor; otherwise implement both methods.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/go/primitives/flow/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/go/primitives/flow/workflow.go)
 <!-- dex-source: examples/go/primitives/flow/workflow.go -->
 ```go
 func (ExampleStep) WaitFor(ctx dex.Context, _ int) (*dex.Wait, error) {
@@ -27,7 +27,7 @@ Use `GoTo`, `GoToMany`, or `DeadEnd` to keep work open. Graceful completion wait
 
 `dex.Until(condition)` waits for one condition; `AllOf` and `AnyOf` combine conditions. Timers are durable conditions, not sleeps inside Execute.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/go/primitives/timer/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/go/primitives/timer/workflow.go)
 <!-- dex-source: examples/go/primitives/timer/workflow.go -->
 ```go
 func (timerStep) WaitFor(_ dex.Context, input int) (*dex.Wait, error) {
@@ -47,7 +47,7 @@ Define typed state at package scope with `DefineAttribute[T]` or `DefineAttribut
 
 Channels are durable queues. `ForOne` and `ForN` create conditions; after firing, read condition results and delete/move messages deliberately. ChannelMap separates queues by validated instance name. External producers use Client; Flow-local RPCs publish through context.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/go/primitives/channel/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/go/primitives/channel/workflow.go)
 <!-- dex-source: examples/go/primitives/channel/workflow.go -->
 ```go
 func (channelWaitStep) WaitFor(_ dex.Context, input int) (*dex.Wait, error) {
@@ -66,7 +66,7 @@ An exported Flow method shaped `(dex.Context, Input) (*dex.RPCResult[Output], er
 
 Define a Stream with a byte limit and register it. A Step writes ordered progress; consumers resume from the Client token. A Stream is a feed, not authoritative state.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/go/primitives/stream/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/go/primitives/stream/workflow.go)
 <!-- dex-source: examples/go/primitives/stream/workflow.go -->
 ```go
 var Progress = dex.DefineStream[string]("Progress", 10<<20)

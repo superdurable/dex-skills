@@ -6,7 +6,7 @@ Use `StepOptions` and `@RPC` load declarations to request only the AttributeMap 
 
 ## Heartbeat and buffered Stream progress
 
-[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamFlow.java)
+[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamFlow.java -->
 ```java
         public StepDecision execute(final Context context, final String input) {
@@ -27,7 +27,7 @@ Create one buffered writer per invocation. Flush/finalization occurs with handle
 
 Override `Flow.handleTimeout` and select handler timeout policy only when the business needs a final notification, compensation, or explicit outcome. Give the handler its own retries and loads. Its recovery target must be a registered `Step<Void>` and can inspect `Context.getRecoveryError()`.
 
-[Pinned timeout start source](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/java/src/main/java/io/superdurable/dex/patterns/timeout/TimeoutController.java)
+[Pinned timeout start source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/examples/java/src/main/java/io/superdurable/dex/patterns/timeout/TimeoutController.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/patterns/timeout/TimeoutController.java -->
 ```java
                 StartFlowOptions.newBuilder()
@@ -42,7 +42,7 @@ Override `Flow.handleTimeout` and select handler timeout policy only when the bu
 
 Use `AttributeLock.of(attribute)` for handler locks. Do not pass an Attribute directly to `addLock`.
 
-[Pinned timeout option source](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/sdk-java/src/test/java/io/superdurable/dex/WorkerServiceIntegrationTest.java)
+[Pinned timeout option source](https://github.com/superdurable/dex/blob/d7b1d915bca9f2d82431d536b3adfbbc44497be9/sdk-java/src/test/java/io/superdurable/dex/WorkerServiceIntegrationTest.java)
 <!-- dex-source: sdk-java/src/test/java/io/superdurable/dex/WorkerServiceIntegrationTest.java -->
 ```java
         final FlowTimeoutHandlerOptions timeoutOptions =
