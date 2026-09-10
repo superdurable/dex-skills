@@ -10,7 +10,7 @@ Do not catch and return a success decision merely to suppress retry. That commit
 
 Catch exported SDK error classes such as `FlowAlreadyStartedError`, `FlowNotFoundError`, and `FlowNotActiveError`. For lower-level cases, `DexServiceError` exposes the gRPC code and diagnostic detail. Do not compare human-readable detail for normal control flow when a typed error exists.
 
-[Pinned example error classification](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/examples/typescript/src/service-errors.ts)
+[Pinned example error classification](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/typescript/src/service-errors.ts)
 <!-- dex-source: examples/typescript/src/service-errors.ts -->
 ```typescript
 export function isFlowAlreadyStarted(error: unknown): boolean {

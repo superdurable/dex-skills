@@ -16,7 +16,7 @@ Map instance names must be non-empty and contain no `/`. Request exact instances
 
 Use Stream for replayable progress and Attribute for latest authoritative state. Persist resume tokens. Buffered text reduces write amplification but adds a flush boundary; flush final chunks.
 
-Client and Worker share BlobCache for values beyond inline limits. Size it for the working set and use suitable local storage. Do not put large opaque payloads in indexed Attributes. See pinned [bootstrap](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/examples/go/cmd/server/dex/dex.go) and [SDK guide](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/sdk-go/README.md).
+Client and Worker share BlobCache for values beyond inline limits. Size it for the working set and use suitable local storage. Do not put large opaque payloads in indexed Attributes. See pinned [bootstrap](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/go/cmd/server/dex/dex.go) and [SDK guide](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/sdk-go/README.md).
 
 ## Evolution
 

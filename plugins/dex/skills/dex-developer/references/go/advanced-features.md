@@ -12,7 +12,7 @@ Declare Attribute or map-instance locks when RPC/Step mutations conflict. Lock t
 
 `dex.NewBufferedTextStream` batches by interval/bytes. Flush at semantic boundaries and return errors. Stream writes are liveness frames but preserve the explicit heartbeat checkpoint.
 
-[Pinned SDK contract](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/sdk-go/dex/contracts_test.go)
+[Pinned SDK contract](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/sdk-go/dex/contracts_test.go)
 <!-- dex-source: sdk-go/dex/contracts_test.go -->
 ```go
 	progress, err := dex.NewBufferedTextStream(
@@ -29,7 +29,7 @@ Set heartbeat timeout for long Execute work. On retry, test whether a prior valu
 
 A decision/RPC result can cancel selected Step types or siblings. Cancellation is cooperative; external calls need context cancellation and idempotency.
 
-Sync durability waits for persistence acknowledgement. Async improves latency but can replay a recently acknowledged attempt after failure; restrict it to idempotent work and test replay. See [durability runnable](https://github.com/superdurable/dex/blob/4881ef2c2acd1c234e2c91320443fdffcd034f2c/examples/go/primitives/durability/workflow.go).
+Sync durability waits for persistence acknowledgement. Async improves latency but can replay a recently acknowledged attempt after failure; restrict it to idempotent work and test replay. See [durability runnable](https://github.com/superdurable/dex/blob/acdf5bedffa738db33d3f50ed543d8eb6c05f441/examples/go/primitives/durability/workflow.go).
 
 A timeout handler has its own timeout, retry, durability, locks, and state loads. It follows normal commit rules.
 
