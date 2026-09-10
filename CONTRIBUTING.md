@@ -66,9 +66,9 @@ package version source.
 
 ## Release
 
-For `0.3.0`, validate the package and pinned source, smoke-test Codex, Claude
-Code, Cursor, and `npx skills add`, and complete the five language evaluations.
-The pull request remains a draft until CI and those checks pass.
+For a MINOR release, validate the package and pinned source, smoke-test Codex,
+Claude Code, Cursor, and `npx skills add`, and complete the five language
+evaluations. The pull request remains a draft until CI and those checks pass.
 
 Before creating any release, run all validation commands, install each package
 locally, and test the skill in a new agent task or reloaded session. Tag the

@@ -2,6 +2,10 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.3.1 - 2026-09-09
+
+- Add the Super Durable brand mark to Codex and Cursor plugin surfaces.
+
 ## 0.3.0 - 2026-09-09
 
 - Replace equality-only Attribute waits with typed Attribute matches across Python, Go, Java, TypeScript, and Rust.
