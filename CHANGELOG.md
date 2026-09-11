@@ -2,6 +2,11 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.4.1 - 2026-09-10
+
+- Prefer dedicated read-only RPCs for responses that combine multiple Attributes or AttributeMap instances.
+- Preserve narrow read models instead of combining unrelated views to reduce reads.
+
 ## 0.4.0 - 2026-09-10
 
 - Add reverse, non-blocking retained Stream pagination guidance for Python, Go, Java, TypeScript, and Rust.
