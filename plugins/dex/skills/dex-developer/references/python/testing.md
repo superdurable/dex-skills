@@ -6,7 +6,7 @@ Use a real Dex Server for durable behavior. Mock-only tests cannot prove registr
 
 Run `dexcli dev`; start `AsyncWorker`/`Worker`; create the matching Client with the same Registry/BlobCache. Generate every Flow ID with `uuid4().hex`. Bound operations with `timedelta` arguments or `asyncio.timeout`; shut workers down in fixtures.
 
-[Pinned integration source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/python/tests/integ/conftest.py)
+[Pinned integration source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/python/tests/integ/conftest.py)
 <!-- dex-source: examples/python/tests/integ/conftest.py -->
 ```python
     def make(prefix: str) -> str:
@@ -24,7 +24,7 @@ make e2eTests
 1. Start/await a result and assert output plus terminal status.
 2. Replace Worker after a durable boundary and prove resumption.
 3. Exhaust retry and assert typed failure or recovery.
-4. Exercise pre-wait and concurrent Channel publish, RPC idempotency, and message deletion.
+4. Exercise pre-wait and concurrent Channel publication through RPCs, RPC idempotency, and message deletion.
 5. Restart across Timer without fixed test sleeps.
 6. Read Stream frames with resume tokens.
 7. Separate graceful/force completion, failure, cancellation, timeout handler, and uncompleted behavior.

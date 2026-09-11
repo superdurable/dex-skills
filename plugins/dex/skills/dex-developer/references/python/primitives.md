@@ -6,7 +6,7 @@ Read core semantics first; this page gives Python shapes at the pinned baseline.
 
 Subclass `Flow[InputT]` and `Step[InputT]`. `get_steps` returns `StepList.start_step(instance).other_steps(...)`. A Step without `wait_for` executes immediately. `Wait.until`, all/any condition APIs, and `Wait.skip_immediately` control waiting. Return `go_to`, `go_to_many`, `dead_end`, graceful, or force decisions.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/python/dex_examples/primitives/flow/example_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/python/dex_examples/primitives/flow/example_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/example_flow.py -->
 ```python
 class ExampleStep(Step[int]):
@@ -25,7 +25,9 @@ class ExampleStep(Step[int]):
 
 Create `Attribute(name, value_type)` and `AttributeMap(name, value_type)` at module scope and include them in `PersistenceSchema`. Access via invocation Context. Maps partition by validated instance. Indexed definitions support search; Attribute Store sync supports external entity access.
 
-Channels are durable queues. Conditions wait for one/N messages; after firing, inspect condition messages and delete/move them deliberately. ChannelMap gives one logical definition with independent instance queues. External publishers use Client; RPC handlers may publish through Context.
+Channels are durable queues. Conditions wait for one/N messages; after firing, inspect condition messages and delete/move them deliberately. ChannelMap gives one logical definition with independent instance queues. External callers invoke a typed Flow RPC; its handler publishes through Context.
+
+Pending-message reads inside a Step or RPC are invocation snapshots. Other handlers may consume, delete, or publish concurrently. Transactional execution validates selected deletions and commits writes atomically, but does not lock the whole snapshot. Read and write pending messages directly only when the operation explicitly tolerates that race. When a decision requires the queue to remain unchanged, every cooperating Step and RPC writer must use the same Attribute lock.
 
 ## Timer, RPC, Stream, SubFlow
 
@@ -33,7 +35,7 @@ Timer belongs in `wait_for` as a durable condition, never `asyncio.sleep` for du
 
 Streams are typed feeds registered in persistence schema. In sync generator handlers, `yield` every Stream output. In async handlers, Stream writes are synchronous API calls at the pinned surface while heartbeat is awaited. Consumers resume from tokens.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/python/dex_examples/primitives/stream/stream_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/python/dex_examples/primitives/stream/stream_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/stream/stream_flow.py -->
 ```python
 class RenderPreview(Step[str]):
@@ -49,7 +51,7 @@ class RenderPreview(Step[str]):
 
 Use `read_stream` for forward, one-at-a-time, optionally long-polling consumption. Use `list_stream_messages` on `Client` or `AsyncClient` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `next_page_token` unchanged until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/python/dex_examples/primitives/stream/controller.py)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/python/dex_examples/primitives/stream/controller.py)
 <!-- dex-source: examples/python/dex_examples/primitives/stream/controller.py -->
 ```python
         page = await app_state.client.list_stream_messages(
@@ -66,7 +68,7 @@ The before-page token is exclusive and scope-bound. The first page uses an empty
 
 ## Client
 
-`Client` and `AsyncClient` own start/wait/stop, Channel publish, RPC, Stream read/list, Attributes, history, search, config, timers, and reset. Async calls must be awaited; sync calls must not run on an event loop thread. Use typed exceptions and explicit deadlines.
+`Client` and `AsyncClient` own Flow lifecycle, typed RPC invocation, Attribute-match waits, Stream reads/listing, history, search, config, timers, and reset. Read and write Flow-owned Attribute and Channel state through typed RPCs, not removed direct Client methods. Async calls must be awaited; sync calls must not run on an event loop thread. Use typed exceptions and explicit deadlines.
 
 ## Selection
 

@@ -13,11 +13,11 @@ Choose the primitive from the behavior the application needs, not from a preferr
 | Stream | `Stream.define` | Best-effort progress | Not authoritative state; clients resume with tokens |
 | Timer | `Timer.byDuration`, `Timer.byTimestamp` | Durable deadlines | Timer readiness is not a Java sleep |
 | SubFlow | `SubFlow.run` | Independently managed durable child work | Decide parent lifetime and cancellation explicitly |
-| Client | `Client` | Start, wait, publish, invoke, search, stop | Catch concrete SDK exceptions |
+| Client | `Client` | Lifecycle, RPCs, Attribute-match waits, Streams, search | Catch concrete SDK exceptions |
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java)
+[Pinned wait example](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java -->
 ```java
                 case "any":
@@ -40,7 +40,7 @@ Use condition IDs when code must distinguish winners, and for every condition in
 
 ## Durable state and locking
 
-[Pinned Attribute example](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java)
+[Pinned Attribute example](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java -->
 ```java
         @Override
@@ -56,11 +56,13 @@ Use condition IDs when code must distinguish winners, and for every condition in
 
 Locks coordinate only Steps and RPCs that request the same lock. They do not make external calls transactional. AttributeMap and ChannelMap instance names must be stable business keys.
 
+Pending-message reads inside a Step or RPC are invocation snapshots. Other handlers may consume, delete, or publish concurrently. Transactional execution validates selected deletions and commits writes atomically, but does not lock the whole snapshot. Read and write pending messages directly only when the operation explicitly tolerates that race. When a decision requires the queue to remain unchanged, every cooperating Step and RPC writer must use the same Attribute lock.
+
 ## Stream reads
 
 Use `Client.readStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.listStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `getNextPageToken()` unchanged until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java -->
 ```java
         final StreamMessagesPage<String> page = client.listStreamMessages(
@@ -78,4 +80,4 @@ Return `StepDecision.goTo`, `goToMany`, `gracefulComplete`, `forceComplete`, `fo
 
 ## Client interaction
 
-Use `startFlow` for a new execution, `waitForFlow` for terminal status, `publish` for a Channel, and a typed RPC stub for RPCs. Use bounded waits at service boundaries and continue polling after a long-poll timeout. `searchFlows` is for indexed discovery, not coordination.
+Use `startFlow` for a new execution, `waitForFlow` for terminal status, a typed RPC stub for Flow-owned Attribute and Channel state, and Attribute match for blocking observation. Direct Client state methods are not part of the application API. Use bounded waits at service boundaries and continue polling after a long-poll timeout. `searchFlows` is for indexed discovery, not coordination.

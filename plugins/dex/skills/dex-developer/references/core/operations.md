@@ -19,7 +19,7 @@ dexcli flow inspect <flow-id> --all-history
 
 ## Inspect pending Channel messages
 
-List a Channel's pending messages to obtain the current FIFO values and server-assigned IDs. An ID disappears once its message is consumed or deleted. If delete or transactional move returns Channel-message-not-found, treat the local view as stale, reload the queue, and let the user choose again.
+Invoke the application's typed snapshot RPC to obtain a Channel's current FIFO values and server-assigned IDs. An ID disappears once its message is consumed or deleted. If delete or transactional move returns Channel-message-not-found, treat the local view as stale, invoke the snapshot RPC again, and let the user choose again.
 
 Only pending Channel state is mutable through these operations. Editing a message means deleting it successfully and publishing a replacement with a new ID; it does not rewrite Flow history or application conversation Attributes.
 
@@ -37,7 +37,7 @@ Before a mutation:
 
 - resolve the current exact run
 - explain the expected state change
-- use the public Client or dexcli operation
+- use an application Flow RPC or an explicit dexcli operation
 - satisfy any explicit confirmation flag
 - re-inspect the Flow afterward
 

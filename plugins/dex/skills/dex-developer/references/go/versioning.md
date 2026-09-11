@@ -19,7 +19,7 @@ Additive fields with defaults are usually safer. Removing registered Steps, chan
 
 Deploy a Worker able to serve old and new runs, then move traffic deliberately. Updating a process does not replace durable execution state.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/flow/controller.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/go/primitives/flow/controller.go)
 <!-- dex-source: examples/go/primitives/flow/controller.go -->
 ```go
 func rerouteActiveFlow(ctx context.Context, client *sdk.Client, flowID string) error {

@@ -6,7 +6,7 @@ Read the core primitives guide first for product semantics. This page records th
 
 `Flow::StartInput` is the input accepted by `Client::start_flow`. `steps` returns the closed Step graph. A Step's WaitFor phase decides durable readiness; Execute performs side effects and returns the next graph movement. `Wait::until`, `any_of`, `all_of`, and `any_combination_of` compose Conditions. `Wait::skip_immediately` bypasses waiting.
 
-[Runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/rust/src/primitives/wait_types/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/rust/src/primitives/wait_types/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/wait_types/flow.rs -->
 ```rust
     fn wait_for(&self, _context: &mut Context, input: Self::Input) -> HandlerResult<Wait> {
@@ -53,7 +53,7 @@ Use `StepMovement::to_with_options` when one transition needs different options 
 
 An `Attribute<T>` stores one typed durable value. `AttributeMap<T>` stores independently addressable instances. Both belong in `PersistenceSchema`. Indexed attributes support Flow search; `sync_to_attribute_store` projects values into an Attribute Store configured by `FlowConfig`.
 
-[Runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/rust/src/primitives/attribute/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/rust/src/primitives/attribute/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/attribute/flow.rs -->
 ```rust
 static STATUS: LazyLock<Attribute<String>> = LazyLock::new(|| {
@@ -74,20 +74,39 @@ Call `get`, `set`, or `clear` through `&mut Context`. Load only the map instance
 
 Channels are durable message queues. `for_one` and `for_n` create wait Conditions; `publish` appends; `pending_messages`, `find_pending_message`, and `delete` support explicit queue management. A `ChannelMap<T>` partitions queues by instance key. Declare the definition before attaching instance loads.
 
-[Runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/rust/src/primitives/channel/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/rust/src/primitives/channel/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/channel/flow.rs -->
 ```rust
     fn rpcs(&self) -> RpcList<Self> {
         RpcList::new()
-            .procedure_without_input(CHANNEL_APPROVE, Self::approve)
+            .procedure_without_input(PUBLISH_APPROVAL_MESSAGE, Self::publish_approval_message)
+            .procedure(ENQUEUE_CHANNEL_MESSAGE, Self::enqueue_channel_message)
+            .function_without_input(
+                GET_QUEUED_MESSAGES.load_channel(&QUEUED_MESSAGES),
+                Self::get_queued_messages,
+            )
             .procedure(
-                CHANNEL_MOVE.is_transactional().load_channel(&QUEUED),
-                Self::move_message,
+                DELETE_QUEUED_MESSAGE
+                    .is_transactional()
+                    .load_channel(&QUEUED_MESSAGES),
+                Self::delete_queued_message,
+            )
+            .function_without_input(
+                GET_PRIORITIZED_MESSAGES.load_channel(&PRIORITIZED_MESSAGES),
+                Self::get_prioritized_messages,
+            )
+            .procedure(
+                MOVE_QUEUED_MESSAGE_TO_PRIORITIZED_MESSAGES
+                    .is_transactional()
+                    .load_channel(&QUEUED_MESSAGES),
+                Self::move_queued_message_to_prioritized_messages,
             )
     }
 ```
 
 Deleting and republishing is a transaction only when the RPC requests transactional execution. A Channel wait does not itself guarantee that a later Execute mutation is atomic with publication.
+
+Pending-message reads inside a Step or RPC are invocation snapshots. Other handlers may consume, delete, or publish concurrently. Transactional execution validates selected deletions and commits writes atomically, but does not lock the whole snapshot. Read and write pending messages directly only when the operation explicitly tolerates that race. When a decision requires the queue to remain unchanged, every cooperating Step and RPC writer must use the same Attribute lock.
 
 ## RPC
 
@@ -99,7 +118,7 @@ RPCs can declare locks, timeout, transactions, and selective loads. Treat an RPC
 
 `Stream<T>` is append-oriented output. Give it a maximum payload size and add it to `PersistenceSchema`. Text output can be buffered to avoid one remote write per fragment.
 
-[Runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/rust/src/primitives/stream/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/rust/src/primitives/stream/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/stream/flow.rs -->
 ```rust
         let progress = PROGRESS.buffered_text_with_options(
@@ -114,7 +133,7 @@ Buffered writes are asynchronous; use them for progress-like output, not as the 
 
 Use `Client::read_stream_with_timeout` for forward, one-at-a-time, long-polling consumption. Use `Client::list_stream_messages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `next_page_token` unchanged until it is empty.
 
-[Runnable listing source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/rust/src/primitives/stream/controller.rs)
+[Runnable listing source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/rust/src/primitives/stream/controller.rs)
 <!-- dex-source: examples/rust/src/primitives/stream/controller.rs -->
 ```rust
         client
@@ -134,4 +153,4 @@ The before-page token is exclusive and scope-bound. The first page uses an empty
 
 ## Client
 
-`Client` starts, stops, searches, and inspects Flows; invokes RPCs; publishes Channels; reads Channels and Attributes; waits for Flow or Step completion; and retrieves Stream output. Controllers should map `SdkError` explicitly and move blocking client calls off async executor threads. Use a unique Flow ID for each test or logical entity, and a stable request ID when retrying the same command.
+`Client` starts, stops, searches, and inspects Flows; invokes typed RPCs; waits for Attribute matches and Flow or Step completion; and retrieves Stream output. Read and write Flow-owned Attribute and Channel state through typed RPCs, not removed direct Client methods. Controllers should map `SdkError` explicitly and move blocking client calls off async executor threads. Use a unique Flow ID for each test or logical entity, and a stable request ID when retrying the same command.

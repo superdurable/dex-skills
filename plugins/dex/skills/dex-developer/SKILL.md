@@ -11,6 +11,7 @@ Build reliable applications through Dex's public programming model. Keep the use
 
 - Model behavior with Flows, Steps, Waits, Attributes, Channels, Streams, RPCs, Timers, SubFlows, Workers, and the Client.
 - Use Dex Web, dexcli, SDK errors, and application logs for inspection and recovery.
+- Use typed Flow RPCs as the application boundary for reading and writing Attributes, AttributeMaps, Channels, and ChannelMaps. Do not use removed Client state APIs. Attribute match remains the blocking observation API.
 - Do not expose Dex Server internals as application requirements. Discuss them only when the user explicitly asks to develop Dex itself.
 - Diagnose read-only by default. Do not stop, time travel, publish, invoke, delete, edit, or otherwise mutate a Flow unless the user authorizes it.
 
@@ -53,6 +54,8 @@ The language directory is the routing unit. Do not load all five languages.
 ## Model before implementation
 
 For non-trivial work, first state the Flow identity and lifecycle, typed start input and completion output, Steps and transitions, durable state, messages, synchronous RPCs, best-effort Streams, timers, retries, timeouts, recovery, and SubFlow boundaries.
+
+Name every RPC handler and explicit RPC with a concrete action verb. Use complete domain names such as `get_queued_messages` or `move_queued_message_to_prioritized_messages`, not noun-only names, placeholders, or generic names such as `Get`, `Update`, `Manager`, `Data`, or `Handler`. Apply the same preference for complete, precise names to APIs, interfaces, classes, types, methods, functions, fields, variables, and constants. Brevity is not a goal; a name should communicate its operation and subject at the call site or registration boundary.
 
 Keep external side effects in **Execute**. Use **WaitFor** to declare durable conditions and prepare wait-local state. Make every transition and terminal decision explicit. Treat each WaitFor, Execute, and RPC invocation as a separate commit boundary; external effects still require idempotency or compensation.
 

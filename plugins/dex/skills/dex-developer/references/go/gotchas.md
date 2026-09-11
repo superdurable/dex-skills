@@ -13,4 +13,4 @@
 - Validate map instance names: non-empty and no `/`.
 - Keep schema/Flow packages below registry composition to avoid import cycles; inject late Client providers.
 
-Prefer pinned [compile contracts](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/sdk-go/dex/contracts_test.go) and runnable examples over remembered names.
+Prefer pinned [compile contracts](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/sdk-go/dex/contracts_test.go) and runnable examples over remembered names.
