@@ -70,6 +70,8 @@ Use a Channel instead when the caller should enqueue work without synchronous ap
 
 Keep application read models cohesive. When one page needs conversation Attributes, a description, and pending queues, prefer one read-only snapshot RPC that explicitly loads those collections over several independently timed requests.
 
+When one response requires multiple Attributes or AttributeMap instances, assemble it in one dedicated read-only RPC rather than issuing sequential Client reads. Select only the required map instances so the invocation has one coherent read boundary and avoids repeated round trips. Keep separate views as separate RPCs; do not combine unrelated read models merely to reduce calls.
+
 Select transactional execution when an RPC must atomically validate a pending Channel message ID and commit its deletion with other Flow-state writes. Handle the Channel-message-not-found error as a stale queue view and refresh before retrying.
 
 Docs: https://docs.superdurable.io/primitives/rpc
