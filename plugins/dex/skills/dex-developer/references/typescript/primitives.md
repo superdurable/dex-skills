@@ -13,11 +13,11 @@ Choose primitives from the business behavior first, then encode them with the SD
 | Stream | `new Stream` | Best-effort progress | Not a source of truth |
 | Timer | `Timer.byDuration`, `Timer.byTimestamp` | Durable deadlines | Milliseconds are numbers; no event-loop timer survives Worker loss |
 | SubFlow | `SubFlow.run` | Durable child work | Parent/child lifetime is an application decision |
-| Client | Promise-returning `Client` methods | Start, wait, publish, invoke, search, stop | Await network operations and catch typed errors |
+| Client | Promise-returning `Client` methods | Lifecycle, RPCs, Attribute-match waits, Streams, search | Await network operations and catch typed errors |
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
+[Pinned wait example](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/wait-types/wait-types-flow.ts -->
 ```typescript
     if (input.mode === "any") {
@@ -44,7 +44,7 @@ Use `stringCodec`, `booleanCodec`, `int64Codec`, `doubleCodec`, `bytesCodec`, or
 
 Use `Client.readStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.listStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `nextPageToken` unchanged until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/typescript/src/primitives/stream/controller.ts)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/typescript/src/primitives/stream/controller.ts)
 <!-- dex-source: examples/typescript/src/primitives/stream/controller.ts -->
 ```typescript
     const page = await client.listStreamMessages(
@@ -59,20 +59,34 @@ The before-page token is exclusive and scope-bound. The first page uses an empty
 
 ## State, locks, and transaction
 
-[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/typescript/src/primitives/channel/channel-flow.ts)
+[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/typescript/src/primitives/channel/channel-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/channel/channel-flow.ts -->
 ```typescript
-  @rpc({ isTransactional: true, loadChannels: [queued], inputCodec: moveMessageCodec })
-  public move(context: Context, message: MoveMessage): void {
-    const messageToMove = queued.findPendingMessage(context, message.messageId);
-    queued.delete(context, message.messageId);
-    if (messageToMove !== undefined) {
-      moved.publish(context, messageToMove.value);
+  @rpc({
+    isTransactional: true,
+    loadChannels: [queuedMessages],
+    inputCodec: queuedMessageReferenceCodec,
+  })
+  public moveQueuedMessageToPrioritizedMessages(
+    context: Context,
+    queuedMessage: QueuedMessageReference,
+  ): void {
+    const messageToPrioritize = queuedMessages.findPendingMessage(
+      context,
+      queuedMessage.messageId,
+    );
+    queuedMessages.delete(context, queuedMessage.messageId);
+    if (messageToPrioritize !== undefined) {
+      prioritizedMessages.publish(context, messageToPrioritize.value);
     }
   }
 ```
 
 Staged Attribute and Channel mutations commit with a successful handler result. An exception discards that attempt's mutations. Locks coordinate only handlers requesting the same lock; external effects still need idempotency.
+
+Pending-message reads inside a Step or RPC are invocation snapshots. Other handlers may consume, delete, or publish concurrently. Transactional execution validates selected deletions and commits writes atomically, but does not lock the whole snapshot. Read and write pending messages directly only when the operation explicitly tolerates that race. When a decision requires the queue to remain unchanged, every cooperating Step and RPC writer must use the same Attribute lock.
+
+Use typed RPCs for application reads and writes of Flow-owned Attribute and Channel state. Direct Client state methods are not part of the application API. Attribute match remains the blocking observation surface.
 
 ## Decisions
 

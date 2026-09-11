@@ -46,7 +46,7 @@ Use a Channel for ordered, durable, typed messages scoped to one Flow execution.
 
 Use a ChannelMap when the same message contract is partitioned by a dynamic key. Plan how externally published messages are drained before Flow completion.
 
-Every pending Channel message has a server-assigned message ID. List pending messages when an application needs a durable queue UI. Listing preserves FIFO order and does not consume messages. Only a pending message can be deleted; deletion after consumption returns the Channel-message-not-found error.
+Every pending Channel message has a server-assigned message ID. Expose a typed Flow RPC when an application needs a durable queue UI. The RPC explicitly loads and lists pending messages in FIFO order without consuming them. Only a pending message can be deleted; deletion after consumption returns the Channel-message-not-found error.
 
 Steps, timeout handlers, and RPCs always receive ChannelInfo sizes, so Channel size and ChannelMap keys and sizes do not require a load. Reading pending message envelopes requires an explicit Channel or ChannelMap load. Load the whole ChannelMap or exact instances according to what the handler reads. A loaded empty queue is empty; reading an unloaded queue is a usage error.
 
@@ -58,13 +58,15 @@ Use a transactional RPC to move or edit a pending message atomically. The caller
 
 Attribute locking already selects transactional execution. Channel deletion without an Attribute lock must explicitly select the SDK's transactional RPC option. Transactional validation protects an ID-only move from concurrent consumption, but it does not isolate decisions based on the whole snapshot. For those decisions, every cooperating Step and RPC writer must use the same Attribute lock. The lock does not implicitly load map entries or Channel messages.
 
+Treat pending-message reads inside Steps and RPCs as potentially stale snapshots. Other handlers can consume, delete, or publish while the current handler runs. Read and write pending messages directly only when the operation explicitly tolerates that race. If the result depends on the queue remaining unchanged, use one shared Attribute lock across every cooperating Step and RPC writer; transactional execution alone is insufficient.
+
 Without transactional execution, a missing deletion may be a no-op while other RPC effects commit. When a deployment cannot provide the required atomic guarantee, reconcile from a fresh pending-message list.
 
 Docs: https://docs.superdurable.io/primitives/channel
 
 ## RPC
 
-Use an RPC for a typed request/response interaction with an active Flow. RPC handlers may read or update Attributes and publish Channels. Protect shared mutations with Attribute locks when they can race with Steps or other RPCs.
+Use an RPC for every application read or write of Flow-owned Attribute, AttributeMap, Channel, or ChannelMap state. RPC handlers may return snapshots, update or delete Attributes, and publish, list, move, or delete pending Channel messages. Protect shared mutations with Attribute locks when they can race with Steps or other RPCs.
 
 Use a Channel instead when the caller should enqueue work without synchronous application-level handling.
 
@@ -114,6 +116,6 @@ Docs: https://docs.superdurable.io/primitives/subflow
 
 ## Client
 
-Use the Client at application boundaries to start, stop, inspect, search, and interact with Flows. Handle typed SDK failures for duplicate starts, missing Flows, closed Flows, long-poll expiry, and uncompleted closure.
+Use the Client at application boundaries to start, stop, inspect, search, invoke typed Flow RPCs, wait for Attribute matches, consume Streams, and manage Flow lifecycle. Do not model application state access with removed direct Attribute or Channel Client methods. Handle typed SDK failures for duplicate starts, missing Flows, closed Flows, lock conflicts, missing messages, long-poll expiry, and uncompleted closure.
 
 Docs: https://docs.superdurable.io/primitives/client

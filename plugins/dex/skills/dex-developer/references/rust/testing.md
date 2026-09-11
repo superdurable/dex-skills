@@ -6,7 +6,7 @@ Prefer integration tests against a real Dex Server. Unit tests can validate pure
 
 Start `dexcli dev`, build the same Registry used by production, create a temporary BlobCache, bind the Worker to a free address, and run it on a dedicated thread. Construct a Client with the same Worker target. Stop and join the Worker and close the cache during teardown.
 
-[Integration source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/rust/tests/dex_integration.rs)
+[Integration source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/rust/tests/dex_integration.rs)
 <!-- dex-source: examples/rust/tests/dex_integration.rs -->
 ```rust
         let client = Client::try_new(
@@ -26,7 +26,7 @@ Use `tempfile::TempDir` for BlobCache isolation and ask the OS for a free Worker
 
 Poll observable Dex state until a short deadline. Do not use a fixed sleep as the assertion mechanism; scheduling and retries are asynchronous.
 
-[Integration source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/rust/tests/dex_integration.rs)
+[Integration source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/rust/tests/dex_integration.rs)
 <!-- dex-source: examples/rust/tests/dex_integration.rs -->
 ```rust
     fn await_engagement_status(&self, flow_id: &str, expected: &str) -> EngagementStatus {
@@ -34,7 +34,7 @@ Poll observable Dex state until a short deadline. Do not use a fixed sleep as th
         while Instant::now() < deadline {
             let status = self
                 .client
-                .invoke_rpc_without_input(flow_id, ENGAGEMENT_DESCRIBE)
+                .invoke_rpc_without_input(flow_id, DESCRIBE_ENGAGEMENT)
                 .expect("describe Rust Engagement Flow");
             if status.status == expected {
                 return status;
@@ -64,7 +64,7 @@ For a nontrivial Flow, cover:
 
 ## Client and persistence assertions
 
-Read state through public Client APIs. The baseline test for Channel moves asserts source ordering, deletion by `message_id`, destination publication, and the typed missing-message error. Use the same style for Attribute, ChannelMap, RPC, and Stream behavior. Avoid reaching into Dex Server storage.
+Read Flow-owned state through typed application RPCs. The baseline test for Channel moves asserts source ordering, deletion by `message_id`, destination publication, and the typed missing-message error. Use the same style for Attribute, ChannelMap, RPC, and Stream behavior. Avoid removed direct Client state methods and Dex Server storage.
 
 ## Registry and compile contracts
 

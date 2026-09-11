@@ -1,6 +1,6 @@
 # Java handbook
 
-Use this page first for Java application work. Then load the topic page that matches the task. The [baseline build](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/build.gradle) uses `io.superdurable:dex-sdk:0.5.0`, Spring Boot, and JDK 17 or newer. The application's Gradle or Maven lockfile remains authoritative.
+Use this page first for Java application work. Then load the topic page that matches the task. The [baseline build](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/java/build.gradle) uses `io.superdurable:dex-sdk:0.6.0`, Spring Boot, and JDK 17 or newer. The application's Gradle or Maven lockfile remains authoritative.
 
 ## Project shape
 
@@ -10,7 +10,7 @@ The official example layout separates `products/`, `patterns/`, `primitives/`, a
 
 ## Minimal Flow
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java -->
 ```java
 @Component
@@ -34,7 +34,7 @@ public class ExampleFlow implements Flow<Integer> {
 
 A Flow returns its complete Step registry once. The first Step input type must match `Flow<I>`. All persisted definitions belong in `getPersistenceSchema()`.
 
-[Pinned Step source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
+[Pinned Step source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java -->
 ```java
     final class ExampleStep implements Step<Integer> {
@@ -58,7 +58,7 @@ A Flow returns its complete Step registry once. The first Step input type must m
 
 ## Registry, Worker, and Client
 
-[Pinned bootstrap source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
+[Pinned bootstrap source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java -->
 ```java
     @Bean
@@ -75,7 +75,7 @@ A Flow returns its complete Step registry once. The first Step input type must m
 
 Create the Worker before the Client so the Client can use `worker.getWorkerTarget()`. Start the blocking Worker on a managed thread and close Worker, Client, and BlobCache during application shutdown. Do not create a cache per request.
 
-Add `io.superdurable:dex-sdk:<resolved-version>` to Gradle or Maven. Application adapters call the injected Client to start a registered Flow, publish Channels, invoke an RPC stub, or wait for terminal status.
+Add `io.superdurable:dex-sdk:<resolved-version>` to Gradle or Maven. Application adapters call the injected Client to start a registered Flow, invoke typed RPC stubs for Flow-owned state, wait for Attribute matches, or wait for terminal status.
 
 ## Run locally
 

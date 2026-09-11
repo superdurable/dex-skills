@@ -2,6 +2,14 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.5.0 - 2026-09-11
+
+- Make typed Flow RPCs the application boundary for Attribute, AttributeMap, Channel, and ChannelMap reads and writes.
+- Retain Attribute match as the blocking observation API while removing guidance for deleted Client state APIs.
+- Require action-verb RPC names and complete, precise names across application-facing definitions.
+- Warn that Step and RPC pending-message snapshots can race with concurrent Channel mutations.
+- Pin runnable examples to Dex commit `24f3a42a` and SDK releases 0.6.0, with Go at 0.6.1.
+
 ## 0.4.1 - 2026-09-10
 
 - Prefer dedicated read-only RPCs for responses that combine multiple Attributes or AttributeMap instances.

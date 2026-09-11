@@ -6,7 +6,7 @@ Read core primitive semantics first. This page supplies Go API shapes at the pin
 
 A Flow implements `dex.Flow`; embedding `dex.FlowDefaults` supplies optional behavior. Register the start Step with `dex.DefineStartStep` and every reachable Step with `dex.DefineStep`. Embed `dex.StepDefaultsNoWaitFor[T]` when there is no WaitFor; otherwise implement both methods.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/flow/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/go/primitives/flow/workflow.go)
 <!-- dex-source: examples/go/primitives/flow/workflow.go -->
 ```go
 func (ExampleStep) WaitFor(ctx dex.Context, _ int) (*dex.Wait, error) {
@@ -27,7 +27,7 @@ Use `GoTo`, `GoToMany`, or `DeadEnd` to keep work open. Graceful completion wait
 
 `dex.Until(condition)` waits for one condition; `AllOf` and `AnyOf` combine conditions. Timers are durable conditions, not sleeps inside Execute.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/timer/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/go/primitives/timer/workflow.go)
 <!-- dex-source: examples/go/primitives/timer/workflow.go -->
 ```go
 func (timerStep) WaitFor(_ dex.Context, input int) (*dex.Wait, error) {
@@ -45,14 +45,16 @@ Define typed state at package scope with `DefineAttribute[T]` or `DefineAttribut
 
 ## Channel and ChannelMap
 
-Channels are durable queues. `ForOne` and `ForN` create conditions; after firing, read condition results and delete/move messages deliberately. ChannelMap separates queues by validated instance name. External producers use Client; Flow-local RPCs publish through context.
+Channels are durable queues. `ForOne` and `ForN` create conditions; after firing, read condition results and delete/move messages deliberately. ChannelMap separates queues by validated instance name. External callers invoke a typed Flow RPC; its handler publishes through Context.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/channel/workflow.go)
+Pending-message reads inside a Step or RPC are invocation snapshots. Other handlers may consume, delete, or publish concurrently. Transactional execution validates selected deletions and commits writes atomically, but does not lock the whole snapshot. Read and write pending messages directly only when the operation explicitly tolerates that race. When a decision requires the queue to remain unchanged, every cooperating Step and RPC writer must use the same Attribute lock.
+
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/go/primitives/channel/workflow.go)
 <!-- dex-source: examples/go/primitives/channel/workflow.go -->
 ```go
 func (channelWaitStep) WaitFor(_ dex.Context, input int) (*dex.Wait, error) {
 	return dex.AnyOf(
-		Approval.ForOne(),
+		ApprovalMessages.ForOne(),
 		dex.Timer(time.Duration(input)*time.Second),
 	), nil
 }
@@ -66,7 +68,7 @@ An exported Flow method shaped `(dex.Context, Input) (*dex.RPCResult[Output], er
 
 Define a Stream with a byte limit and register it. A Step writes ordered progress; consumers resume from the Client token. A Stream is a feed, not authoritative state.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/stream/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/go/primitives/stream/workflow.go)
 <!-- dex-source: examples/go/primitives/stream/workflow.go -->
 ```go
 var Progress = dex.DefineStream[string]("Progress", 10<<20)
@@ -78,7 +80,7 @@ type StreamFlow struct {
 
 Use `Client.ReadStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.ListStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `NextPageToken` unchanged to the next call until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/go/primitives/stream/controller.go)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/go/primitives/stream/controller.go)
 <!-- dex-source: examples/go/primitives/stream/controller.go -->
 ```go
 	var page sdk.StreamMessagesPage[string]
@@ -96,7 +98,7 @@ The before-page token is exclusive and scope-bound. The first page uses an empty
 
 ## SubFlow and Client
 
-`dex.SubFlow(child, input)` is a parent-owned Wait condition. Register parent and child, and explicitly model what parent completion means for unfinished children. Client owns external start, wait, stop, Channel, RPC, Stream, Attribute, history, search, config, timer, and reset operations. Always pass a bounded context and match typed errors with `errors.As`.
+`dex.SubFlow(child, input)` is a parent-owned Wait condition. Register parent and child, and explicitly model what parent completion means for unfinished children. Client owns Flow lifecycle, typed RPC invocation, Attribute-match waits, Stream operations, history, search, config, timers, and reset. Read and write Flow-owned Attribute and Channel state through typed RPCs, not removed direct Client methods. Always pass a bounded context and match typed errors with `errors.As`.
 
 ## Selection rule
 

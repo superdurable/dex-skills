@@ -19,7 +19,7 @@ Dataclass field additions with defaults are safer than removals/type changes. Ne
 
 Deploy a Worker capable of old/new runs, then update Worker target deliberately. Choose ID reuse and ignore-already-started as business semantics. Test active and closed prior IDs.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/ffe799a3bc22b373e8c952f4bb9eb79cc302bc34/examples/python/dex_examples/primitives/flow/controller.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/python/dex_examples/primitives/flow/controller.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/controller.py -->
 ```python
 async def reroute_active_flow(client: AsyncClient, flow_id: str) -> None:
