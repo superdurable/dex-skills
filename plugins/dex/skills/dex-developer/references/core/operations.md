@@ -1,6 +1,6 @@
 # Production operations
 
-Use this guide after read-only diagnosis identifies a specific Flow and operation. Read [testing.md](testing.md) for verification scenarios and [troubleshooting.md](troubleshooting.md) for diagnostic routing.
+Use this guide for Dex Server deployment, production inspection, and authorized recovery. Read [testing.md](testing.md) for verification scenarios and [troubleshooting.md](troubleshooting.md) for diagnostic routing.
 
 ## Diagnostic order
 
@@ -28,6 +28,53 @@ Use a transactional RPC when deletion must commit atomically with a replacement 
 For an application queue UI, prefer one application snapshot RPC that returns durable conversation state, description, and loaded pending queues together. Refresh that snapshot after mutations and live events, on focus or reconnect, and periodically at low frequency. Keep optimistic items only as a short bridge; the snapshot is canonical.
 
 Use **dexcli flow search**, **summary**, **state**, and **history** for narrower JSON output. Use **--no-hydrate** when payload contents are unnecessary or sensitive.
+
+## Deploy Dex Server components
+
+The `dex-server` image starts Web, API, and Interpreter in one OS process by default. It serves FlowService gRPC on port 8801 and Dex Web HTTP on port 8802.
+
+Use `dex-server start --services <selection>` to scale components independently. The selection must be a nonempty comma-separated combination of `web`, `api`, and `interpreter`:
+
+```bash
+dex-server start --services web
+dex-server start --services api
+dex-server start --services interpreter
+dex-server start --services web,api
+```
+
+Web-only does not initialize storage, Temporal, Cadence, the index synchronizer, or the Interpreter. Configure its remote API target in YAML:
+
+```yaml
+web:
+  bindAddress: 0.0.0.0
+  port: 8802
+  flowServiceTarget: dex-api:8801
+  flowRenderingDirectory: ""
+```
+
+When `web.flowServiceTarget` is empty, Web connects to `localhost:<api.port>`. The connection uses plaintext gRPC and `api.grpcMaxMessageBytes`. Put TLS, authentication, and network policy at the deployment boundary.
+
+`/healthz` reports Web process liveness, not upstream API readiness. Web starts while FlowService is unavailable; `/api/*` returns the existing mapped gRPC error until the API recovers.
+
+For Interpreter-only deployments, point `interpreter.interpreterActivityConfig.internalServiceTarget` at the API service. Scale Web, API, and Interpreter replicas according to HTTP traffic, FlowService traffic, and execution load respectively.
+
+```yaml
+interpreter:
+  interpreterActivityConfig:
+    internalServiceTarget: dex-api:8801
+```
+
+API and Interpreter replicas must use the same intended Temporal namespace or Cadence domain and compatible production storage configuration.
+
+When multiple Server processes use Streams, configure a shared Redis 7+ backend. The in-memory backend is only for one process:
+
+```yaml
+streamStore:
+  backend: redis
+  redisURL: redis://redis:6379/0
+```
+
+Configure Redis with `noeviction` so capacity pressure becomes a visible Stream write failure. If Blob Store is enabled, use the same durable object-store configuration across API and Interpreter replicas; do not rely on pod-local blob directories.
 
 ## Safe recovery
 

@@ -2,6 +2,16 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.6.0 - 2026-09-12
+
+- Document the Dex Server image's default single-process Web, API, and Interpreter topology.
+- Explain independent component deployment with `start --services` and Web-only remote FlowService configuration.
+- Clarify Web liveness, upstream recovery, plaintext gRPC, ports, and split Interpreter-to-API wiring.
+- Route deployment questions explicitly and distinguish reusable public test bootstrap from repository-only fixtures.
+- Cover shared Redis and Blob Store requirements for replicated Server components.
+- Tighten manual-command idempotency and Rust revision/recovery composition after isolated language evaluations.
+- Pin runnable sources to Dex commit `a1f5f538`.
+
 ## 0.5.2 - 2026-09-11
 
 - Prefer direct Flow-first orchestration for multi-step API mutations over database outbox dispatchers and generic event-driven coordinators.
