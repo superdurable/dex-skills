@@ -17,7 +17,7 @@ Choose primitives from the business behavior first, then encode them with the SD
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
+[Pinned wait example](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/wait-types/wait-types-flow.ts -->
 ```typescript
     if (input.mode === "any") {
@@ -44,7 +44,7 @@ Use `stringCodec`, `booleanCodec`, `int64Codec`, `doubleCodec`, `bytesCodec`, or
 
 Use `Client.readStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.listStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `nextPageToken` unchanged until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/typescript/src/primitives/stream/controller.ts)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/examples/typescript/src/primitives/stream/controller.ts)
 <!-- dex-source: examples/typescript/src/primitives/stream/controller.ts -->
 ```typescript
     const page = await client.listStreamMessages(
@@ -59,7 +59,7 @@ The before-page token is exclusive and scope-bound. The first page uses an empty
 
 ## State, locks, and transaction
 
-[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/typescript/src/primitives/channel/channel-flow.ts)
+[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/examples/typescript/src/primitives/channel/channel-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/channel/channel-flow.ts -->
 ```typescript
   @rpc({

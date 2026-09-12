@@ -18,7 +18,7 @@ At shutdown, stop the Worker, join its thread, and close BlobCache. A panic in t
 
 Heartbeat long-running Execute work at bounded intervals. On retry, resume from the last heartbeat value. Check cancellation during the same loop.
 
-[Runnable source](https://github.com/superdurable/dex/blob/24f3a42a81d6c8a3cf932f259c2abdfb6479bdb8/examples/rust/src/primitives/heartbeat/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/examples/rust/src/primitives/heartbeat/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/heartbeat/flow.rs -->
 ```rust
         let completed_batches = context.last_heartbeat_value::<i32>()?.unwrap_or_default();
