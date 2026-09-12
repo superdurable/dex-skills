@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.5.1 - 2026-09-11
+
+- Clarify that `Execute` and `WaitFor` are Flow-modeling phases rather than SDK capability boundaries.
+- Allow safely retried provider queries or mutations in either phase when they establish or reconcile a transition.
+- Explain when a provider action merits its own Step checkpoint, retry policy, recovery route, or audit boundary.
+
 ## 0.5.0 - 2026-09-11
 
 - Make typed Flow RPCs the application boundary for Attribute, AttributeMap, Channel, and ChannelMap reads and writes.
