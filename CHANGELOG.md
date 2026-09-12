@@ -2,6 +2,11 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.5.2 - 2026-09-11
+
+- Prefer direct Flow-first orchestration for multi-step API mutations over database outbox dispatchers and generic event-driven coordinators.
+- Retain domain data and read projections in the database while Dex owns durable execution, retries, waits, recovery, and cleanup.
+
 ## 0.5.1 - 2026-09-11
 
 - Clarify that `Execute` and `WaitFor` are Flow-modeling phases rather than SDK capability boundaries.
