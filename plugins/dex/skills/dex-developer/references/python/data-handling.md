@@ -8,6 +8,6 @@ Map instance names are non-empty and contain no `/`. Select exact instances for 
 
 Use Stream for incremental output and Attribute for authoritative latest state. Persist read tokens. Buffered text adds a flush boundary; async writer `write` is synchronous while `context.heartbeat` is awaited. A sync buffered writer produces outputs that must be yielded.
 
-Share one BlobCache with Client and Worker for large payloads. Capacity/path are deployment concerns. BlobCache is payload locality, not general durable filesystem state. See pinned [async composition](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/examples/python/dex_examples/app.py) and [SDK guide](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/sdk-python/README.md).
+Share one BlobCache with Client and Worker for large payloads. Capacity/path are deployment concerns. BlobCache is payload locality, not general durable filesystem state. See pinned [async composition](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/examples/python/dex_examples/app.py) and [SDK guide](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/sdk-python/README.md).
 
 For incompatible serialization changes, introduce a new Flow/Step type and keep old definitions until open runs drain.

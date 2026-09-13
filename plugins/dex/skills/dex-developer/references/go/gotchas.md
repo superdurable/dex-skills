@@ -12,5 +12,6 @@
 - Give Client operations deadlines; long-poll expiry is not Flow failure.
 - Validate map instance names: non-empty and no `/`.
 - Keep schema/Flow packages below registry composition to avoid import cycles; inject late Client providers.
+- Temporal Cloud API-key deployments require externally provisioned indexes and `attributeIndexesManagedExternally: true`.
 
-Prefer pinned [compile contracts](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/sdk-go/dex/contracts_test.go) and runnable examples over remembered names.
+Prefer pinned [compile contracts](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/sdk-go/dex/contracts_test.go) and runnable examples over remembered names.

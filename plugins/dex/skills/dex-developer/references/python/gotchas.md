@@ -14,5 +14,6 @@
 - Map instance names are non-empty and contain no `/`.
 - Long-poll timeout is not Flow failure.
 - Graceful and force terminal decisions have different branch/cancellation behavior.
+- Temporal Cloud API-key deployments require externally provisioned indexes and `attributeIndexesManagedExternally: true`.
 
-Use the pinned [typecheck contracts](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/sdk-python/tests/typecheck_contracts.py) and runnable examples rather than remembered names.
+Use the pinned [typecheck contracts](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/sdk-python/tests/typecheck_contracts.py) and runnable examples rather than remembered names.

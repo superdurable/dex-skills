@@ -19,5 +19,6 @@
 - Close Client/Worker asynchronously, then close BlobCache.
 - Catch exported SDK errors, not `error.message` text.
 - Avoid `void somePromise` unless rejection ownership is explicit.
+- Temporal Cloud API-key deployments require externally provisioned indexes and `attributeIndexesManagedExternally: true`.
 
 When API shape is uncertain, inspect installed declarations and the pinned SDK source before writing code.
