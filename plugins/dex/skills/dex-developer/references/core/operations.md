@@ -66,6 +66,29 @@ interpreter:
 
 API and Interpreter replicas must use the same intended Temporal namespace or Cadence domain and compatible production storage configuration.
 
+### Temporal Cloud attribute indexes
+
+Temporal Cloud API-key clients cannot call the Operator Service methods that
+discover and create Search Attributes. Provision the following Dex system
+indexes through the Temporal Cloud control plane before starting Dex:
+
+- `FlowType`: Keyword
+- `DexParentFlowID`: Keyword
+- `ActiveStepTypes`: KeywordList
+
+Provision every indexed application Attribute before its Worker starts. Then
+configure every Dex Server process that uses the namespace:
+
+```yaml
+interpreter:
+  attributeIndexesManagedExternally: true
+```
+
+This mode validates application declarations but deliberately does not discover,
+create, or verify indexes. A missing or incorrectly typed index therefore fails
+when Temporal first uses it; treat Cloud provisioning and Worker startup as one
+deployment contract.
+
 When multiple Server processes use Streams, configure a shared Redis 7+ backend. The in-memory backend is only for one process:
 
 ```yaml

@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.6.1 - 2026-09-13
+
+- Document externally managed attribute indexes for Temporal Cloud API-key deployments.
+- Require the three Dex system indexes and every indexed application Attribute to be provisioned before startup.
+- Pin runnable sources to Dex commit `1f85cb52`.
+
 ## 0.6.0 - 2026-09-12
 
 - Document the Dex Server image's default single-process Web, API, and Interpreter topology.

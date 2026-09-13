@@ -10,7 +10,7 @@ Declare Attribute/map-instance locks for conflicting handlers. Lock narrowly; ke
 
 A synchronous streaming Execute yields all `StepOutput` values and returns the decision. An async Execute returns a decision and awaits heartbeat. Buffered Stream `write` is synchronous in async code.
 
-[Pinned SDK contract](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/sdk-python/tests/typecheck_contracts.py)
+[Pinned SDK contract](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/sdk-python/tests/typecheck_contracts.py)
 <!-- dex-source: sdk-python/tests/typecheck_contracts.py -->
 ```python
 class StreamingStep(Step[Input]):
@@ -31,7 +31,7 @@ class StreamingStep(Step[Input]):
 
 Set heartbeat timeout for long work. Decode a prior checkpoint only when present, resume from externally committed progress, and keep emitting. Cancellation is cooperative; check `context.is_cancellation_requested()` in bounded loops and cancel external awaits safely.
 
-Sync durability waits for persistence acknowledgement. Async can replay recently acknowledged attempts; use only for idempotent work and test replay. See [durability runnable](https://github.com/superdurable/dex/blob/a1f5f538f021666a8d9fee630af8580a20c313c0/examples/python/dex_examples/primitives/durability/durability_flow.py).
+Sync durability waits for persistence acknowledgement. Async can replay recently acknowledged attempts; use only for idempotent work and test replay. See [durability runnable](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/examples/python/dex_examples/primitives/durability/durability_flow.py).
 
 ## Timeout handler and BlobCache
 
