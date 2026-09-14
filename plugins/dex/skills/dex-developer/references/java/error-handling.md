@@ -14,7 +14,7 @@ Use `StepDecision.forceFail(detail)` for a deliberate terminal failed outcome, `
 
 ## Client exceptions
 
-Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation targeted a closed Flow. Durable Step and Attribute waits automatically reattach transport long polls with their required Request ID. `WaitHandlerTimeoutException` means their caller-supplied total handler budget expired; it does not mean the Flow failed. Treat authentication, connectivity, and serialization exceptions separately; do not branch on message text or diagnostic sub-status.
+Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation targeted a closed Flow. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. Treat authentication, connectivity, and serialization exceptions separately; do not branch on message text or diagnostic sub-status.
 
 ## Recovery checklist
 
@@ -25,7 +25,7 @@ Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundExcepti
 - Test both `waitFor` and `execute` exhaustion when both are configured.
 - Never use a recovery Step as a generic exception sink.
 
-[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/9d4463419451b60e947809577fbe00fae0be8024/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
+[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/2f5b765a0396cd487f67b20ef2f7e7bef0c1a748/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java -->
 ```java
                 if (context.isCancellationRequested()) {

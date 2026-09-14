@@ -2,6 +2,13 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.7.1 - 2026-09-14
+
+- Document server-derived namespaced Request IDs for Step and Attribute waits.
+- Document automatic `-N` generations after a durable wait handler times out.
+- Clarify optional maximum waits and actual matched Attribute values.
+- Pin runnable sources to Dex commit `2f5b765a`.
+
 ## 0.7.0 - 2026-09-14
 
 - Document durable Step and Attribute waits with required caller-owned Request IDs.

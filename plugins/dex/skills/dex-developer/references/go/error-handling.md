@@ -4,13 +4,13 @@
 
 Application errors from WaitFor, Execute, RPC, and timeout handlers drive configured retry/recovery. Typed Client errors describe Dex outcomes. Context/transport errors describe caller cancellation or connectivity. Keep these layers distinct.
 
-Use `errors.As` for `*dex.FlowNotFoundError`, `*dex.FlowNotActiveError`, `*dex.FlowAlreadyStartedError`, `*dex.LongPollTimeoutError`, `*dex.WaitHandlerTimeoutError`, and `*dex.FlowUncompletedError`. Durable Step and Attribute waits hide retryable transport long-poll expiry by reattaching with the required Request ID. `WaitHandlerTimeoutError` means their caller-supplied total handler budget expired. Keep `ServiceError.SubStatus` for diagnostics; never parse strings.
+Use `errors.As` for `*dex.FlowNotFoundError`, `*dex.FlowNotActiveError`, `*dex.FlowAlreadyStartedError`, `*dex.LongPollTimeoutError`, `*dex.WaitHandlerTimeoutError`, and `*dex.FlowUncompletedError`. Durable Step and Attribute waits hide retryable transport long-poll expiry by reattaching with the effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutError` means the configured total handler budget expired. Keep `ServiceError.SubStatus` for diagnostics; never parse strings.
 
 ## Retry ownership
 
 Return an error when Step options should decide retry. Use `dex.RetryAfter` only when the application knows a meaningful delay. Never add an in-memory retry loop around Step work; it disappears with the Worker and hides attempts.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/9d4463419451b60e947809577fbe00fae0be8024/examples/go/patterns/polling/backoff.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/2f5b765a0396cd487f67b20ef2f7e7bef0c1a748/examples/go/patterns/polling/backoff.go)
 <!-- dex-source: examples/go/patterns/polling/backoff.go -->
 ```go
 	result, err := step.service.AttemptExternalAPICall("Poll for BackoffPollingFlow")

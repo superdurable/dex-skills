@@ -10,7 +10,7 @@ Use Step/RPC load options for AttributeMap instances, Channels, and ChannelMaps.
 
 ## Buffered Streams
 
-[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/9d4463419451b60e947809577fbe00fae0be8024/examples/typescript/src/primitives/stream/stream-flow.ts)
+[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/2f5b765a0396cd487f67b20ef2f7e7bef0c1a748/examples/typescript/src/primitives/stream/stream-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/stream/stream-flow.ts -->
 ```typescript
   public async execute(context: Context, input: string): Promise<StepDecision> {

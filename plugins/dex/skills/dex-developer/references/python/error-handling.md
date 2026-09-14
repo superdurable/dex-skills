@@ -2,7 +2,7 @@
 
 Application exceptions from `wait_for`, `execute`, RPC, and timeout handlers drive configured retry/recovery. Typed Dex exceptions describe service outcomes; `asyncio` cancellation/timeouts and transport failures describe caller/runtime conditions.
 
-Catch precise exceptions such as `FlowNotFoundError`, `FlowNotActiveError`, `FlowAlreadyStartedError`, `LongPollTimeoutError`, `WaitHandlerTimeoutError`, `FlowUncompletedError`, `RpcLockConflictError`, and not-loaded errors. Durable Step and Attribute waits automatically reattach retryable transport long polls with their required Request ID. `WaitHandlerTimeoutError` means the caller-supplied total handler budget expired. Do not parse messages. Let unexpected defects retain tracebacks.
+Catch precise exceptions such as `FlowNotFoundError`, `FlowNotActiveError`, `FlowAlreadyStartedError`, `LongPollTimeoutError`, `WaitHandlerTimeoutError`, `FlowUncompletedError`, `RpcLockConflictError`, and not-loaded errors. Durable Step and Attribute waits automatically reattach retryable transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutError` means the configured total handler budget expired. Do not parse messages. Let unexpected defects retain tracebacks.
 
 Return/raise so Step retry owns retries. Use the SDK retry-after mechanism only with a meaningful delay. Never wrap durable Step work in an in-memory retry loop.
 

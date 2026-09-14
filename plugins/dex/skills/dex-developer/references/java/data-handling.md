@@ -16,7 +16,7 @@ Locks provide cooperation among handlers using the same lock. Mark an RPC transa
 
 Share one disk `BlobCache` between Worker and Client and size it for active payload locality. Blob storage makes large values feasible; it does not make repeatedly rewriting a growing aggregate cheap. Prefer an AttributeMap for independently updated records, Channels for durable queues, and Streams for best-effort deltas.
 
-[Pinned cache construction](https://github.com/superdurable/dex/blob/9d4463419451b60e947809577fbe00fae0be8024/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
+[Pinned cache construction](https://github.com/superdurable/dex/blob/2f5b765a0396cd487f67b20ef2f7e7bef0c1a748/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java -->
 ```java
         return BlobCache.open(new BlobCacheConfig(blobCacheDir, 1L << 30));
