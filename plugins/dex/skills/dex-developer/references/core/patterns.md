@@ -70,6 +70,10 @@ Initialize the revision to zero. Every Step and RPC that advances the represente
 
 Call **WaitForAttributeMatch** with greater-than and the last observed revision. The wait returns the current matched revision; use that value as the next watermark, then call the application's Describe or read RPC. A rapid `0 → 1 → 2 → 3` transition may return `3` from one wait for greater than `0`. This is coalescing, not an event stream, and it does not expose history, run IDs, or Temporal event IDs.
 
+Request IDs are optional for both waits. Step completion derives `wait-for-step-completion:<StepExecutionID>`. Attribute matching derives `wait-for-attribute:<AttributeName><Condition>` from the exact predicate. The SDK automatically reattaches transport long polls with the effective ID, so one logical handler wait remains one accepted Temporal Update rather than creating an Update for every transport window. An explicit Request ID overrides the derived value and must identify only that logical wait.
+
+The maximum wait time controls the accepted durable handler across reattachments and Continue-as-New. It is separate from a caller context, HTTP deadline, or transport long poll. Leave it at zero for ordinary waits: a few distinct waits on one active Flow can remain durable indefinitely, and identical logical waits reuse one Update ID. Set a positive value only when dynamic predicates, many concurrent consumers, abandoned callers, or conditions that may never match could exhaust that Flow's in-flight Update capacity. A finite expiry releases the slot. If the caller continues waiting, the server advances the derived or explicit ID through `-1`, `-2`, and later generations; each generation adds an accepted Update and history entry and may add a Temporal Cloud Action. Short values therefore trade in-flight capacity for total Update and Action growth. Temporal's current self-hosted defaults are 10 in-flight and 2,000 total Updates per Workflow Execution, but these are configurable deployment limits rather than Dex guarantees. See [Temporal's self-hosted defaults](https://docs.temporal.io/production-deployment/self-hosted-guide/defaults) and [Temporal Cloud Action accounting](https://docs.temporal.io/cloud/actions). For an intentional infinite revision loop, use the last returned revision as the next greater-than operand; the changed predicate produces a new derived Request ID.
+
 String and Boolean Attributes support equal and not-equal. Integer and floating-point Attributes support all six comparison operators. Missing Attributes never match. Cross-type comparisons do not match. Object, bytes, null, blob-backed, non-finite floating-point, invalid operator, and invalid ordering operands fail. Attribute match waits target the current active Flow and require Temporal; Cadence returns Unimplemented.
 
 ## Entity store
@@ -88,4 +92,4 @@ Represent one entity lifecycle as a Flow, keep its current state in Attributes, 
 Sources:
 
 - Pattern catalog: https://docs.superdurable.io/design-patterns
-- Baseline runnable implementations: https://github.com/superdurable/dex/tree/1f85cb521ed1037247fa509015bef8797429da90/examples
+- Baseline runnable implementations: https://github.com/superdurable/dex/tree/905f39b6c1d1badc1309353110c2893843f4d56f/examples

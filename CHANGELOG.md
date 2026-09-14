@@ -2,6 +2,20 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.7.1 - 2026-09-14
+
+- Document server-derived namespaced Request IDs for Step and Attribute waits.
+- Document automatic `-N` generations after a durable wait handler times out.
+- Recommend zero maximum wait time for ordinary waits and explain the in-flight Update tradeoff.
+- Clarify actual matched Attribute values and pin runnable sources to Dex commit `905f39b6`.
+
+## 0.7.0 - 2026-09-14
+
+- Document durable Step and Attribute waits with required caller-owned Request IDs.
+- Explain automatic transport reattachment, total handler budgets, infinite-wait lifecycle, and typed handler-timeout errors.
+- Show that non-equal Attribute waits return the actual matched value for all five SDKs.
+- Pin runnable sources to Dex commit `7ca1878dc`.
+
 ## 0.6.1 - 2026-09-13
 
 - Document externally managed attribute indexes for Temporal Cloud API-key deployments.
