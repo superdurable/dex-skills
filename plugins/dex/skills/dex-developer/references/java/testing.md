@@ -6,7 +6,7 @@ Durability claims require a real Dex Server. Unit tests are useful only for pure
 
 For Dex repository work, use the repository-only `DexDevTestEnvironment` or `examples/java/run-integration-tests.sh`. Do not import `DexDevTestEnvironment` from an application; it is not part of the published SDK. In an application repository, start a real Dex Server, reuse the application's public Registry, BlobCache, Client, and Worker bootstrap in the test fixture, and run the application's Gradle or Maven integration-test task. Register only the Flows under test and generate a unique Flow ID for every test so histories cannot collide.
 
-[Pinned integration example](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/sdk-java/src/test/java/io/superdurable/dex/integ/TimerTest.java)
+[Pinned integration example](https://github.com/superdurable/dex/blob/7ca1878dc86d598b93eeb95932564bf8cd5380dc/sdk-java/src/test/java/io/superdurable/dex/integ/TimerTest.java)
 <!-- dex-source: sdk-java/src/test/java/io/superdurable/dex/integ/TimerTest.java -->
 ```java
         try (DexDevTestEnvironment environment = DexDevTestEnvironment.start(
@@ -18,7 +18,7 @@ For Dex repository work, use the repository-only `DexDevTestEnvironment` or `exa
             environment.client().waitForStepCompletion(
                     flowId,
                     StepExecutionId.of("TimerStep"),
-                    Duration.ofSeconds(10));
+                    waitOptions(flowId, Duration.ofSeconds(10)));
             environment.client().waitForFlow(flowId);
 ```
 
@@ -37,7 +37,7 @@ The snippet demonstrates lifecycle and assertions inside the Dex repository. Cop
 
 ## Deadline polling
 
-[Pinned polling helper](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/sdk-java/src/test/java/io/superdurable/dex/integ/IntegrationTestWaits.java)
+[Pinned polling helper](https://github.com/superdurable/dex/blob/7ca1878dc86d598b93eeb95932564bf8cd5380dc/sdk-java/src/test/java/io/superdurable/dex/integ/IntegrationTestWaits.java)
 <!-- dex-source: sdk-java/src/test/java/io/superdurable/dex/integ/IntegrationTestWaits.java -->
 ```java
         final long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();

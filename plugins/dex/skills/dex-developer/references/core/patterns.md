@@ -70,6 +70,10 @@ Initialize the revision to zero. Every Step and RPC that advances the represente
 
 Call **WaitForAttributeMatch** with greater-than and the last observed revision. The wait returns the current matched revision; use that value as the next watermark, then call the application's Describe or read RPC. A rapid `0 → 1 → 2 → 3` transition may return `3` from one wait for greater than `0`. This is coalescing, not an event stream, and it does not expose history, run IDs, or Temporal event IDs.
 
+Every Step-completion or Attribute-match wait needs a caller-owned Request ID. Reuse it only while reattaching the same logical Step target or Attribute predicate. The SDK automatically reattaches transport long polls with that ID, so a one-hour handler wait remains one accepted Temporal Update rather than creating an Update for every transport window. Use a new Request ID after the wait reaches a terminal result or when its target, predicate, or purpose changes.
+
+The maximum wait time is the total durable handler budget across reattachments and Continue-as-New. Zero means infinite, not a one-time check. A finite expiry is a wait-handler timeout; it is distinct from an internal transport long-poll timeout. Abandoning an infinite wait leaves an accepted Update in flight until it matches or the Flow closes, so prefer a finite budget when a caller may disappear. For an intentional infinite revision loop, use the last returned revision as the next greater-than operand and create a new Request ID for that new predicate.
+
 String and Boolean Attributes support equal and not-equal. Integer and floating-point Attributes support all six comparison operators. Missing Attributes never match. Cross-type comparisons do not match. Object, bytes, null, blob-backed, non-finite floating-point, invalid operator, and invalid ordering operands fail. Attribute match waits target the current active Flow and require Temporal; Cadence returns Unimplemented.
 
 ## Entity store
@@ -88,4 +92,4 @@ Represent one entity lifecycle as a Flow, keep its current state in Attributes, 
 Sources:
 
 - Pattern catalog: https://docs.superdurable.io/design-patterns
-- Baseline runnable implementations: https://github.com/superdurable/dex/tree/1f85cb521ed1037247fa509015bef8797429da90/examples
+- Baseline runnable implementations: https://github.com/superdurable/dex/tree/7ca1878dc86d598b93eeb95932564bf8cd5380dc/examples

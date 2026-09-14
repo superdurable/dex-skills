@@ -10,7 +10,7 @@ Record business milestones with `context.recordEvent(name, value, ValueClass.cla
 
 Long-running handlers must call `recordHeartbeat` before the configured heartbeat timeout. Store a compact checkpoint that lets a later attempt resume safely. A heartbeat is liveness plus progress, not an exactly-once commit.
 
-[Pinned Java heartbeat source](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
+[Pinned Java heartbeat source](https://github.com/superdurable/dex/blob/7ca1878dc86d598b93eeb95932564bf8cd5380dc/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java -->
 ```java
             final int completedBatches = context.hasLastHeartbeatValue()

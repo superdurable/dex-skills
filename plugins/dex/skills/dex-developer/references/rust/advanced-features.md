@@ -6,7 +6,7 @@ Load this page only after the Flow model and basic primitives are settled.
 
 A Flow may return a `FlowTimeoutHandler<Self>`. The handler is one retryable logical execution and returns a normal `StepDecision`. Start/SubFlow options select handler policy and can configure handler retries, locks, and selective loads. Keep the handler bounded; it runs because the original deadline has already expired.
 
-[Runnable source](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/examples/rust/src/primitives/flow/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/7ca1878dc86d598b93eeb95932564bf8cd5380dc/examples/rust/src/primitives/flow/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/flow/flow.rs -->
 ```rust
     fn timeout_handler(&self) -> Option<FlowTimeoutHandler<Self>> {
@@ -20,7 +20,7 @@ Use `force_complete` only if the timed-out outcome is a valid result; use `force
 
 Dex cancellation becomes observable through `Context::is_cancelled`. Long-running Execute loops should check it between bounded units of work and heartbeat progress. Cancellation is cooperative at the application boundary: blocking a single call indefinitely prevents timely observation.
 
-For interruptible orchestration, store the interrupt request in an Attribute through an RPC, have concurrent Steps read it at safe points, and choose a deliberate graceful or forced terminal decision. See the runnable [Interruptible Flow](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/examples/rust/src/patterns/interruptible/flow.rs).
+For interruptible orchestration, store the interrupt request in an Attribute through an RPC, have concurrent Steps read it at safe points, and choose a deliberate graceful or forced terminal decision. See the runnable [Interruptible Flow](https://github.com/superdurable/dex/blob/7ca1878dc86d598b93eeb95932564bf8cd5380dc/examples/rust/src/patterns/interruptible/flow.rs).
 
 ## Buffered Stream durability
 
@@ -40,11 +40,11 @@ A transition may use `StepMovement::to_with_options` to override the target exec
 
 ## Waiting for durable acceptance
 
-`Client::wait_for_step_completion` lets a controller wait until a selected Step reaches its defined completion, then return while background branches continue. This is useful when an API needs a durable acceptance point rather than full Flow completion. The runnable [Wait for Step completion pattern](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/examples/rust/src/patterns/wait_for_step_completion/flow.rs) persists the request before launching background work.
+`Client::wait_for_step_completion` lets a controller wait until a selected Step reaches its defined completion, then return while background branches continue. Pass `WaitForStepCompletionOptions` with a caller-owned Request ID and total handler budget. The Client reattaches transport long polls with that ID. This is useful when an API needs a durable acceptance point rather than full Flow completion. The runnable [Wait for Step completion pattern](https://github.com/superdurable/dex/blob/7ca1878dc86d598b93eeb95932564bf8cd5380dc/examples/rust/src/patterns/wait_for_step_completion/flow.rs) persists the request before launching background work.
 
 ## Attribute Store entity projection
 
-Attributes marked for synchronization can project a long-lived entity Flow into an Attribute Store. Configure the store on the Flow and use RPCs as the mutation boundary. The runnable [Entity Store pattern](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/examples/rust/src/patterns/entity_store/flow.rs) covers typed profile fields and read/update/clear RPCs.
+Attributes marked for synchronization can project a long-lived entity Flow into an Attribute Store. Configure the store on the Flow and use RPCs as the mutation boundary. The runnable [Entity Store pattern](https://github.com/superdurable/dex/blob/7ca1878dc86d598b93eeb95932564bf8cd5380dc/examples/rust/src/patterns/entity_store/flow.rs) covers typed profile fields and read/update/clear RPCs.
 
 ## Feature gaps
 

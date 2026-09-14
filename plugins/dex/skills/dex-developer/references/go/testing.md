@@ -6,7 +6,7 @@ Prefer integration tests against a real Dex Server. Unit tests can verify pure h
 
 Run `dexcli dev`, start the application Worker, and create a Client from the same Registry and BlobCache. Give every test a unique Flow ID. Bound setup, calls, polling, and cleanup with `context.WithTimeout`.
 
-[Pinned integration source](https://github.com/superdurable/dex/blob/1f85cb521ed1037247fa509015bef8797429da90/examples/go/integ/main_test.go)
+[Pinned integration source](https://github.com/superdurable/dex/blob/7ca1878dc86d598b93eeb95932564bf8cd5380dc/examples/go/integ/main_test.go)
 <!-- dex-source: examples/go/integ/main_test.go -->
 ```go
 func integrationContext(t *testing.T) context.Context {
