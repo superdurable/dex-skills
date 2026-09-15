@@ -6,7 +6,7 @@ Log Flow ID, run ID, Step type/execution ID, attempt, and operation. Keep high-c
 
 Heartbeat is liveness/checkpoint data for one long attempt, not business state. Resume only when a previous value exists, and return heartbeat errors.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/61fa53c1df8fa6ba89fe05654276244c0cc95613/examples/go/primitives/heartbeat/workflow.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d806a958e6dd7a221ea5af817384e7fd13d347da/examples/go/primitives/heartbeat/workflow.go)
 <!-- dex-source: examples/go/primitives/heartbeat/workflow.go -->
 ```go
 	for batch := completedBatches; batch < batches; batch++ {
@@ -25,4 +25,4 @@ Heartbeat is liveness/checkpoint data for one long attempt, not business state. 
 
 Use summary/status for execution state, history for causality, a typed snapshot RPC for business state, Streams for progress, and metrics for saturation/failure rates. Track attempts, exhaustion, timeout handlers, RPC latency/conflicts, Channel backlog, Stream lag, Worker connectivity, and BlobCache errors.
 
-For a stall: confirm IDs/status; inspect latest history and active attempt; verify registered types; verify Dex can reach the advertised Worker target; then inspect the application error chain. Supported read surfaces appear in the pinned [client controller](https://github.com/superdurable/dex/blob/61fa53c1df8fa6ba89fe05654276244c0cc95613/examples/go/primitives/client-apis/controller.go).
+For a stall: confirm IDs/status; inspect latest history and active attempt; verify registered types; verify Dex can reach the advertised Worker target; then inspect the application error chain. Supported read surfaces appear in the pinned [client controller](https://github.com/superdurable/dex/blob/d806a958e6dd7a221ea5af817384e7fd13d347da/examples/go/primitives/client-apis/controller.go).

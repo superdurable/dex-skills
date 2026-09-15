@@ -2,6 +2,13 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.7.3 - 2026-09-15
+
+- Document the 100-byte default Blob offload threshold and compact lowercase object identifiers.
+- Treat internal Blob references as opaque, Flow-owned values with Flow-scoped SDK cache keys.
+- Explain automatic Blob ownership transfer across Flow boundaries and the `j`/`r` standard wire encodings.
+- Pin runnable sources to Dex commit `d806a958`.
+
 ## 0.7.2 - 2026-09-15
 
 - Document deterministic **AnyOf** selection across ready Timer, Channel, and SubFlow conditions.
