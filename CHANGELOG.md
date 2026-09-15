@@ -2,6 +2,13 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.7.2 - 2026-09-15
+
+- Document deterministic **AnyOf** selection across ready Timer, Channel, and SubFlow conditions.
+- Preserve declaration order within each condition kind while warning that mixed kinds have canonical order.
+- Recommend returning only the active high-priority condition when a Flow requires strict priority.
+- Pin runnable sources to Dex commit `61fa53c1`.
+
 ## 0.7.1 - 2026-09-14
 
 - Document server-derived namespaced Request IDs for Step and Attribute waits.

@@ -14,6 +14,10 @@ Use a Step for retried background work and explicit state transitions. **WaitFor
 
 Leave Conditions unnamed in **Until**, **AnyOf**, and **AllOf**. Do not add condition IDs merely to distinguish branches: read Channel results from the Channel definition and inspect Timer outcomes through the Context. Every Condition in **AnyCombinationOf** needs a unique ID. A Timer also needs an ID when another operation selects it by ID, such as **SkipTimer**.
 
+When multiple **AnyOf** alternatives are ready in one evaluation, Dex selects the first feasible candidate in canonical order: Timer Conditions in declaration order, then Channel Conditions in declaration order, then SubFlow Conditions in declaration order. An earlier unready Condition does not block a later ready Condition. Mixed Condition kinds do not preserve one global call argument order. Only the winning Channel Condition consumes messages; other Channel candidates remain unchanged.
+
+**AnyOf** models a race among the currently available alternatives. When business logic requires strict priority, return only the active high-priority Condition until it is resolved. Do not put lower-priority alternatives in that Wait.
+
 Use multiple next Steps for parallel work. Use cancellation deliberately when a first-winner branch makes siblings unnecessary.
 
 Step durability resolves in this order: a method override, FlowConfig, then **SYNC**. The default retry total duration is four hours. Regular attempts default to a two-hour method timeout and one-minute heartbeat timeout.

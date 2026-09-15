@@ -6,7 +6,7 @@ Durability claims require a real Dex Server. Unit tests are useful only for pure
 
 For Dex repository work, use the repository-only `DexDevTestEnvironment` or `examples/java/run-integration-tests.sh`. Do not import `DexDevTestEnvironment` from an application; it is not part of the published SDK. In an application repository, start a real Dex Server, reuse the application's public Registry, BlobCache, Client, and Worker bootstrap in the test fixture, and run the application's Gradle or Maven integration-test task. Register only the Flows under test and generate a unique Flow ID for every test so histories cannot collide.
 
-[Pinned integration example](https://github.com/superdurable/dex/blob/905f39b6c1d1badc1309353110c2893843f4d56f/sdk-java/src/test/java/io/superdurable/dex/integ/TimerTest.java)
+[Pinned integration example](https://github.com/superdurable/dex/blob/61fa53c1df8fa6ba89fe05654276244c0cc95613/sdk-java/src/test/java/io/superdurable/dex/integ/TimerTest.java)
 <!-- dex-source: sdk-java/src/test/java/io/superdurable/dex/integ/TimerTest.java -->
 ```java
         try (DexDevTestEnvironment environment = DexDevTestEnvironment.start(
@@ -37,7 +37,7 @@ The snippet demonstrates lifecycle and assertions inside the Dex repository. Cop
 
 ## Deadline polling
 
-[Pinned polling helper](https://github.com/superdurable/dex/blob/905f39b6c1d1badc1309353110c2893843f4d56f/sdk-java/src/test/java/io/superdurable/dex/integ/IntegrationTestWaits.java)
+[Pinned polling helper](https://github.com/superdurable/dex/blob/61fa53c1df8fa6ba89fe05654276244c0cc95613/sdk-java/src/test/java/io/superdurable/dex/integ/IntegrationTestWaits.java)
 <!-- dex-source: sdk-java/src/test/java/io/superdurable/dex/integ/IntegrationTestWaits.java -->
 ```java
         final long deadline = System.nanoTime() + Duration.ofSeconds(30).toNanos();

@@ -2,7 +2,7 @@
 
 Start by inspecting the application's `Cargo.toml` and `Cargo.lock`. The pinned Dex baseline examples use a published exact crate version, but the installed version is authoritative for an existing application.
 
-[Pinned manifest](https://github.com/superdurable/dex/blob/905f39b6c1d1badc1309353110c2893843f4d56f/examples/rust/Cargo.toml)
+[Pinned manifest](https://github.com/superdurable/dex/blob/61fa53c1df8fa6ba89fe05654276244c0cc95613/examples/rust/Cargo.toml)
 <!-- dex-source: examples/rust/Cargo.toml -->
 ```toml
 dex-sdk = "=0.7.0"
