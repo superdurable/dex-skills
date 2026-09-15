@@ -16,9 +16,9 @@ Locks provide cooperation among handlers using the same lock. Mark an RPC transa
 
 Share one disk `BlobCache` between Worker and Client and size it for active payload locality. Blob storage makes large values feasible; it does not make repeatedly rewriting a growing aggregate cheap. Prefer an AttributeMap for independently updated records, Channels for durable queues, and Streams for best-effort deltas.
 
-The Server keeps payloads through 100 bytes inline by default. Treat internal blob references as opaque: hydration and cache lookup use the owning Flow ID with the reference, and Dex rewrites blob-backed values that cross into another Flow. Standard wire encodings are `j` for JSON and `r` for raw bytes.
+The Server keeps payloads through 100 bytes inline by default. Treat internal blob references as opaque: hydration and cache lookup use the owning Flow ID with the reference, and Dex rewrites blob-backed values that cross into another Flow. String and Object references share a compact six-digit-date shape; their Value arms distinguish them. Object Blobs store the complete EncodedObject with `json`, `raw`, or a custom encoding, so references have no encoding suffix.
 
-[Pinned cache construction](https://github.com/superdurable/dex/blob/d806a958e6dd7a221ea5af817384e7fd13d347da/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
+[Pinned cache construction](https://github.com/superdurable/dex/blob/52d43dc72db85816571e5da8a6a0413203f00225/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java -->
 ```java
         return BlobCache.open(new BlobCacheConfig(blobCacheDir, 1L << 30));

@@ -10,7 +10,7 @@ Stable Flow, Step, Attribute, Channel, Stream, RPC, and codec type names are par
 
 Use Attributes for authoritative current state, AttributeMaps for independently loaded records, Channels for durable FIFO commands, ChannelMaps for per-key queues, and Streams for best-effort progress. Register each definition in one Flow schema.
 
-[Pinned typed state source](https://github.com/superdurable/dex/blob/d806a958e6dd7a221ea5af817384e7fd13d347da/examples/typescript/src/primitives/attribute/attribute-flow.ts)
+[Pinned typed state source](https://github.com/superdurable/dex/blob/52d43dc72db85816571e5da8a6a0413203f00225/examples/typescript/src/primitives/attribute/attribute-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/attribute/attribute-flow.ts -->
 ```typescript
 const status = new Attribute("primitive-attribute-status", stringCodec, {
@@ -34,6 +34,6 @@ Attribute changes and Channel publishes/deletes are staged and commit with the s
 
 Share one process BlobCache between Client and Worker. Large payload support does not make a growing JSON aggregate efficient. Partition mutable data into AttributeMap instances, put queued work on Channels, and emit transient progress on Streams.
 
-The Server keeps payloads through 100 bytes inline by default. Treat internal blob references as opaque: hydration and cache lookup use the owning Flow ID with the reference, and Dex rewrites blob-backed values that cross into another Flow. Standard wire encodings are `j` for JSON and `r` for raw bytes.
+The Server keeps payloads through 100 bytes inline by default. Treat internal blob references as opaque: hydration and cache lookup use the owning Flow ID with the reference, and Dex rewrites blob-backed values that cross into another Flow. String and Object references share a compact six-digit-date shape; their Value arms distinguish them. Object Blobs store the complete EncodedObject with `json`, `raw`, or a custom encoding, so references have no encoding suffix.
 
 Attribute Store is an asynchronous latest-state projection. Select Store names in `FlowConfig`; do not wait on projection as a correctness barrier.

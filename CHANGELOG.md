@@ -2,6 +2,13 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.7.4 - 2026-09-15
+
+- Document the final compact Blob reference shape, including six-digit UTC dates and lowercase Base36 object IDs.
+- Explain that Object Blobs store the complete EncodedObject and references have no encoding suffix.
+- Restore the explicit `json` and `raw` wire encodings without a compatibility format or versioned path.
+- Pin runnable sources to Dex commit `52d43dc7`.
+
 ## 0.7.3 - 2026-09-15
 
 - Document the 100-byte default Blob offload threshold and compact lowercase object identifiers.

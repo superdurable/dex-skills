@@ -99,7 +99,7 @@ streamStore:
 
 Configure Redis with `noeviction` so capacity pressure becomes a visible Stream write failure. If Blob Store is enabled, use the same durable object-store configuration across API and Interpreter replicas; do not rely on pod-local blob directories.
 
-Blob Store keeps payloads through 100 bytes inline by default and offloads from 101 bytes. Keep the storage ID short because it appears in every durable reference; prefer a name such as `p1` over `production1`. Deterministic object IDs use lowercase Base36. `objectIdLength` defaults to 10 and accepts 10 through 50; every Server sharing a namespace must use the same immutable value. Use 12 or 16 for unusually high per-Flow daily object counts. Application code must treat references as opaque.
+Blob Store keeps payloads through 100 bytes inline by default and offloads from 101 bytes. Keep the storage ID short because it appears in every durable reference; prefer a name such as `p1` over `production1`. A reference such as `p1|260913/ab3de7kp2x` uses a six-digit UTC date and a deterministic lowercase Base36 object ID. It omits the Flow ID and encoding. The Server derives the Flow-owned physical path from trusted context, and Object Blobs store the complete EncodedObject. `objectIdLength` defaults to 10 and accepts 10 through 50; every Server sharing a namespace must use the same immutable value. Use 12 or 16 for unusually high per-Flow daily object counts. Application code must treat references as opaque.
 
 ## Safe recovery
 

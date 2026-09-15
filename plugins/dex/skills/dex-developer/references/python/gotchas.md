@@ -16,4 +16,4 @@
 - Graceful and force terminal decisions have different branch/cancellation behavior.
 - Temporal Cloud API-key deployments require externally provisioned indexes and `attributeIndexesManagedExternally: true`.
 
-Use the pinned [typecheck contracts](https://github.com/superdurable/dex/blob/d806a958e6dd7a221ea5af817384e7fd13d347da/sdk-python/tests/typecheck_contracts.py) and runnable examples rather than remembered names.
+Use the pinned [typecheck contracts](https://github.com/superdurable/dex/blob/52d43dc72db85816571e5da8a6a0413203f00225/sdk-python/tests/typecheck_contracts.py) and runnable examples rather than remembered names.
