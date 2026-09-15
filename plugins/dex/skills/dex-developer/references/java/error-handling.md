@@ -25,7 +25,7 @@ Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundExcepti
 - Test both `waitFor` and `execute` exhaustion when both are configured.
 - Never use a recovery Step as a generic exception sink.
 
-[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/905f39b6c1d1badc1309353110c2893843f4d56f/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
+[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/61fa53c1df8fa6ba89fe05654276244c0cc95613/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java -->
 ```java
                 if (context.isCancellationRequested()) {

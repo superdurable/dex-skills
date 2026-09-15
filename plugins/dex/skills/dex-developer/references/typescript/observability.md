@@ -8,7 +8,7 @@ Log `context.flowId`, `runId`, `stepExecutionId`, `attempt`, and handler name as
 
 Async long-running handlers should accept `AsyncContext`, recover a compact checkpoint, call `await context.recordHeartbeat(...)` before the heartbeat timeout, and pass `context.cancellationSignal` to abort-aware APIs.
 
-[Pinned heartbeat source](https://github.com/superdurable/dex/blob/905f39b6c1d1badc1309353110c2893843f4d56f/examples/typescript/src/primitives/heartbeat/heartbeat-flow.ts)
+[Pinned heartbeat source](https://github.com/superdurable/dex/blob/61fa53c1df8fa6ba89fe05654276244c0cc95613/examples/typescript/src/primitives/heartbeat/heartbeat-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/heartbeat/heartbeat-flow.ts -->
 ```typescript
   public async execute(context: AsyncContext, batches: number): Promise<StepDecision> {
