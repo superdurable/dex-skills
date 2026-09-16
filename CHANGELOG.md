@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.7.6 - 2026-09-15
+
+- Remove protocol-level minimum and maximum Blob object ID lengths.
+- Document that readers accept any nonempty lowercase Base36 object ID.
+- Pin runnable sources to Dex commit `068926a0`.
+
 ## 0.7.5 - 2026-09-15
 
 - Document the Value null arm as the ordinary null representation across all five SDKs.
