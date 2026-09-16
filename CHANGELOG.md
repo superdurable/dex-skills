@@ -7,7 +7,7 @@ All notable changes to Dex Developer are documented here.
 - Document Server and SDK protocol-interval negotiation during Worker startup.
 - Explain first-time Server-first upgrades, compatible rolling upgrades, and breaking maintenance windows.
 - Distinguish transport protocol compatibility from open-Flow graph and payload compatibility.
-- Pin runnable sources to Dex commit `43f81349`.
+- Pin runnable sources to Dex commit `e93b803a`.
 
 ## 0.7.7 - 2026-09-15
 
