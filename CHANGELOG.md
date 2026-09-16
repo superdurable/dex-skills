@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.7.7 - 2026-09-15
+
+- Document that successful ASYNC local Step input snapshots are opt-in and disabled by default.
+- Clarify that snapshot storage affects semantic-history input availability, not execution or recovery.
+- Pin runnable sources to Dex commit `4c18c7d0`.
+
 ## 0.7.6 - 2026-09-15
 
 - Remove protocol-level minimum and maximum Blob object ID lengths.

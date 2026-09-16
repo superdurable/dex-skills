@@ -24,6 +24,8 @@ Do not parse, construct, persist, or forward internal blob references in applica
 
 The default server threshold keeps payloads through 100 bytes inline and offloads payloads from 101 bytes. String and Object references have the same compact shape, such as `p1|260913/ab3de7kp2x`; their Value arms distinguish the types. The six-digit segment is the UTC write date. An Object Blob stores the complete EncodedObject, including `json`, `raw`, or a custom encoding, so the reference has no encoding suffix. This format directly replaces the pre-launch format without a compatibility parser or versioned storage path.
 
+ASYNC local Step input snapshots are separate from normal payload offload and are disabled by default. Enable `blobStore.asyncStepInputSnapshotsEnabled` only when semantic history needs those exact inputs; execution and recovery do not require them.
+
 The Value null arm represents an ordinary application null in inputs, Channel messages, RPC values, and other general Value positions. SDKs encode and decode it as the language's native null value. Two narrower boundaries intentionally assign it control semantics: an Attribute write with null deletes the Attribute, and Flow completion discards null output instead of storing an empty result. Do not use null when the distinction between “completed with null” and “completed without output” matters; return an explicit result object instead.
 
 ## Combine caching with headless Worker locality
