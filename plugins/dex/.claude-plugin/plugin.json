@@ -1,6 +1,6 @@
 {
   "name": "dex",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Build, debug, test, and operate durable applications with Superdurable Dex.",
   "author": {
     "name": "Super Durable",
