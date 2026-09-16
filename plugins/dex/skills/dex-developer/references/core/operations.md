@@ -33,6 +33,12 @@ Use **dexcli flow search**, **summary**, **state**, and **history** for narrower
 
 The `dex-server` image starts Web, API, and Interpreter in one OS process by default. It serves FlowService gRPC on port 8801 and Dex Web HTTP on port 8802.
 
+Before deploying a Worker, run `dexcli version check` against its target Server. Each Server and SDK release declares an inclusive protocol interval. Worker startup selects the highest common protocol before synchronizing Attribute indexes and binding WorkerService. Artifact versions are diagnostic only.
+
+When upgrading from a Server that predates `GetServerInfo`, upgrade the Server before any SDK. New Workers reject a missing information RPC. After that first upgrade, either side may be newer while the intervals overlap.
+
+A breaking Server release raises its minimum protocol. Stop old Workers and their traffic before upgrading the Server, upgrade every SDK in the maintenance window, then restart traffic. Isolated blue-green environments may run disjoint intervals, but they must not communicate. Running Workers do not renegotiate after a Server upgrade.
+
 Use `dex-server start --services <selection>` to scale components independently. The selection must be a nonempty comma-separated combination of `web`, `api`, and `interpreter`:
 
 ```bash

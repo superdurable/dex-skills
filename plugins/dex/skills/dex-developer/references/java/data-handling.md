@@ -22,7 +22,7 @@ ASYNC local Step input snapshots are disabled by default. Enable the Server's `b
 
 Java `null` uses the Value null arm and decodes back to `null`. In an Attribute write it deletes the Attribute, and as a Flow completion output it is discarded. Return an explicit result DTO when terminal null and no output must differ.
 
-[Pinned cache construction](https://github.com/superdurable/dex/blob/4c18c7d04135053c6a3f387a8f411c918f7ba803/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
+[Pinned cache construction](https://github.com/superdurable/dex/blob/43f8134934b545b99b4a2a34e34384893ca79b4c/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java -->
 ```java
         return BlobCache.open(new BlobCacheConfig(blobCacheDir, 1L << 30));

@@ -2,6 +2,10 @@
 
 An open Flow can execute code after a deployment. Treat Flow type names, Step type classes, persistence definition names, RPC names, input shapes, and decision behavior as durable compatibility surface.
 
+## Server protocol compatibility
+
+Published Java SDK JARs expose a diagnostic implementation version. Worker startup calls `GetServerInfo`, negotiates the highest common protocol, synchronizes Attribute indexes, and then binds WorkerService. A missing RPC, invalid interval, or disjoint interval fails before binding. Upgrade a legacy Server first, and stop running Workers before a breaking Server release because they do not renegotiate.
+
 ## Before changing code
 
 1. Inspect the application's resolved `io.superdurable:dex-sdk` version.

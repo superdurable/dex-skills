@@ -54,6 +54,6 @@ Before debugging code, verify:
 
 - Quick start: https://docs.superdurable.io/quick-start
 - Primitive overview: https://docs.superdurable.io/primitives
-- Baseline runnable examples: https://github.com/superdurable/dex/tree/4c18c7d04135053c6a3f387a8f411c918f7ba803/examples
+- Baseline runnable examples: https://github.com/superdurable/dex/tree/43f8134934b545b99b4a2a34e34384893ca79b4c/examples
 
 When a local Dex checkout is available, copy API usage from its runnable **examples/** files rather than from prose or memory.
