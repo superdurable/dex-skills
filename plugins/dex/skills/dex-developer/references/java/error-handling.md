@@ -18,6 +18,8 @@ Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundExcepti
 
 Normal application code catches only the concrete exceptions whose outcomes it can decide. The Java SDK intentionally has no public catch-all exception base. Do not enumerate every Client exception merely to map every Dex failure to HTTP 503, and do not repeat that translation around every invocation. Leave `DexRequestException` to ordinary server-error handling unless a narrow query-first reconciliation boundary can prove that the failed request left a mutation outcome uncertain. Catching `RuntimeException` is not equivalent: it also hides validation, definition, serialization, and programming defects.
 
+This differs deliberately from SDKs that expose a remote-only service-error base. Do not recreate such a base with multi-catch, reflection, package-name checks, or `RuntimeException`. `DexRequestException` is a concrete fallback for an otherwise unclassified request, not a superclass of the other public Dex outcomes.
+
 ## Closed-Flow races
 
 `FlowNotActiveException` says the mutation found no active target; it does not say the requested action succeeded. Catch it only where the operation contract is known. First reconcile from authoritative domain state and operation invariants. Call `describeFlow` and inspect `FlowStatus` only when an otherwise unknown terminal distinction changes the outcome:

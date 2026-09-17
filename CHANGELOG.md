@@ -6,6 +6,7 @@ All notable changes to Dex Developer are documented here.
 
 - Add race-safe handling for not-active Flow interactions and terminal child cleanup.
 - Make Java Client failures concrete-only, with `DexRequestException` as the unclassified request fallback.
+- Document each SDK's distinct remote-error shape and best-effort Stream boundary.
 - Clarify best-effort Stream failure handling and immutable admission projections for fast-closing Flows.
 - Pin runnable sources to Dex commit `3e4d037f`.
 
