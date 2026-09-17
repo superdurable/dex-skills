@@ -14,7 +14,7 @@ Concrete remote Client errors extend `DexServiceError`; local definition, value-
 
 For an explicitly best-effort external `client.writeStream`, log sanitized identity and discard only an `instanceof DexServiceError` failure. Rethrow other values so codec, definition, and programming defects remain visible.
 
-[Pinned example error classification](https://github.com/superdurable/dex/blob/3e4d037f4450e78fa76e6fca157336f69984020c/examples/typescript/src/service-errors.ts)
+[Pinned example error classification](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/typescript/src/service-errors.ts)
 <!-- dex-source: examples/typescript/src/service-errors.ts -->
 ```typescript
 export function isFlowAlreadyStarted(error: unknown): boolean {

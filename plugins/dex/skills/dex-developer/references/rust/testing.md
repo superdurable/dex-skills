@@ -6,7 +6,7 @@ Prefer integration tests against a real Dex Server. Unit tests can validate pure
 
 Start `dexcli dev`, build the same Registry used by production, create a temporary BlobCache, bind the Worker to a free address, and run it on a dedicated thread. Construct a Client with the same Worker target. Stop and join the Worker and close the cache during teardown.
 
-[Integration source](https://github.com/superdurable/dex/blob/3e4d037f4450e78fa76e6fca157336f69984020c/examples/rust/tests/dex_integration.rs)
+[Integration source](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/rust/tests/dex_integration.rs)
 <!-- dex-source: examples/rust/tests/dex_integration.rs -->
 ```rust
         let client = Client::try_new(
@@ -26,7 +26,7 @@ Use `tempfile::TempDir` for BlobCache isolation and ask the OS for a free Worker
 
 Poll observable Dex state until a short deadline. Do not use a fixed sleep as the assertion mechanism; scheduling and retries are asynchronous.
 
-[Integration source](https://github.com/superdurable/dex/blob/3e4d037f4450e78fa76e6fca157336f69984020c/examples/rust/tests/dex_integration.rs)
+[Integration source](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/rust/tests/dex_integration.rs)
 <!-- dex-source: examples/rust/tests/dex_integration.rs -->
 ```rust
     fn await_engagement_status(&self, flow_id: &str, expected: &str) -> EngagementStatus {

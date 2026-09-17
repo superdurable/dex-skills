@@ -6,7 +6,7 @@ Use a real Dex Server for durable behavior. Mock-only tests cannot prove registr
 
 Run `dexcli dev`; start `AsyncWorker`/`Worker`; create the matching Client with the same Registry/BlobCache. Generate every Flow ID with `uuid4().hex`. Bound operations with `timedelta` arguments or `asyncio.timeout`; shut workers down in fixtures.
 
-[Pinned integration source](https://github.com/superdurable/dex/blob/3e4d037f4450e78fa76e6fca157336f69984020c/examples/python/tests/integ/conftest.py)
+[Pinned integration source](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/python/tests/integ/conftest.py)
 <!-- dex-source: examples/python/tests/integ/conftest.py -->
 ```python
     def make(prefix: str) -> str:
