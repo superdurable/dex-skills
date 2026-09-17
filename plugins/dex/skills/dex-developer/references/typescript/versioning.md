@@ -2,6 +2,10 @@
 
 Open Flows may call a newly deployed Worker. Treat stable names and wire shapes as persisted interfaces: `getFlowType()`, `getStepType()`, Attribute/Channel/Stream names, RPC names, codec behavior, DTO fields, and Step graph decisions.
 
+## Server protocol compatibility
+
+TypeScript builds embed the diagnostic package version. Worker startup calls `GetServerInfo`, negotiates the highest common protocol, synchronizes Attribute indexes, and then binds WorkerService. A missing RPC, invalid interval, or disjoint interval fails before binding. Upgrade a legacy Server first, and stop running Workers before a breaking Server release because they do not renegotiate.
+
 ## Before a rollout
 
 1. Read the resolved `@superdurable/dex` version and lockfile.
