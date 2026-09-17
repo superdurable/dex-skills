@@ -6,6 +6,14 @@ An open Flow is a durable contract between its recorded state and future Worker 
 
 Read the package manifest and lockfile first. Preserve the installed SDK version unless the user requests an upgrade. Validate exact signatures against installed source or a tag/commit matching that version, and identify that path or immutable revision when presenting exact code. The examples in this bundle are pinned by the repository's `DEX_BASELINE`; do not mix them into a different SDK without verification. When matching source is unavailable, stop at the version-independent Flow model and request access to the installed package or tag before emitting exact API code.
 
+## Server protocol compatibility
+
+Server-to-SDK compatibility is based on inclusive protocol intervals, not artifact version ordering. Worker startup calls `GetServerInfo`, chooses the highest version in the interval intersection, synchronizes Attribute indexes, and only then binds WorkerService. A new SDK can use an older Server when it retains the old protocol. A new Server can use an older SDK while their intervals still overlap.
+
+Upgrade a Server that lacks `GetServerInfo` before deploying Workers with this check. Treat `UNIMPLEMENTED`, invalid intervals, and disjoint intervals as startup failures. A breaking Server release raises its minimum protocol; stop running Workers before the Server upgrade because they do not renegotiate in place.
+
+Protocol negotiation protects the Worker-to-Server API. It does not make open Flow type names, reachable Step graphs, schemas, or persisted payloads compatible. Apply both checks independently.
+
 ## Compatible changes
 
 Prefer additive evolution:

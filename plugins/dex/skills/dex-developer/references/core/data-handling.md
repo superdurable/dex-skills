@@ -8,7 +8,7 @@ Dex durably owns an Attribute even when its serialized value is stored as a blob
 
 The SDK hydrates each blob-backed value before application code uses it:
 
-1. Check the local BlobCache by immutable blob ID.
+1. Check the local BlobCache by owning Flow ID and opaque blob reference.
 2. Deduplicate IDs needed by the invocation.
 3. Fetch cache misses together through Dex.
 4. Store fetched values in the bounded disk cache.
@@ -19,6 +19,14 @@ A cache hit avoids another remote blob fetch. It still incurs local cache readin
 Create one cache-owned, writable directory per Worker replica. Share the opened BlobCache between that process's Worker and Client when the SDK supports it, size it for the hot set, and close it after both stop. A persistent volume can preserve entries across process restarts, but correctness must not depend on that volume or on cache admission.
 
 Use the installed SDK and its version-matched examples for exact BlobCache constructors and lifecycle APIs.
+
+Do not parse, construct, persist, or forward internal blob references in application code. A reference omits its owning Flow ID. Dex and the SDK supply that identity from trusted context, and the cache isolates identical-looking references by Flow. When an internal StartFlow, SubFlow, or RPC boundary moves a blob-backed value to another Flow, Dex copies or inlines the payload before the destination records it. The destination therefore remains recoverable after the source Blob is deleted.
+
+The default server threshold keeps payloads through 100 bytes inline and offloads payloads from 101 bytes. String and Object references have the same compact shape, such as `p1|260913/ab3de7kp2x`; their Value arms distinguish the types. The six-digit segment is the UTC write date. An Object Blob stores the complete EncodedObject, including `json`, `raw`, or a custom encoding, so the reference has no encoding suffix. This format directly replaces the pre-launch format without a compatibility parser or versioned storage path.
+
+ASYNC local Step input snapshots are separate from normal payload offload and are disabled by default. Enable `blobStore.asyncStepInputSnapshotsEnabled` only when semantic history needs those exact inputs; execution and recovery do not require them.
+
+The Value null arm represents an ordinary application null in inputs, Channel messages, RPC values, and other general Value positions. SDKs encode and decode it as the language's native null value. Two narrower boundaries intentionally assign it control semantics: an Attribute write with null deletes the Attribute, and Flow completion discards null output instead of storing an empty result. Do not use null when the distinction between “completed with null” and “completed without output” matters; return an explicit result object instead.
 
 ## Combine caching with headless Worker locality
 
@@ -38,7 +46,7 @@ Do not build application-level blob references, download logic, deduplication, o
 
 ## Model updates for cache reuse
 
-BlobCache entries are keyed by immutable blob ID. Updating a large Attribute produces a new value and therefore a new blob ID. A single ever-growing array, such as one **messages** Attribute, rewrites the full array and creates a cold blob version on each append. Stickiness cannot remove that write amplification.
+BlobCache entries are keyed by owning Flow ID and immutable blob reference. Updating a large Attribute produces a new value and therefore a new blob reference. A single ever-growing array, such as one **messages** Attribute, rewrites the full array and creates a cold blob version on each append. Stickiness cannot remove that write amplification.
 
 Prefer immutable or infrequently changed values:
 

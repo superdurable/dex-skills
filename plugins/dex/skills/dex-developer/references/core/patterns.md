@@ -92,4 +92,4 @@ Represent one entity lifecycle as a Flow, keep its current state in Attributes, 
 Sources:
 
 - Pattern catalog: https://docs.superdurable.io/design-patterns
-- Baseline runnable implementations: https://github.com/superdurable/dex/tree/61fa53c1df8fa6ba89fe05654276244c0cc95613/examples
+- Baseline runnable implementations: https://github.com/superdurable/dex/tree/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples

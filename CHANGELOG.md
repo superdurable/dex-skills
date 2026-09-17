@@ -2,6 +2,45 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.8.0 - 2026-09-16
+
+- Document Server and SDK protocol-interval negotiation during Worker startup.
+- Explain first-time Server-first upgrades, compatible rolling upgrades, and breaking maintenance windows.
+- Distinguish transport protocol compatibility from open-Flow graph and payload compatibility.
+- Pin runnable sources to Dex commit `e93b803a`.
+
+## 0.7.7 - 2026-09-15
+
+- Document that successful ASYNC local Step input snapshots are opt-in and disabled by default.
+- Clarify that snapshot storage affects semantic-history input availability, not execution or recovery.
+- Pin runnable sources to Dex commit `4c18c7d0`.
+
+## 0.7.6 - 2026-09-15
+
+- Remove protocol-level minimum and maximum Blob object ID lengths.
+- Document that readers accept any nonempty lowercase Base36 object ID.
+- Pin runnable sources to Dex commit `068926a0`.
+
+## 0.7.5 - 2026-09-15
+
+- Document the Value null arm as the ordinary null representation across all five SDKs.
+- Preserve null's boundary-specific meanings: Attribute deletion and omitted Flow completion output.
+- Pin runnable sources to Dex commit `6ac5c0af`.
+
+## 0.7.4 - 2026-09-15
+
+- Document the final compact Blob reference shape, including six-digit UTC dates and lowercase Base36 object IDs.
+- Explain that Object Blobs store the complete EncodedObject and references have no encoding suffix.
+- Restore the explicit `json` and `raw` wire encodings without a compatibility format or versioned path.
+- Pin runnable sources to Dex commit `52d43dc7`.
+
+## 0.7.3 - 2026-09-15
+
+- Document the 100-byte default Blob offload threshold and compact lowercase object identifiers.
+- Treat internal Blob references as opaque, Flow-owned values with Flow-scoped SDK cache keys.
+- Explain automatic Blob ownership transfer across Flow boundaries and the `j`/`r` standard wire encodings.
+- Pin runnable sources to Dex commit `d806a958`.
+
 ## 0.7.2 - 2026-09-15
 
 - Document deterministic **AnyOf** selection across ready Timer, Channel, and SubFlow conditions.
