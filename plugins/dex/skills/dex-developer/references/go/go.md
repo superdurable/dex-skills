@@ -75,7 +75,7 @@ Construct every Flow once, then pass the same definitions into the Registry used
 - Syntax/state semantics: [primitives](primitives.md)
 - Application shape: [patterns](patterns.md)
 - Real-server verification: [testing](testing.md)
-- Typed failures/retry ownership: [error handling](error-handling.md)
+- Client boundary design and retry ownership, before implementation: [error handling](error-handling.md)
 - Persistence/maps/Streams: [data handling](data-handling.md)
 - Histories/progress: [observability](observability.md)
 - Open-Flow compatibility: [versioning](versioning.md)

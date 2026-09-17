@@ -6,6 +6,8 @@ Catch precise exceptions such as `FlowNotFoundError`, `FlowNotActiveError`, `Flo
 
 Concrete remote Client errors inherit `DexServiceError`. Local definition, not-loaded, value-mapping, argument, and programming failures do not. Catch `DexServiceError` only at a narrow boundary whose policy intentionally treats every remote Dex outcome the same; do not use it instead of concrete business outcomes. Catching `RuntimeError` is not equivalent because it also captures local SDK and application defects.
 
+For an idempotent start, set one stable `StartFlowOptions.request_id` and `ignore_already_started=True` only when a retry of that same logical request may attach to the existing run. A remaining `FlowAlreadyStartedError` means a different Request ID owns the Flow ID. Treat it as a domain conflict unless the coordinator contract deliberately redirects the command to that existing Flow. Another `DexServiceError` can leave acceptance unknown and requires authoritative admission reconciliation or a same-Request-ID retry.
+
 For an explicitly best-effort external `Client.write_stream` or `AsyncClient.write_stream`, suppressing `DexServiceError` is appropriate after logging sanitized identity and phase metadata. Do not suppress arbitrary exceptions. Context Stream writes inside a Step remain part of handler execution: yield or propagate their outputs and failures according to the sync or async handler contract.
 
 Return/raise so Step retry owns retries. Use the SDK retry-after mechanism only with a meaningful delay. Never wrap durable Step work in an in-memory retry loop.

@@ -8,6 +8,8 @@ Use `errors.As` for `*dex.FlowNotFoundError`, `*dex.FlowNotActiveError`, `*dex.F
 
 Every concrete remote Client error unwraps to `*dex.ServiceError`; local definition, value-mapping, argument, and programming errors do not. Use `errors.As(err, &serviceError)` only at a narrow boundary whose policy intentionally treats every remote Dex outcome the same. Ordinary domain logic should continue matching the concrete error type it can decide.
 
+For an idempotent start, set one stable `StartFlowOptions.RequestID` and configure `AlreadyStarted: &dex.AlreadyStartedOptions{IgnoreError: true}` only when a retry of that same logical request may attach to the existing run. A remaining `*dex.FlowAlreadyStartedError` means a different Request ID owns the Flow ID. Treat it as a domain conflict unless the coordinator contract deliberately redirects the command to that existing Flow. Another service error can leave acceptance unknown and requires authoritative admission reconciliation or a same-Request-ID retry.
+
 For an explicitly best-effort external `Client.WriteStream`, an `errors.As` match on `*dex.ServiceError` may be logged with sanitized identity and discarded. Otherwise return the error. Context operations inside a handler, including Stream writes, must still return or wrap their error so Dex owns retry and recovery.
 
 ## Retry ownership

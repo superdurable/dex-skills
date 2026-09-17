@@ -33,16 +33,19 @@ Always read the entry page for the project's language first:
 - [TypeScript](references/typescript/typescript.md)
 - [Rust](references/rust/rust.md)
 
+Before writing or reviewing any Client boundary—including Flow start, RPC, cleanup, admission, waits, or external Stream writes—read [Error handling](references/core/error-handling.md) and the selected language's **error-handling.md**. This is implementation guidance; do not defer it until a failure needs troubleshooting.
+
 Then load only the references required by the task:
 
 | Task | Core reference | Language reference |
 | --- | --- | --- |
-| First application or architecture | [Getting started](references/core/getting-started.md) | language entry |
+| First application or architecture | [Getting started](references/core/getting-started.md) and [Error handling](references/core/error-handling.md) | language entry and **error-handling.md** |
 | Flow boundary or state model | [Modeling](references/core/modeling.md) | selected language's **primitives.md** |
 | Primitive selection or exact API | [Primitives](references/core/primitives.md) | selected language's **primitives.md** |
 | Design-pattern choice | [Patterns](references/core/patterns.md) | selected language's **patterns.md** |
+| Client calls, admission, RPC, cleanup, waits, or external Streams | [Error handling](references/core/error-handling.md) | selected language's **error-handling.md** |
 | Integration or failure-path tests | [Testing](references/core/testing.md) | selected language's **testing.md** |
-| Failure diagnosis | [Troubleshooting](references/core/troubleshooting.md) | selected language's **error-handling.md** and **gotchas.md** |
+| Failure diagnosis | [Troubleshooting](references/core/troubleshooting.md) and [Error handling](references/core/error-handling.md) | selected language's **error-handling.md** and **gotchas.md** |
 | Production inspection or mutation | [Operations](references/core/operations.md) | selected language's **observability.md** |
 | Server deployment or component topology | [Operations](references/core/operations.md) | language entry for Client and Worker targets |
 | Large state, maps, or projections | [Data handling](references/core/data-handling.md) | selected language's **data-handling.md** |

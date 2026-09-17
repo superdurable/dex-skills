@@ -95,6 +95,7 @@ Use `npm run test:integ` with Dex already running, or `./run-integration-tests.s
 ## Continue reading
 
 - [Primitives](primitives.md) and [patterns](patterns.md) for modeling.
-- [Testing](testing.md) and [error handling](error-handling.md) before delivery.
+- [Error handling](error-handling.md) before writing Client, admission, RPC, cleanup, wait, or external Stream boundaries.
+- [Testing](testing.md) before delivery.
 - [Data](data-handling.md), [observability](observability.md), and [versioning](versioning.md) for production.
 - [Gotchas](gotchas.md) and [advanced features](advanced-features.md) for async, loading, heartbeat, and cancellation details.

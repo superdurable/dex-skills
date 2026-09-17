@@ -62,7 +62,7 @@ The async [application composition](https://github.com/superdurable/dex/blob/d55
 - API/state choices: [primitives](primitives.md)
 - Application shape: [patterns](patterns.md)
 - Real-server tests: [testing](testing.md)
-- exceptions/retry: [error handling](error-handling.md)
+- Client boundary design and exception/retry policy, before implementation: [error handling](error-handling.md)
 - codecs/maps/Streams: [data handling](data-handling.md)
 - histories/progress: [observability](observability.md)
 - open-Flow upgrades: [versioning](versioning.md)

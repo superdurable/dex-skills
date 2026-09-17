@@ -91,6 +91,7 @@ Use `./run-integration-tests.sh` for the official application suite. Defaults co
 
 - [Primitives](primitives.md) for application building blocks.
 - [Patterns](patterns.md) before selecting a Flow shape.
+- [Errors](error-handling.md) before writing Client, admission, RPC, cleanup, wait, or external Stream boundaries.
 - [Testing](testing.md) before declaring durable behavior complete.
-- [Errors](error-handling.md), [data](data-handling.md), [observability](observability.md), and [versioning](versioning.md) for production behavior.
+- [Data](data-handling.md), [observability](observability.md), and [versioning](versioning.md) for production behavior.
 - [Gotchas](gotchas.md) and [advanced features](advanced-features.md) for constraints that are easy to miss.

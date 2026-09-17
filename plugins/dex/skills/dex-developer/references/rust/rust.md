@@ -106,7 +106,7 @@ Keep controller concerns out of Step handlers. The controller supplies idempoten
 - [Primitives](primitives.md): exact Rust shapes for Flow, Wait, persistence, RPC, Stream, Timer, SubFlow, and Client.
 - [Patterns](patterns.md): choose and implement an official design pattern.
 - [Testing](testing.md): real-server integration and terminal assertions.
-- [Error handling](error-handling.md): `HandlerError`, `SdkError`, retries, and recovery.
+- [Error handling](error-handling.md): read before Client boundary work for `HandlerError`, `SdkError`, start identity, retries, and recovery.
 - [Data handling](data-handling.md): serde values, selective loads, locks, transactions, and BlobCache.
 - [Observability](observability.md): IDs, status, heartbeat progress, Stream output, and diagnostics.
 - [Versioning](versioning.md): pinned API evidence and open-Flow compatibility.
