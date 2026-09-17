@@ -20,7 +20,7 @@ Normal application code catches concrete exceptions whose outcomes it can decide
 
 ## Closed-Flow races
 
-`FlowNotActiveException` says the mutation found no active target; it does not say the requested action succeeded. Catch it only where the operation contract is known, then call `describeFlow` and inspect `FlowStatus`:
+`FlowNotActiveException` says the mutation found no active target; it does not say the requested action succeeded. Catch it only where the operation contract is known. First reconcile from authoritative domain state and operation invariants. Call `describeFlow` and inspect `FlowStatus` only when an otherwise unknown terminal distinction changes the outcome:
 
 - Treat `COMPLETED` as idempotent success only when successful completion guarantees the requested condition.
 - For any other terminal status or a subsequent `FlowNotFoundException`, record or return an explicit domain failure or unknown outcome instead of retrying a terminal fact indefinitely.

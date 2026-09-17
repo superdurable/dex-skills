@@ -39,7 +39,7 @@ After an ambiguous provider or Client mutation, query the authoritative remote o
 
 ## Closed-Flow races
 
-A typed terminal or not-active error proves that the attempted interaction had no active target. It does not prove that the requested work succeeded. Re-inspect the Flow, distinguish running, successfully completed, other terminal, and missing outcomes, then apply the operation's domain contract.
+A typed terminal or not-active error proves that the attempted interaction had no active target. It does not prove that the requested work succeeded. First reconcile from already loaded authoritative domain state and operation invariants. Re-inspect the Flow only when the outcome depends on distinguishing running, successfully completed, other terminal, and missing states and that distinction is not otherwise available. Do not spend a status call when every possible state has the same idempotent outcome.
 
 A completed child may satisfy an idempotent cleanup only when successful completion guarantees the requested condition. An unsuccessful terminal or missing child should become an explicit domain failure or unknown outcome; do not retry a terminal fact indefinitely. A bounded wait that returns a running snapshot is still nonterminal.
 
