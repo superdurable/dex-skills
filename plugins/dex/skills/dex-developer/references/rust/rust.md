@@ -12,13 +12,13 @@ dexcli dev
 cargo run --locked
 ```
 
-The example defaults are Dex at `127.0.0.1:8801`, Worker bind at `127.0.0.1:8803`, and the HTTP controller at `127.0.0.1:8080`. Use the environment variables documented in the [pinned Rust example README](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/rust/README.md) when those addresses or the BlobCache directory differ.
+The example defaults are Dex at `127.0.0.1:8801`, Worker bind at `127.0.0.1:8803`, and the HTTP controller at `127.0.0.1:8080`. Use the environment variables documented in the [pinned Rust example README](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/rust/README.md) when those addresses or the BlobCache directory differ.
 
 ## Minimal Flow and Step
 
 A Rust Flow owns its Step values and returns a `StepList` that borrows them. Each Step declares its input type and returns a `StepDecision`. `wait_for` is optional; omitting it makes Execute eligible immediately.
 
-[Runnable source](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/rust/src/primitives/timer/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/rust/src/primitives/timer/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/timer/flow.rs -->
 ```rust
 #[derive(Default)]
@@ -58,7 +58,7 @@ Keep every `Attribute`, `AttributeMap`, `Channel`, `ChannelMap`, and `Stream` sc
 
 The Registry must contain every Flow that a Client starts or a Worker executes. Registration validates names, Step graphs, persistence declarations, loads, and RPC definitions. Build the registry with chained `register` calls and propagate `SdkResult`.
 
-[Runnable source](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/rust/src/primitives/mod.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/rust/src/primitives/mod.rs)
 <!-- dex-source: examples/rust/src/primitives/mod.rs -->
 ```rust
 pub fn register(registry: Registry) -> SdkResult<Registry> {
@@ -85,7 +85,7 @@ pub fn register(registry: Registry) -> SdkResult<Registry> {
 }
 ```
 
-Create one shared `Arc<BlobCache>` for the Client and Worker. Start the blocking Worker on a dedicated OS thread; application HTTP work may remain on Tokio. If a Flow constructor needs a Client, construct the Client registry and Worker registry separately so dependency injection remains explicit. See the complete [bootstrap](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/rust/src/main.rs).
+Create one shared `Arc<BlobCache>` for the Client and Worker. Start the blocking Worker on a dedicated OS thread; application HTTP work may remain on Tokio. If a Flow constructor needs a Client, construct the Client registry and Worker registry separately so dependency injection remains explicit. See the complete [bootstrap](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/rust/src/main.rs).
 
 ## Suggested project layout
 
@@ -106,7 +106,7 @@ Keep controller concerns out of Step handlers. The controller supplies idempoten
 - [Primitives](primitives.md): exact Rust shapes for Flow, Wait, persistence, RPC, Stream, Timer, SubFlow, and Client.
 - [Patterns](patterns.md): choose and implement an official design pattern.
 - [Testing](testing.md): real-server integration and terminal assertions.
-- [Error handling](error-handling.md): `HandlerError`, `SdkError`, retries, and recovery.
+- [Error handling](error-handling.md): read before Client boundary work for `HandlerError`, `SdkError`, start identity, retries, and recovery.
 - [Data handling](data-handling.md): serde values, selective loads, locks, transactions, and BlobCache.
 - [Observability](observability.md): IDs, status, heartbeat progress, Stream output, and diagnostics.
 - [Versioning](versioning.md): pinned API evidence and open-Flow compatibility.

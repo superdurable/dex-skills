@@ -24,8 +24,9 @@ Build the smallest end-to-end path in this order:
 5. Create one Worker using that registry and a reachable bind/advertise address.
 6. Create one Client using the same registry and blob/payload configuration.
 7. Start the Worker before accepting application requests.
-8. Start the Flow through an HTTP handler, CLI command, or service method.
-9. Add an integration test that starts the Flow and waits for its result.
+8. Read [error handling](error-handling.md) and the language error page; define stable request identity, duplicate-start behavior, uncertain acceptance reconciliation, and local-defect handling.
+9. Start the Flow through an HTTP handler, CLI command, or service method.
+10. Add an integration test that starts the Flow and waits for its result.
 
 Add Attributes, Channels, RPCs, Streams, or SubFlows only when the first path runs successfully.
 
@@ -54,6 +55,6 @@ Before debugging code, verify:
 
 - Quick start: https://docs.superdurable.io/quick-start
 - Primitive overview: https://docs.superdurable.io/primitives
-- Baseline runnable examples: https://github.com/superdurable/dex/tree/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples
+- Baseline runnable examples: https://github.com/superdurable/dex/tree/d5529248f14ae098d2324a247c80c48935f33a1e/examples
 
 When a local Dex checkout is available, copy API usage from its runnable **examples/** files rather than from prose or memory.

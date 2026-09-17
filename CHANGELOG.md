@@ -2,6 +2,16 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.8.1 - 2026-09-17
+
+- Add race-safe handling for not-active Flow interactions and terminal child cleanup.
+- Move shared Client failure policy into a pre-implementation core error-handling guide and route all Client-boundary work through it.
+- Document stable start Request IDs and duplicate-start semantics for every SDK.
+- Clarify Java's public remote-only `DexServiceException` boundary while preferring concrete domain exceptions.
+- Document each SDK's distinct remote-error shape and best-effort Stream boundary.
+- Clarify best-effort Stream failure handling and immutable admission projections for fast-closing Flows.
+- Pin runnable sources to Dex commit `d5529248`.
+
 ## 0.8.0 - 2026-09-16
 
 - Document Server and SDK protocol-interval negotiation during Worker startup.

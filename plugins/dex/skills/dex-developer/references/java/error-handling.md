@@ -14,7 +14,23 @@ Use `StepDecision.forceFail(detail)` for a deliberate terminal failed outcome, `
 
 ## Client exceptions
 
-Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation targeted a closed Flow. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. Treat authentication, connectivity, and serialization exceptions separately; do not branch on message text or diagnostic sub-status.
+Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation found no active Flow because the target is missing or closed. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. An unclassified remote request failure remains `DexServiceException`. Its named gRPC code and Dex sub-status are diagnostic metadata; never branch on message text or raw numeric values.
+
+Normal domain logic catches only the concrete exceptions whose outcomes it can decide. Every remote Client exception extends the public `DexServiceException`; local validation, definition, serialization, value-mapping, and programming failures do not. Catch the base only at a narrow boundary whose policy intentionally treats every remote Dex failure the same, such as service availability translation or explicitly best-effort output. Do not repeat that translation around every invocation. Catching `RuntimeException` is not equivalent because it also hides local SDK and application defects.
+
+For an idempotent start, set one stable `StartFlowOptions.Builder.requestId(...)` and use `ignoreAlreadyStarted(true)` only when a retry of that same logical request may attach to the existing run. A remaining `FlowAlreadyStartedException` means the existing Flow carries a different Request ID. Treat it as a domain conflict unless the resource-scoped coordinator contract deliberately redirects the command to that existing Flow. A different `DexServiceException` can leave start acceptance unknown and requires authoritative admission reconciliation or a same-Request-ID retry.
+
+## Closed-Flow races
+
+`FlowNotActiveException` says the mutation found no active target; it does not say the requested action succeeded. Catch it only where the operation contract is known. First reconcile from authoritative domain state and operation invariants. Call `describeFlow` and inspect `FlowStatus` only when an otherwise unknown terminal distinction changes the outcome:
+
+- Treat `COMPLETED` as idempotent success only when successful completion guarantees the requested condition.
+- For any other terminal status or a subsequent `FlowNotFoundException`, record or return an explicit domain failure or unknown outcome instead of retrying a terminal fact indefinitely.
+- If the Flow still appears running, query its domain state before a bounded, idempotent retry.
+
+For parent-child cleanup, a successfully completed child may let the parent continue. A missing or unsuccessfully terminal child must follow the parent's explicit cleanup-failure or cleanup-unknown route.
+
+For an explicitly best-effort external `Client.writeStream`, catch `DexServiceException` because that boundary deliberately treats every remote write failure as lossy. Log sanitized Flow and phase identifiers without payloads or credentials and let the business Flow continue. Local failures remain outside that hierarchy and must surface. Never reconstruct authoritative completion state from retained Stream messages.
 
 ## Recovery checklist
 
@@ -25,7 +41,7 @@ Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundExcepti
 - Test both `waitFor` and `execute` exhaustion when both are configured.
 - Never use a recovery Step as a generic exception sink.
 
-[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
+[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java -->
 ```java
                 if (context.isCancellationRequested()) {

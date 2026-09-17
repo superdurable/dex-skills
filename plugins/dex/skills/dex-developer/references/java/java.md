@@ -1,6 +1,6 @@
 # Java handbook
 
-Use this page first for Java application work. Then load the topic page that matches the task. The [baseline build](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/java/build.gradle) uses `io.superdurable:dex-sdk:0.6.0`, Spring Boot, and JDK 17 or newer. The application's Gradle or Maven lockfile remains authoritative.
+Use this page first for Java application work. Then load the topic page that matches the task. The [baseline build](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/build.gradle) uses `io.superdurable:dex-sdk:0.6.0`, Spring Boot, and JDK 17 or newer. The application's Gradle or Maven lockfile remains authoritative.
 
 ## Project shape
 
@@ -10,7 +10,7 @@ The official example layout separates `products/`, `patterns/`, `primitives/`, a
 
 ## Minimal Flow
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java -->
 ```java
 @Component
@@ -34,7 +34,7 @@ public class ExampleFlow implements Flow<Integer> {
 
 A Flow returns its complete Step registry once. The first Step input type must match `Flow<I>`. All persisted definitions belong in `getPersistenceSchema()`.
 
-[Pinned Step source](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
+[Pinned Step source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java -->
 ```java
     final class ExampleStep implements Step<Integer> {
@@ -58,7 +58,7 @@ A Flow returns its complete Step registry once. The first Step input type must m
 
 ## Registry, Worker, and Client
 
-[Pinned bootstrap source](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
+[Pinned bootstrap source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java -->
 ```java
     @Bean
@@ -91,6 +91,7 @@ Use `./run-integration-tests.sh` for the official application suite. Defaults co
 
 - [Primitives](primitives.md) for application building blocks.
 - [Patterns](patterns.md) before selecting a Flow shape.
+- [Errors](error-handling.md) before writing Client, admission, RPC, cleanup, wait, or external Stream boundaries.
 - [Testing](testing.md) before declaring durable behavior complete.
-- [Errors](error-handling.md), [data](data-handling.md), [observability](observability.md), and [versioning](versioning.md) for production behavior.
+- [Data](data-handling.md), [observability](observability.md), and [versioning](versioning.md) for production behavior.
 - [Gotchas](gotchas.md) and [advanced features](advanced-features.md) for constraints that are easy to miss.

@@ -24,6 +24,7 @@ MARKETPLACES = (
     ROOT / ".cursor-plugin" / "marketplace.json",
 )
 CORE_TOPICS = {
+    "error-handling.md",
     "getting-started.md",
     "modeling.md",
     "primitives.md",

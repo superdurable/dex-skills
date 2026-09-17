@@ -2,6 +2,8 @@
 
 Begin with evidence and keep diagnosis read-only. Capture the Flow ID, run ID, Flow type, SDK version, Dex Server address, Worker build, and the last user-visible operation.
 
+Application failure policy belongs in pre-implementation design. Read [error handling](error-handling.md) before changing Client, RPC, cleanup, admission, wait, or Stream code; use this page to diagnose observed behavior.
+
 ## Diagnostic order
 
 1. Check application and Worker logs for registration, handler, connectivity, codec, and blob errors.

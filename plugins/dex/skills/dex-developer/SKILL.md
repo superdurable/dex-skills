@@ -33,16 +33,19 @@ Always read the entry page for the project's language first:
 - [TypeScript](references/typescript/typescript.md)
 - [Rust](references/rust/rust.md)
 
+Before writing or reviewing any Client boundary—including Flow start, RPC, cleanup, admission, waits, or external Stream writes—read [Error handling](references/core/error-handling.md) and the selected language's **error-handling.md**. This is implementation guidance; do not defer it until a failure needs troubleshooting.
+
 Then load only the references required by the task:
 
 | Task | Core reference | Language reference |
 | --- | --- | --- |
-| First application or architecture | [Getting started](references/core/getting-started.md) | language entry |
+| First application or architecture | [Getting started](references/core/getting-started.md) and [Error handling](references/core/error-handling.md) | language entry and **error-handling.md** |
 | Flow boundary or state model | [Modeling](references/core/modeling.md) | selected language's **primitives.md** |
 | Primitive selection or exact API | [Primitives](references/core/primitives.md) | selected language's **primitives.md** |
 | Design-pattern choice | [Patterns](references/core/patterns.md) | selected language's **patterns.md** |
+| Client calls, admission, RPC, cleanup, waits, or external Streams | [Error handling](references/core/error-handling.md) | selected language's **error-handling.md** |
 | Integration or failure-path tests | [Testing](references/core/testing.md) | selected language's **testing.md** |
-| Failure diagnosis | [Troubleshooting](references/core/troubleshooting.md) | selected language's **error-handling.md** and **gotchas.md** |
+| Failure diagnosis | [Troubleshooting](references/core/troubleshooting.md) and [Error handling](references/core/error-handling.md) | selected language's **error-handling.md** and **gotchas.md** |
 | Production inspection or mutation | [Operations](references/core/operations.md) | selected language's **observability.md** |
 | Server deployment or component topology | [Operations](references/core/operations.md) | language entry for Client and Worker targets |
 | Large state, maps, or projections | [Data handling](references/core/data-handling.md) | selected language's **data-handling.md** |
@@ -63,6 +66,8 @@ Use **Execute** for work-oriented transitions and **WaitFor** for durable waitin
 Treat each WaitFor, Execute, and RPC invocation as a separate commit boundary. Split a provider action into its own Step when its successful completion deserves an independent checkpoint, retry/timeout policy, failure-recovery route, or audit boundary. For example, an idempotent Kafka or SQS send often merits its own Step so later failures do not resend it. Do not split solely because there is another API call: keep consecutive work in one Step when it shares one meaningful recovery boundary.
 
 For a product mutation that entails multiple actions, cross-service calls, durable waits, retries, reconciliation, or cleanup, prefer starting one domain-named Dex Flow directly at the API boundary. Let that Flow own admission, orchestration, recovery, and completion. Keep the database for durable domain records, invariants, and read projections; do not introduce a database outbox plus dispatcher, polling command queue, or generic event-driven coordinator solely to start or sequence the Flow. A single bounded local operation can remain synchronous, and independently owned external integrations may still require explicit events.
+
+At application boundaries, preserve typed Dex failures until domain policy can distinguish business rejection, a closed-Flow race, a retryable service failure, and a local defect. Reconcile a not-active result from existing authoritative state; inspect the Flow only when an otherwise unknown terminal distinction changes the outcome. Use retained Streams only for best-effort observation, never as authoritative business state.
 
 Prefer the nearest official pattern to an ad hoc coordination loop. Preserve its Flow shape while replacing the domain and integrations. When changing a Go or Python Flow, use `dexcli visualize SOURCE` after the shape is explicit; the visualizer does not currently support Java, TypeScript, or Rust.
 
