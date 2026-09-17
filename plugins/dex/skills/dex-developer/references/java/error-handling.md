@@ -14,9 +14,9 @@ Use `StepDecision.forceFail(detail)` for a deliberate terminal failed outcome, `
 
 ## Client exceptions
 
-Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation found no active Flow because the target is missing or closed. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. Treat authentication, connectivity, and serialization exceptions separately. Prefer a concrete exception; when none exists, inspect the named gRPC code or Dex sub-status rather than message text or raw numeric values.
+Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation found no active Flow because the target is missing or closed. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. `DexRequestException` is the concrete fallback for a request failure without a more specific public type. Its named gRPC code and Dex sub-status are diagnostic metadata; never branch on message text or raw numeric values.
 
-Normal application code catches concrete exceptions whose outcomes it can decide. Do not catch `DexServiceException` merely to map every Dex failure to HTTP 503, and do not repeat that catch around every Client invocation. Leave an unclassified failure to ordinary server-error handling unless a narrow query-first reconciliation boundary can prove that every remote Dex failure leaves the same mutation outcome uncertain. Because `DexServiceException` extends `RuntimeException`, catching `RuntimeException` is not equivalent: it also hides validation, definition, serialization, and programming defects.
+Normal application code catches only the concrete exceptions whose outcomes it can decide. The Java SDK intentionally has no public catch-all exception base. Do not enumerate every Client exception merely to map every Dex failure to HTTP 503, and do not repeat that translation around every invocation. Leave `DexRequestException` to ordinary server-error handling unless a narrow query-first reconciliation boundary can prove that the failed request left a mutation outcome uncertain. Catching `RuntimeException` is not equivalent: it also hides validation, definition, serialization, and programming defects.
 
 ## Closed-Flow races
 
@@ -28,7 +28,7 @@ Normal application code catches concrete exceptions whose outcomes it can decide
 
 For parent-child cleanup, a successfully completed child may let the parent continue. A missing or unsuccessfully terminal child must follow the parent's explicit cleanup-failure or cleanup-unknown route.
 
-For an explicitly best-effort Stream write, catching `DexServiceException` is appropriate because the side channel deliberately treats every remote Dex failure as lossy. Log sanitized Flow and phase identifiers without payloads or credentials and let the business Flow continue. Do not catch broader local failures, and never reconstruct authoritative completion state from retained Stream messages.
+For an explicitly best-effort Stream write, catch only `DexRequestException`, the concrete remote failure documented by `Client.writeStream`. The side channel deliberately treats that request failure as lossy. Log sanitized Flow and phase identifiers without payloads or credentials and let the business Flow continue. Do not catch broader local failures, and never reconstruct authoritative completion state from retained Stream messages.
 
 ## Recovery checklist
 
@@ -39,7 +39,7 @@ For an explicitly best-effort Stream write, catching `DexServiceException` is ap
 - Test both `waitFor` and `execute` exhaustion when both are configured.
 - Never use a recovery Step as a generic exception sink.
 
-[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/e93b803a829735292af8c81a0cc1c98b12aee7f7/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
+[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/3e4d037f4450e78fa76e6fca157336f69984020c/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java -->
 ```java
                 if (context.isCancellationRequested()) {
