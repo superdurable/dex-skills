@@ -1,6 +1,6 @@
 # Python handbook
 
-Use this page first for Python. The [baseline project](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/python/pyproject.toml) selects `dex-python-sdk==0.6.0`; check `pyproject.toml`/lockfile and installed metadata before relying on baseline syntax.
+Use this page first for Python. The [baseline project](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/python/pyproject.toml) selects `dex-python-sdk==0.6.0`; check `pyproject.toml`/lockfile and installed metadata before relying on baseline syntax.
 
 ## Runtime choice
 
@@ -21,7 +21,7 @@ Defaults use Dex `localhost:8801`, Worker `127.0.0.1:8803`, and HTTP `127.0.0.1:
 
 ## Minimal Flow
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/python/dex_examples/primitives/flow/example_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/python/dex_examples/primitives/flow/example_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/example_flow.py -->
 ```python
 status = Attribute("status", str)
@@ -44,7 +44,7 @@ Instantiate Steps once per Flow object and return those same instances in `StepL
 
 A synchronous Step directly returns a decision:
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/python/dex_examples/primitives/flow/example_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/python/dex_examples/primitives/flow/example_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/example_flow.py -->
 ```python
 class FinishStep(Step[int]):
@@ -55,7 +55,7 @@ class FinishStep(Step[int]):
 
 ## Registry, Worker, Client
 
-The async [application composition](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/python/dex_examples/app.py) shows Flow construction, Registry, BlobCache, AsyncClient, and AsyncWorker. The [sync example](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/python/sync-python/sync_examples/app.py) shows the synchronous counterpart. Inject services in constructors; use a provider for a Client needed after circular bootstrap.
+The async [application composition](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/python/dex_examples/app.py) shows Flow construction, Registry, BlobCache, AsyncClient, and AsyncWorker. The [sync example](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/python/sync-python/sync_examples/app.py) shows the synchronous counterpart. Inject services in constructors; use a provider for a Client needed after circular bootstrap.
 
 ## Route by task
 

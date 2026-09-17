@@ -4,7 +4,7 @@ Log Flow/run IDs, Step type/execution ID, attempt, and operation as structured f
 
 Heartbeat is liveness/checkpoint data for one Execute attempt. It is not business state. Async handlers await heartbeat; synchronous generator handlers yield the heartbeat output. Resume only from a present, correctly typed prior value.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/python/dex_examples/primitives/heartbeat/heartbeat_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/python/dex_examples/primitives/heartbeat/heartbeat_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/heartbeat/heartbeat_flow.py -->
 ```python
         completed_batches = context.get_last_heartbeat_value(int) or 0
@@ -18,4 +18,4 @@ Heartbeat is liveness/checkpoint data for one Execute attempt. It is not busines
 
 Use summary/status for execution state, history for causality, a typed snapshot RPC for business state, Streams for progress, and metrics for rates/saturation. Track attempt duration/count, exhaustion, timeout handlers, RPC conflicts, Channel backlog, Stream lag, Worker reachability, and BlobCache errors.
 
-For a stall: identify Flow/run; inspect latest history and active attempt; verify registered types; verify Dex reaches advertised Worker target; inspect exception chain. The pinned [Client API example](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/python/dex_examples/primitives/client-apis/controller.py) shows supported reads.
+For a stall: identify Flow/run; inspect latest history and active attempt; verify registered types; verify Dex reaches advertised Worker target; inspect exception chain. The pinned [Client API example](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/python/dex_examples/primitives/client-apis/controller.py) shows supported reads.

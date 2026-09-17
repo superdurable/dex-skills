@@ -14,11 +14,9 @@ Use `StepDecision.forceFail(detail)` for a deliberate terminal failed outcome, `
 
 ## Client exceptions
 
-Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation found no active Flow because the target is missing or closed. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. `DexRequestException` is the concrete fallback for a request failure without a more specific public type. Its named gRPC code and Dex sub-status are diagnostic metadata; never branch on message text or raw numeric values.
+Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation found no active Flow because the target is missing or closed. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. An unclassified remote request failure remains `DexServiceException`. Its named gRPC code and Dex sub-status are diagnostic metadata; never branch on message text or raw numeric values.
 
 Normal domain logic catches only the concrete exceptions whose outcomes it can decide. Every remote Client exception extends the public `DexServiceException`; local validation, definition, serialization, value-mapping, and programming failures do not. Catch the base only at a narrow boundary whose policy intentionally treats every remote Dex failure the same, such as service availability translation or explicitly best-effort output. Do not repeat that translation around every invocation. Catching `RuntimeException` is not equivalent because it also hides local SDK and application defects.
-
-`DexRequestException` is the concrete fallback for an otherwise unclassified request and remains a `DexServiceException` subclass. It is not a replacement for the public base or a superclass of the other concrete outcomes.
 
 ## Closed-Flow races
 
@@ -41,7 +39,7 @@ For an explicitly best-effort external `Client.writeStream`, catch `DexServiceEx
 - Test both `waitFor` and `execute` exhaustion when both are configured.
 - Never use a recovery Step as a generic exception sink.
 
-[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/6bc6da0f5d0d28a71bb79a861f307722eeb9c7fb/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
+[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java -->
 ```java
                 if (context.isCancellationRequested()) {
