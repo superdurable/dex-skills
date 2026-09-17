@@ -14,7 +14,21 @@ Use `StepDecision.forceFail(detail)` for a deliberate terminal failed outcome, `
 
 ## Client exceptions
 
-Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation targeted a closed Flow. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. Treat authentication, connectivity, and serialization exceptions separately; do not branch on message text or diagnostic sub-status.
+Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveException` means an RPC or mutation found no active Flow because the target is missing or closed. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutException` means the configured total handler budget expired; it does not mean the Flow failed. Treat authentication, connectivity, and serialization exceptions separately. Prefer a concrete exception; when none exists, inspect the named gRPC code or Dex sub-status rather than message text or raw numeric values.
+
+Normal application code catches concrete exceptions whose outcomes it can decide. Do not catch `DexServiceException` merely to map every Dex failure to HTTP 503, and do not repeat that catch around every Client invocation. Leave an unclassified failure to ordinary server-error handling unless a narrow query-first reconciliation boundary can prove that every remote Dex failure leaves the same mutation outcome uncertain. Because `DexServiceException` extends `RuntimeException`, catching `RuntimeException` is not equivalent: it also hides validation, definition, serialization, and programming defects.
+
+## Closed-Flow races
+
+`FlowNotActiveException` says the mutation found no active target; it does not say the requested action succeeded. Catch it only where the operation contract is known, then call `describeFlow` and inspect `FlowStatus`:
+
+- Treat `COMPLETED` as idempotent success only when successful completion guarantees the requested condition.
+- For any other terminal status or a subsequent `FlowNotFoundException`, record or return an explicit domain failure or unknown outcome instead of retrying a terminal fact indefinitely.
+- If the Flow still appears running, query its domain state before a bounded, idempotent retry.
+
+For parent-child cleanup, a successfully completed child may let the parent continue. A missing or unsuccessfully terminal child must follow the parent's explicit cleanup-failure or cleanup-unknown route.
+
+For an explicitly best-effort Stream write, catching `DexServiceException` is appropriate because the side channel deliberately treats every remote Dex failure as lossy. Log sanitized Flow and phase identifiers without payloads or credentials and let the business Flow continue. Do not catch broader local failures, and never reconstruct authoritative completion state from retained Stream messages.
 
 ## Recovery checklist
 

@@ -64,6 +64,8 @@ Treat each WaitFor, Execute, and RPC invocation as a separate commit boundary. S
 
 For a product mutation that entails multiple actions, cross-service calls, durable waits, retries, reconciliation, or cleanup, prefer starting one domain-named Dex Flow directly at the API boundary. Let that Flow own admission, orchestration, recovery, and completion. Keep the database for durable domain records, invariants, and read projections; do not introduce a database outbox plus dispatcher, polling command queue, or generic event-driven coordinator solely to start or sequence the Flow. A single bounded local operation can remain synchronous, and independently owned external integrations may still require explicit events.
 
+At application boundaries, preserve typed Dex failures until domain policy can distinguish business rejection, a closed-Flow race, a retryable service failure, and a local defect. Re-inspect a Flow after a not-active result before treating the requested operation as an idempotent success. Use retained Streams only for best-effort observation, never as authoritative business state.
+
 Prefer the nearest official pattern to an ad hoc coordination loop. Preserve its Flow shape while replacing the domain and integrations. When changing a Go or Python Flow, use `dexcli visualize SOURCE` after the shape is explicit; the visualizer does not currently support Java, TypeScript, or Rust.
 
 ## Complete the vertical slice

@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.8.1 - 2026-09-17
+
+- Add race-safe handling for not-active Flow interactions and terminal child cleanup.
+- Separate concrete Dex outcomes from unclassified service failures and local defects, avoiding blanket 503 translation.
+- Clarify best-effort Stream failure handling and immutable admission projections for fast-closing Flows.
+
 ## 0.8.0 - 2026-09-16
 
 - Document Server and SDK protocol-interval negotiation during Worker startup.

@@ -25,6 +25,30 @@ Use `dexcli flow search`, `summary`, `state`, and `history` for narrower JSON. U
 - **Stale queue mutation**: reload pending Channel messages; a consumed or deleted message ID cannot be reused.
 - **Closed Flow interaction**: handle the language SDK's typed terminal/not-active result at the application boundary.
 
+## Error classification
+
+Classify a failure at the narrowest boundary with enough context to decide its meaning:
+
+- **Business outcome**: an expected rejection, conflict, or terminal domain decision.
+- **Dex or provider failure**: a typed service, transport, authentication, or availability error that policy may retry or translate.
+- **Local defect**: invalid input handling, incompatible definitions, serialization, or programming errors that must remain visible.
+
+Normal application logic catches only concrete SDK errors whose outcomes it can decide. Do not catch a service-error base merely to turn every Dex failure into the same retryable response; leave an unclassified failure to ordinary server-error handling unless the boundary can prove it is retryable. A narrow query-first reconciliation boundary may catch the base only when every remote Dex failure leaves the same mutation outcome uncertain. Use a named status or sub-status only when the SDK intentionally has no concrete error; never branch on human-readable detail or raw numeric codes. Never catch a language's broad runtime or exception base for service-error translation.
+
+After an ambiguous provider or Client mutation, query the authoritative remote or domain state before repeating it. Bound retries and keep the repeated mutation idempotent.
+
+## Closed-Flow races
+
+A typed terminal or not-active error proves that the attempted interaction had no active target. It does not prove that the requested work succeeded. Re-inspect the Flow, distinguish running, successfully completed, other terminal, and missing outcomes, then apply the operation's domain contract.
+
+A completed child may satisfy an idempotent cleanup only when successful completion guarantees the requested condition. An unsuccessful terminal or missing child should become an explicit domain failure or unknown outcome; do not retry a terminal fact indefinitely. A bounded wait that returns a running snapshot is still nonterminal.
+
+## Best-effort output and fast closure
+
+When a Stream or progress write is explicitly best effort, it may catch the SDK's Dex service-error base because the side channel deliberately treats every remote Dex failure as lossy. Log sanitized identity and phase metadata and continue the business Flow. Let local definition, validation, serialization, and programming failures surface. Retained Stream data is never the authoritative record of business completion.
+
+If an API must return the first admission decision after a Flow can close quickly, persist that decision immutably in an authoritative domain record or projection. Do not make a late RPC to a possibly closed Flow the only source of admission correctness.
+
 ## Recovery boundary
 
 Do not stop, time travel, publish, invoke, edit, delete, or skip a Timer during diagnosis. If the user authorizes recovery, read [operations.md](operations.md), resolve the current run, explain the expected change, perform one public operation, and re-inspect.
