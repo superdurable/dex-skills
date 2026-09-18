@@ -89,8 +89,9 @@ lockfile, installed SDK source, and matching tagged examples take precedence.
 ## Handbook coverage
 
 The shared core covers architecture, getting started, modeling, primitives,
-pattern selection, testing, troubleshooting, operations, versioning, data
-handling, and durable AI agents. Each language handbook covers setup and a
+StepOptions and durability, pattern selection, testing, troubleshooting,
+operations, versioning, data handling, and durable AI agents. Each language
+handbook covers setup and a
 minimal vertical slice, primitives, the full pattern catalog, integration
 testing, typed errors, durable data, observability, versioning, gotchas, and
 advanced features such as heartbeats, cancellation, selective loading, locks,

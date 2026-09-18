@@ -65,7 +65,11 @@ Use `AttributeLock.of(attribute)` for handler locks. Do not pass an Attribute di
 
 Use `withCancelingSiblingSteps` for branches created by the same predecessor and `withCancelingSteps` for all executions of a Step type. Cancellation applies after the successful decision and excludes Steps created by that same decision. Make target handlers interruption-aware and their effects idempotent.
 
-## Async durability
+## StepOptions and Flow durability
+
+Set a short-operation default through `StartFlowOptions.newBuilder().configOverride(FlowConfig.newBuilder().stepDurability(StepDurability.ASYNC).build())`. Leave ordinary methods at `StepDurability.DEFAULT`. Override known long methods with `StepOptions.Builder.waitForDurability(StepDurability.SYNC)` or `executeDurability(StepDurability.SYNC)`; the phases are independent.
+
+`StepOptions` also owns method timeouts, heartbeat timeout, retries, selected loads, locks, and failure routes. Do not infer durability from a long method timeout. Read [core StepOptions guidance](../core/step-options.md) for the five-second heuristic, fallback, and child-deadline requirement.
 
 Choose Step durability from workload semantics. Async execution can optimize short handlers before falling back, but shares the logical retry budget. Method timeout and heartbeat behavior can differ between phases; verify the installed SDK docs and test Worker replacement.
 

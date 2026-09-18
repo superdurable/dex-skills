@@ -42,6 +42,7 @@ Then load only the references required by the task:
 | First application or architecture | [Getting started](references/core/getting-started.md) and [Error handling](references/core/error-handling.md) | language entry and **error-handling.md** |
 | Flow boundary or state model | [Modeling](references/core/modeling.md) | selected language's **primitives.md** |
 | Primitive selection or exact API | [Primitives](references/core/primitives.md) | selected language's **primitives.md** |
+| StepOptions, durability, timeout, heartbeat, retry, loads, locks, or failure route | [StepOptions](references/core/step-options.md) | selected language's **advanced-features.md** |
 | Design-pattern choice | [Patterns](references/core/patterns.md) | selected language's **patterns.md** |
 | Client calls, admission, RPC, cleanup, waits, or external Streams | [Error handling](references/core/error-handling.md) | selected language's **error-handling.md** |
 | Integration or failure-path tests | [Testing](references/core/testing.md) | selected language's **testing.md** |
@@ -50,14 +51,14 @@ Then load only the references required by the task:
 | Server deployment or component topology | [Operations](references/core/operations.md) | language entry for Client and Worker targets |
 | Large state, maps, or projections | [Data handling](references/core/data-handling.md) | selected language's **data-handling.md** |
 | Open-Flow compatibility or upgrade | [Versioning](references/core/versioning.md) | selected language's **versioning.md** |
-| Heartbeats, cancellation, selective loading, locks, BlobCache, or async durability | relevant core topic | selected language's **advanced-features.md** |
+| Cancellation, BlobCache, or other advanced behavior | relevant core topic | selected language's **advanced-features.md** |
 | Durable AI agent | [AI agents](references/core/ai-agents.md) | selected language's primitives, data, patterns, and advanced features |
 
 The language directory is the routing unit. Do not load all five languages.
 
 ## Model before implementation
 
-For non-trivial work, first state the Flow identity and lifecycle, typed start input and completion output, Steps and transitions, durable state, messages, synchronous RPCs, best-effort Streams, timers, retries, timeouts, recovery, and SubFlow boundaries.
+For non-trivial work, first state the Flow identity and lifecycle, typed start input and completion output, Steps and transitions, Flow-level durability default, method-level StepOptions, durable state, messages, synchronous RPCs, best-effort Streams, timers, retries, timeouts, recovery, and SubFlow boundaries.
 
 Name every RPC handler and explicit RPC with a concrete action verb. Use complete domain names such as `get_queued_messages` or `move_queued_message_to_prioritized_messages`, not noun-only names, placeholders, or generic names such as `Get`, `Update`, `Manager`, `Data`, or `Handler`. Apply the same preference for complete, precise names to APIs, interfaces, classes, types, methods, functions, fields, variables, and constants. Brevity is not a goal; a name should communicate its operation and subject at the call site or registration boundary.
 
