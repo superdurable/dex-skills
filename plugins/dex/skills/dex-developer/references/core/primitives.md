@@ -42,6 +42,8 @@ Steps, timeout handlers, and RPCs receive regular Attribute values automatically
 
 Lock the exact AttributeMap instance when Steps or RPCs can race on it. Do not treat an AttributeMap index as an index over its instances: all instances share one Flow search field, later writes replace that field, and instance keys are not searchable. AttributeMap enumeration is not server-side pagination.
 
+Before assigning many distinct index keys, read [Indexed Attribute capacity](operations.md#indexed-attribute-capacity). The default local **dexcli dev** stack has a smaller SQLite index pool than an Elasticsearch-backed production deployment.
+
 Read [data-handling.md](data-handling.md) for large values, map chunking, BlobCache locality, and external projections.
 
 Docs: https://docs.superdurable.io/primitives/attribute

@@ -29,6 +29,23 @@ For an application queue UI, prefer one application snapshot RPC that returns du
 
 Use **dexcli flow search**, **summary**, **state**, and **history** for narrower JSON output. Use **--no-hydrate** when payload contents are unnecessary or sensitive.
 
+## Indexed Attribute capacity
+
+The default local **dexcli dev** stack starts Temporal with SQLite. SQLite allocates a fixed number of custom Search Attribute slots per namespace and type. In a fresh local database, Dex uses three of those slots for system indexes, leaving this initial capacity for application Indexed Attributes:
+
+| Dex index type | SQLite slots | Dex system indexes | Application slots initially left |
+| --- | ---: | --- | ---: |
+| **KEYWORD** | 10 | **FlowType**, **DexParentFlowID** | 8 |
+| **KEYWORD_ARRAY** | 3 | **ActiveStepTypes** | 2 |
+| **FULL_TEXT** | 3 | None | 3 |
+| **BOOL**, **DATETIME**, **DOUBLE**, **INT** | 3 each | None | 3 each |
+
+Index keys are shared across Flow types. Reusing one key with the same type does not consume another slot. Previously registered application keys remain in a persisted local database and reduce the current remainder. Worker startup fails while synchronizing indexes if a new key exceeds the remaining capacity.
+
+Treat this as a local development constraint, not an application schema limit. Do not remove production query fields merely to fit local SQLite. To test more keys locally, point **dexcli dev** at an external Temporal deployment with enough visibility capacity using **--external-temporal-address**.
+
+Production capacity is determined by its Temporal visibility backend. Elasticsearch-backed deployments do not have SQLite's fixed per-type slot pool, although Elasticsearch mapping limits can still apply. Temporal Cloud and self-hosted SQL visibility stores have their own limits. Verify the target environment against [Temporal's current Search Attribute limits](https://docs.temporal.io/search-attribute#custom-search-attribute-limits).
+
 ## Deploy Dex Server components
 
 The `dex-server` image starts Web, API, and Interpreter in one OS process by default. It serves FlowService gRPC on port 8801 and Dex Web HTTP on port 8802.
