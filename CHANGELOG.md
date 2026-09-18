@@ -2,6 +2,10 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.8.2 - 2026-09-17
+
+- Document explicit Go RPC registration and definition-time options.
+
 ## 0.8.1 - 2026-09-17
 
 - Add race-safe handling for not-active Flow interactions and terminal child cleanup.
