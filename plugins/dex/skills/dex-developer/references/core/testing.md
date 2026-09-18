@@ -14,7 +14,7 @@ Use deadline-based polling or the SDK's long-poll result API. Do not use a fixed
 - Replace or restart the Worker while the Flow is waiting, then verify continuation from durable state.
 - Force a retryable Execute failure and verify retry count, heartbeat recovery, and exhausted-retry routing.
 - Publish Channel and ChannelMap messages through typed Flow RPCs and verify ordering, single consumption, stale message IDs, and terminal rejection.
-- Invoke read-only and mutating RPCs; for transactional RPCs, verify all effects commit or none do.
+- Invoke read-only and mutating RPCs. After terminal status, verify query-only reads, Signal rejection for returned effects, and Update rejection before handler execution. For transactional RPCs, verify all effects commit or none do.
 - Fire and skip Timers where supported; verify the business deadline and timeout-handler path.
 - Exercise parallel branches and SubFlows with a deliberate failure and cancellation policy.
 - Lose or reconnect a Stream consumer and recover canonical state through a typed snapshot RPC.

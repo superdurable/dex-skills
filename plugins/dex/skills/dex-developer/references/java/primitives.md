@@ -9,7 +9,7 @@ Choose the primitive from the behavior the application needs, not from a preferr
 | Wait | `Wait.until`, `anyOf`, `allOf`, `anyCombinationOf` | Durable readiness | `waitFor` observes; `execute` acts after readiness |
 | Attribute / AttributeMap | `Attribute.define`, `AttributeMap.define` | Durable latest state | Define once and register in the schema |
 | Channel / ChannelMap | `Channel.define`, `ChannelMap.define` | Durable FIFO commands/events | A satisfied condition consumes selected messages |
-| RPC | `@RPC` and `RPCResult<T>` | Synchronous interaction with an active Flow | Declare loads and locks explicitly |
+| RPC | `@RPC` and `RPCResult<T>` | Synchronous command or query | Query-only handlers can read retained terminal runs; locks, transactions, and returned effects require active execution |
 | Stream | `Stream.define` | Best-effort progress | Not authoritative state; clients resume with tokens |
 | Timer | `Timer.byDuration`, `Timer.byTimestamp` | Durable deadlines | Timer readiness is not a Java sleep |
 | SubFlow | `SubFlow.run` | Independently managed durable child work | Decide parent lifetime and cancellation explicitly |
@@ -59,6 +59,8 @@ Use condition IDs when code must distinguish winners, and for every condition in
 Locks coordinate only Steps and RPCs that request the same lock. They do not make external calls transactional. AttributeMap and ChannelMap instance names must be stable business keys.
 
 Pending-message reads inside a Step or RPC are invocation snapshots. Other handlers may consume, delete, or publish concurrently. Transactional execution validates selected deletions and commits writes atomically, but does not lock the whole snapshot. Read and write pending messages directly only when the operation explicitly tolerates that race. When a decision requires the queue to remain unchanged, every cooperating Step and RPC writer must use the same Attribute lock.
+
+An RPC without Attribute locks or `isTransactional` can query a retained terminal run when it returns no durable effects. Locks, transactions, returned effects, or Server policy require an active execution. Use `describeFlow` when lifecycle status matters; RPC success alone does not prove the Flow is active.
 
 ## Stream reads
 
