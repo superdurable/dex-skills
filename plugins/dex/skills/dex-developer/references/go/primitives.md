@@ -62,7 +62,7 @@ func (channelWaitStep) WaitFor(_ dex.Context, input int) (*dex.Wait, error) {
 
 ## RPC
 
-An exported Flow method shaped `(dex.Context, Input) (*dex.RPCResult[Output], error)` is a Worker RPC. Keep it short and lock conflicting Attributes. RPC results may request supported movements, publishing, or cancellation; never emulate transactions with process-local locks.
+Only methods returned from `GetRPCs` are Worker RPCs. Register direct bound Flow methods with `dex.DefineRPC`. Put timeout, locks, transactions, and selective loads in its `dex.RPCOptions`; `Client.InvokeRPC` takes no options argument. Keep handlers short and lock conflicting Attributes. RPC results may request supported movements, publishing, or cancellation; never emulate transactions with process-local locks.
 
 ## Stream
 
