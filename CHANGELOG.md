@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.10.0 - 2026-09-17
+
+- Document compact lowercase Base36 day offsets in Blob references.
+- Explain readable, percent-escaped Flow IDs in physical Blob paths.
+- Pin runnable sources to Dex release `sdk-go/v0.10.0`.
+
 ## 0.9.1 - 2026-09-17
 
 - Make Flow-level durability defaults and method-level StepOptions a first-class Flow design decision.

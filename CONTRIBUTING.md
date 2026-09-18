@@ -14,9 +14,9 @@ runnable implementation instead.
 
 ## Pin API sources
 
-`DEX_BASELINE` contains the full Dex commit SHA used for exact API excerpts.
+`DEX_BASELINE` contains the immutable Dex release tag used for exact API excerpts.
 Language code fences must be copied as contiguous excerpts from runnable
-examples, SDK tests, or SDK READMEs at that commit. Put a visible pinned link
+examples, SDK tests, or SDK READMEs at that tag. Put a visible pinned link
 and machine-readable marker immediately before each excerpt:
 
 ```text
@@ -25,8 +25,8 @@ and machine-readable marker immediately before each excerpt:
 ```
 
 Refresh the baseline deliberately: fetch Dex, review changes since the previous
-SHA, update every affected excerpt and link, then run source-fidelity validation
-against a checkout at the new commit. Never use a floating `main` link for an
+tag, update every affected excerpt and link, then run source-fidelity validation
+against a checkout at the new tag. Never use a floating `main` link for an
 exact API source.
 
 ## Validate a change

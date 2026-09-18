@@ -50,7 +50,9 @@ LANGUAGE_TOPICS = {
     "advanced-features.md",
 }
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-COMMIT_SHA = re.compile(r"^[0-9a-f]{40}$")
+DEX_RELEASE_TAG = re.compile(
+    r"^(?:[a-z0-9][a-z0-9-]*/)?v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
+)
 MARKDOWN_LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 FENCED_BLOCK = re.compile(r"```.*?```", re.DOTALL)
 SOURCE_MARKER = re.compile(r"<!-- dex-source: ([^\s]+) -->")
@@ -244,8 +246,8 @@ def main() -> None:
     current_version = (ROOT / "VERSION").read_text().strip()
     version_tuple(current_version)
     baseline = (ROOT / "DEX_BASELINE").read_text().strip()
-    if COMMIT_SHA.fullmatch(baseline) is None:
-        fail("DEX_BASELINE must contain one lowercase 40-character commit SHA")
+    if DEX_RELEASE_TAG.fullmatch(baseline) is None:
+        fail("DEX_BASELINE must contain a published Dex release tag such as sdk-go/v0.10.0")
     check_skill(baseline)
     check_manifests(current_version)
     if arguments.base_ref:

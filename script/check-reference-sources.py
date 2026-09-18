@@ -20,8 +20,7 @@ LANGUAGE_FENCE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 PINNED_LINK = re.compile(
-    r"https://github\.com/superdurable/dex/(?:blob|tree)/"
-    r"(?P<revision>[^/]+)/(?P<path>[^)\s#]+)"
+    r"https://github\.com/superdurable/dex/(?P<kind>blob|tree)/(?P<target>[^)\s#]+)"
 )
 
 
@@ -95,9 +94,12 @@ def check_file(markdown: Path, dex_root: Path, baseline: str) -> int:
             )
 
     for link in PINNED_LINK.finditer(content):
-        if link.group("revision") != baseline:
+        expected_prefix = (
+            f"https://github.com/superdurable/dex/{link.group('kind')}/{baseline}/"
+        )
+        if not link.group(0).startswith(expected_prefix):
             fail(f"Dex source link is not pinned to DEX_BASELINE in {markdown.relative_to(ROOT)}")
-        linked_path = link.group("path")
+        linked_path = link.group(0)[len(expected_prefix):]
         if not source_is_allowed(linked_path):
             fail(f"unsupported Dex source link in {markdown.relative_to(ROOT)}: {linked_path}")
         resolved_link = (dex_root / linked_path).resolve()
@@ -119,14 +121,21 @@ def main() -> None:
     dex_root = arguments.dex_root.resolve()
     if not (dex_root / ".git").exists():
         fail(f"not a Dex checkout: {dex_root}")
-    result = subprocess.run(
+    head_result = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=dex_root,
         check=True,
         capture_output=True,
         text=True,
     )
-    if result.stdout.strip() != baseline:
+    baseline_result = subprocess.run(
+        ["git", "rev-parse", f"{baseline}^{{commit}}"],
+        cwd=dex_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    if head_result.stdout.strip() != baseline_result.stdout.strip():
         fail(f"Dex checkout must be at DEX_BASELINE {baseline}")
 
     total = 0

@@ -19,7 +19,7 @@ Build reliable applications through Dex's public programming model. Keep the use
 
 Before writing code, identify the language, package manager, installed Dex SDK version, registry, Worker and Client bootstrap, and repository test commands.
 
-Preserve the installed SDK version unless the user asks to upgrade. The project's source, lockfile, installed SDK, and version-matched examples are authoritative. This bundle's exact API excerpts are pinned to the immutable commit in their visible source links and recorded in the source repository's `DEX_BASELINE`; use them as guidance, not as evidence that a different installed version has the same signature.
+Preserve the installed SDK version unless the user asks to upgrade. The project's source, lockfile, installed SDK, and version-matched examples are authoritative. This bundle's exact API excerpts are pinned to the immutable release tag in their visible source links and recorded in the source repository's `DEX_BASELINE`; use them as guidance, not as evidence that a different installed version has the same signature.
 
 If the project version differs from the baseline, name the matching installed-source path or immutable tag/commit used before writing exact API code. If that source is unavailable, stop at the version-independent Flow model, identify what is needed, and ask to inspect or fetch it. Never claim verification without an auditable version-matched source, label baseline syntax as compatible with an unverified version, or invent a Dex API.
 

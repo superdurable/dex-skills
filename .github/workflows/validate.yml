@@ -22,11 +22,11 @@ jobs:
       - name: Read Dex baseline
         id: dex-baseline
         shell: bash
-        run: echo "sha=$(cat DEX_BASELINE)" >> "$GITHUB_OUTPUT"
+        run: echo "revision=$(cat DEX_BASELINE)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           repository: superdurable/dex
-          ref: ${{ steps.dex-baseline.outputs.sha }}
+          ref: ${{ steps.dex-baseline.outputs.revision }}
           path: upstream-dex
       - name: Validate package
         run: python3 script/check-package.py
