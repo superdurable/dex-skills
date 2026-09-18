@@ -78,8 +78,8 @@ version-matched runnable examples before choosing exact APIs.
 
 ## Source baseline
 
-Exact API excerpts and runnable-source links are pinned to the full Dex commit
-recorded in [DEX_BASELINE](DEX_BASELINE). CI checks out that commit and verifies
+Exact API excerpts and runnable-source links are pinned to the Dex release tag
+recorded in [DEX_BASELINE](DEX_BASELINE). CI checks out that tag and verifies
 that every marked snippet is a contiguous excerpt of its declared source file.
 
 The baseline makes the handbook reproducible; it does not override the SDK

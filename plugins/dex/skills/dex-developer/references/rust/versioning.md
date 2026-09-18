@@ -2,7 +2,7 @@
 
 Start by inspecting the application's `Cargo.toml` and `Cargo.lock`. The pinned Dex baseline examples use a published exact crate version, but the installed version is authoritative for an existing application.
 
-[Pinned manifest](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/rust/Cargo.toml)
+[Pinned manifest](https://github.com/superdurable/dex/blob/sdk-go/v0.10.0/examples/rust/Cargo.toml)
 <!-- dex-source: examples/rust/Cargo.toml -->
 ```toml
 dex-sdk = "=0.7.0"
@@ -43,4 +43,4 @@ Use the [Dex Application Operations versioning guidance](https://docs.superdurab
 
 ## Updating the baseline
 
-When maintaining this skill, update `DEX_BASELINE`, refresh pinned source links and exact excerpts together, run source-fidelity validation against that commit, and bump the skill version according to SemVer. Do not point exact API links at floating `main`.
+When maintaining this skill, update `DEX_BASELINE`, refresh pinned source links and exact excerpts together, run source-fidelity validation against that release tag, and bump the skill version according to SemVer. Do not point exact API links at floating `main`.

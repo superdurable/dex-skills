@@ -17,7 +17,7 @@ Choose the primitive from the behavior the application needs, not from a preferr
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java)
+[Pinned wait example](https://github.com/superdurable/dex/blob/sdk-go/v0.10.0/examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java -->
 ```java
                 case "any":
@@ -42,7 +42,7 @@ Use condition IDs when code must distinguish winners, and for every condition in
 
 ## Durable state and locking
 
-[Pinned Attribute example](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java)
+[Pinned Attribute example](https://github.com/superdurable/dex/blob/sdk-go/v0.10.0/examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java -->
 ```java
         @Override
@@ -64,7 +64,7 @@ Pending-message reads inside a Step or RPC are invocation snapshots. Other handl
 
 Use `Client.readStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.listStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `getNextPageToken()` unchanged until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/sdk-go/v0.10.0/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java -->
 ```java
         final StreamMessagesPage<String> page = client.listStreamMessages(
