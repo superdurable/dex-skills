@@ -2,6 +2,11 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.10.2 - 2026-09-18
+
+- Document the Indexed Attribute capacity left by Dex system indexes in local **dexcli dev** SQLite.
+- Distinguish local SQLite slot exhaustion from production visibility-backend limits.
+
 ## 0.10.1 - 2026-09-17
 
 - Distinguish query-only RPCs from Signal and Update paths after Flow termination.
