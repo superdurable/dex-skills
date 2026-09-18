@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.10.1 - 2026-09-17
+
+- Distinguish query-only RPCs from Signal and Update paths after Flow termination.
+- Clarify that successful read-only RPCs do not prove the Flow is active.
+- Require terminal-path tests for query reads, returned effects, and transactional execution.
+
 ## 0.10.0 - 2026-09-17
 
 - Document compact lowercase Base36 day offsets in Blob references.

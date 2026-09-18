@@ -114,7 +114,7 @@ Pending-message reads inside a Step or RPC are invocation snapshots. Other handl
 
 Define an `Rpc<Input, Output>` with a stable logical name, register it in `Flow::rpcs`, and expose a handler taking `&mut Context`. Use `procedure_without_input` for unit input and a function registration when there is a typed response. An `RpcResult` may return a value and a `StepMovement`.
 
-RPCs can declare locks, timeout, transactions, and selective loads. Treat an RPC as a durable command/query boundary, not an arbitrary escape hatch into Worker memory.
+RPCs can declare locks, timeout, transactions, and selective loads. An RPC without locks or transactional execution can query a retained terminal run when it returns no durable effects. Locks, transactions, returned effects, or Server policy require an active execution. Treat an RPC as a durable command/query boundary, not an arbitrary escape hatch into Worker memory.
 
 ## Stream
 

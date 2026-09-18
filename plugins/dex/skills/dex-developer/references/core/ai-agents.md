@@ -65,7 +65,7 @@ Apply steered messages at safe Step boundaries. Do not cancel an in-flight model
 
 Only steered messages should interrupt a pending approval or durable Timer. A queued message remains editable and does not alter active work until the Agent becomes idle or the user chooses Steer.
 
-Expose one read-only application snapshot RPC for the browser. Explicitly load the conversation AttributeMap and both pending-message Channels, then return application history, Agent description, run ID, queued messages, and steered messages from that invocation. This history is the application's durable message history, not Dex execution history. Reconcile after mutations and live events, on focus or reconnect, and with a low-frequency fallback poll.
+Expose one read-only application snapshot RPC for the browser. Explicitly load the conversation AttributeMap and both pending-message Channels, then return application history, Agent description, queued messages, and steered messages from that invocation. Include a Run ID only when a consumer must pin or correlate one exact execution across Flow ID reuse. This history is the application's durable message history, not Dex execution history. A retained terminal run can serve the query, so RPC success does not prove the Agent is active. Use a lifecycle API when the response must include current execution status. Reconcile after mutations and live events, on focus or reconnect, and with a low-frequency fallback poll.
 
 ## Model long waits as Timer tools
 

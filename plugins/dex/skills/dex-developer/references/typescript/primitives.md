@@ -9,7 +9,7 @@ Choose primitives from the business behavior first, then encode them with the SD
 | Wait | `Wait.until`, `anyOf`, `allOf`, `anyCombinationOf` | Durable readiness | Wait is returned, never awaited as a Promise |
 | Attribute / AttributeMap | `new Attribute`, `new AttributeMap` | Durable latest state | Durable name and codec are compatibility surface |
 | Channel / ChannelMap | `new Channel`, `new ChannelMap` | Durable FIFO messages | Selected waits consume messages |
-| RPC | `@rpc({...})` and `RPCResult<T>` | Active-Flow request/response | Codecs, loads, locks, and transaction are explicit |
+| RPC | `@rpc({...})` and `RPCResult<T>` | Synchronous command or query | Query-only handlers can read retained terminal runs; locks, transactions, and returned effects require active execution |
 | Stream | `new Stream` | Best-effort progress | Not a source of truth |
 | Timer | `Timer.byDuration`, `Timer.byTimestamp` | Durable deadlines | Milliseconds are numbers; no event-loop timer survives Worker loss |
 | SubFlow | `SubFlow.run` | Durable child work | Parent/child lifetime is an application decision |
@@ -89,6 +89,8 @@ Staged Attribute and Channel mutations commit with a successful handler result. 
 Pending-message reads inside a Step or RPC are invocation snapshots. Other handlers may consume, delete, or publish concurrently. Transactional execution validates selected deletions and commits writes atomically, but does not lock the whole snapshot. Read and write pending messages directly only when the operation explicitly tolerates that race. When a decision requires the queue to remain unchanged, every cooperating Step and RPC writer must use the same Attribute lock.
 
 Use typed RPCs for application reads and writes of Flow-owned Attribute and Channel state. Direct Client state methods are not part of the application API. Attribute match remains the blocking observation surface.
+
+An RPC without Attribute locks or `isTransactional` can query a retained terminal run when it returns no durable effects. Locks, transactions, returned effects, or Server policy require an active execution. RPC success alone does not prove the Flow is active.
 
 ## Decisions
 
