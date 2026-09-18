@@ -33,6 +33,10 @@ Set heartbeat timeout for long work. Decode a prior checkpoint only when present
 
 Sync durability waits for persistence acknowledgement. Async can replay recently acknowledged attempts; use only for idempotent work and test replay. See [durability runnable](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/python/dex_examples/primitives/durability/durability_flow.py).
 
+Set a short-operation Flow default with `StartFlowOptions(config_override=FlowConfig(step_durability=StepDurability.ASYNC))`. Leave ordinary methods at `StepDurability.DEFAULT`. Override known long methods with `StepOptions(wait_for_durability=StepDurability.SYNC)` or `execute_durability=StepDurability.SYNC`; the two phases are independent.
+
+`StepOptions` also owns method timeouts, heartbeat timeout, retries, selected loads, locks, and failure routes. Do not infer durability from a long method timeout. Read [core StepOptions guidance](../core/step-options.md) for the five-second heuristic, fallback, and child-deadline requirement.
+
 ## Timeout handler and BlobCache
 
 Timeout handler options separately control timeout, retry, durability, locks, and selected loads. It obeys normal commit rules.

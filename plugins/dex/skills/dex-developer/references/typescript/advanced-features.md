@@ -27,6 +27,12 @@ Create the writer within one invocation. Buffered text flushes before the final 
 
 Use `AsyncContext.recordHeartbeat` with the same codec used by `getLastHeartbeatValue`. A Stream write acts as liveness but does not replace a useful checkpoint. Cancellation can arrive through the signal while an awaited operation is running.
 
+## StepOptions and Flow durability
+
+Set `StartFlowOptions.configOverride.stepDurability` to `"async"` when most handlers are short. Leave ordinary `StepOptions.waitForDurability` and `executeDurability` unset, then set the applicable method to `"sync"` for known long work. WaitFor and Execute are independent.
+
+StepOptions also owns method timeouts, heartbeat timeout, retries, selected loads, locks, and failure routes. Do not infer durability from a large method timeout. Read [core StepOptions guidance](../core/step-options.md) for the five-second heuristic, regular fallback, shared budget, and child cancellation deadline.
+
 ## Timeout handlers
 
 Implement `handleTimeout` when a soft deadline needs a business decision or compensation. Configure handler loads/retry separately. An exhausted handler can route to a registered `Step<void>` and inspect `context.recoveryError`.

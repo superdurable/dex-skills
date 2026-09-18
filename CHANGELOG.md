@@ -2,6 +2,12 @@
 
 All notable changes to Dex Developer are documented here.
 
+## 0.9.1 - 2026-09-17
+
+- Make Flow-level durability defaults and method-level StepOptions a first-class Flow design decision.
+- Document the ASYNC local phase, regular fallback, shared retry budget, and strict child-deadline requirement.
+- Add the five-second ShortRunning/LongRunning heuristic and one-minute heartbeat guidance across all five SDKs.
+
 ## 0.8.2 - 2026-09-17
 
 - Document explicit Go RPC registration and definition-time options.

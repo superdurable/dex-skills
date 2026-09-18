@@ -28,6 +28,7 @@ CORE_TOPICS = {
     "getting-started.md",
     "modeling.md",
     "primitives.md",
+    "step-options.md",
     "patterns.md",
     "testing.md",
     "troubleshooting.md",

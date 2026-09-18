@@ -38,6 +38,12 @@ Use Attribute locks around read-modify-write invariants. Combine `.lock(...)` ca
 
 A transition may use `StepMovement::to_with_options` to override the target execution without changing the Step's global defaults. Reserve this for call-site-specific timeout or retry semantics; if every transition needs the override, put it in `Step::options`.
 
+## StepOptions and Flow durability
+
+Set a short-operation default with `StartFlowOptions::new().config_override(FlowConfig::new().step_durability(StepDurability::Async))`. Leave ordinary methods at `StepDurability::Default`, then use `StepOptions::wait_for_durability(StepDurability::Sync)` or `execute_durability(StepDurability::Sync)` for known long work. The phases are independent.
+
+StepOptions also owns method timeouts, heartbeat timeout, retries, selected loads, locks, and failure routes. Do not infer durability from a large method timeout. Read [core StepOptions guidance](../core/step-options.md) for the five-second heuristic, fallback, shared retry budget, and child cancellation deadline.
+
 ## Waiting for durable acceptance
 
 `Client::wait_for_step_completion` lets a controller wait until a selected Step reaches its defined completion, then return while background branches continue. The server derives a stable namespaced Request ID from the Step execution when options omit one. The optional total handler budget defaults to an infinite wait. The Client reattaches transport long polls with the effective ID, and the server advances to the next `-N` generation after a completed handler timeout. This is useful when an API needs a durable acceptance point rather than full Flow completion. The runnable [Wait for Step completion pattern](https://github.com/superdurable/dex/blob/d5529248f14ae098d2324a247c80c48935f33a1e/examples/rust/src/patterns/wait_for_step_completion/flow.rs) persists the request before launching background work.

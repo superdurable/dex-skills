@@ -25,7 +25,13 @@ Declare Attribute or map-instance locks when RPC/Step mutations conflict. Lock t
 
 Set heartbeat timeout for long Execute work. On retry, test whether a prior value exists before decoding; resume from an externally committed checkpoint. Heartbeat is progress, not authoritative business state.
 
-## Cancellation, durability, timeout, BlobCache
+## StepOptions and Flow durability
+
+Set an application-wide default through `StartFlowOptions.ConfigOverride` and `FlowConfig.StepDurability`. For a short-operation Flow, use `StepDurabilityAsync`. Leave ordinary methods at `StepDurabilityDefault`, then set `WaitForDurability` or `ExecuteDurability` to `StepDurabilitySync` for a known long method. These two method overrides are independent.
+
+`StepOptions` also owns `WaitForMethodTimeout`, `ExecuteMethodTimeout`, `HeartbeatTimeout`, per-method retry, selected loads, locks, and failure routes. Do not infer durability from `ExecuteMethodTimeout`. Read [core StepOptions guidance](../core/step-options.md) for the five-second heuristic and local fallback semantics.
+
+## Cancellation, timeout, BlobCache
 
 A decision/RPC result can cancel selected Step types or siblings. Cancellation is cooperative; external calls need context cancellation and idempotency.
 

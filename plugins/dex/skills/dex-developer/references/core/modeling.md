@@ -16,11 +16,16 @@ For each Step, record:
 - Conditions returned by **WaitFor**
 - side effects performed by **Execute**
 - Attribute and Channel reads or writes
-- retry and timeout policy
+- Flow-default and method-specific durability
+- WaitFor and Execute method timeouts
+- Execute heartbeat timeout
+- retry, selective-load, lock, and failure-route policy
 - success transition
 - exhausted-retry or business-failure transition
 
 Use stable domain names. A Step type is part of the durable contract of open executions, not merely a function name.
+
+Treat StepOptions as part of the graph design, not tuning added after implementation. Read [step-options.md](step-options.md) before choosing durability or execution policy.
 
 ## Separate waiting from work
 
