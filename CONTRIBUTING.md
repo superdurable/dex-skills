@@ -70,7 +70,12 @@ For a MINOR release, validate the package and pinned source, smoke-test Codex,
 Claude Code, Cursor, and `npx skills add`, and complete the five language
 evaluations. The pull request remains a draft until CI and those checks pass.
 
-Before creating any release, run all validation commands, install each package
-locally, and test the skill in a new agent task or reloaded session. Tag the
-validated commit as `v<version>` only after the pull request is merged and the
-manifests, changelog, and documentation agree.
+Before merging, run all validation commands, install each package locally, and
+test the skill in a new agent task or reloaded session. After the pull request
+lands on `main`, the Release workflow creates GitHub Release `v<version>` from
+`VERSION` and the matching `CHANGELOG.md` section. If that tag already exists,
+the workflow skips so non-version merges stay quiet.
+
+Marketplace installs should track `main` (or another refreshable branch). Tags
+remain the unified version anchor; Cursor Auto Refresh follows branch pushes,
+while Codex and Claude still need an explicit marketplace refresh.
