@@ -4,6 +4,9 @@ Dex Skills is the official agent-skill monorepo for building with
 [Superdurable Dex](https://docs.superdurable.io). One `superdurable-dex` plugin
 ships two skills for Codex, Claude Code, and Cursor:
 
+The plugin is displayed as **Dex**. `Super Durable` remains the marketplace
+publisher, while the stable plugin ID remains `superdurable-dex`.
+
 | Skill | Responsibility |
 | --- | --- |
 | `dex-sdk` | Implement, debug, test, and operate Dex applications in Python, Go, Java, TypeScript, or Rust. |
@@ -75,12 +78,20 @@ terminal users, permissions, triggers, actions, waits, approvals, recovery, and
 audit requirements. It then decides whether Dex Web v2 is sufficient or a
 custom frontend needs a React mock and explicit approval.
 
+For a custom frontend, start with `make mock`. The template runs a Go in-memory
+mock API, Vite hot reload, and visible Mock Controls for lifecycle progression,
+reminders, one-time failures, Retry, and Reset. Approve those interactions
+before connecting the production Go/Dex backend. Run `make test-mock-e2e` for
+the mock journey, then `make check` for real Dex durability and rendering.
+
 Backend implementation is Go-only, starts from
 `superdurable/dex-template-basic-process`, and must satisfy strict Dex Web v2 /
 FDG 2.0 rendering. Connector integrations reuse
 `superdurable/dex-connectors-library` when a compatible implementation exists.
-The workflow finishes with local tests and a clean handoff ready for future Dex
-AI Platform upload; it does not claim that upload is available today.
+The mock validates HTTP and UI behavior only; it cannot prove Dex durability,
+Worker replacement, Timer, or RPC semantics. The workflow finishes with local
+tests and a clean handoff ready for future Dex AI Platform upload; it does not
+claim that upload is available today.
 
 ## Releases
 

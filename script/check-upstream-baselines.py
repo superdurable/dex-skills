@@ -67,10 +67,14 @@ def main() -> None:
     template_manifest = json.loads(
         (arguments.template_root / ".superverse" / "template.json").read_text()
     )
-    if template_manifest.get("templateVersion") != "1.1.0":
-        fail("template baseline must be version 1.1.0")
+    if template_manifest.get("templateVersion") != "1.2.0":
+        fail("template baseline must be version 1.2.0")
     if template_manifest.get("commands", {}).get("checkFdgV2") != "make check-fdg-v2":
         fail("template baseline must expose checkFdgV2")
+    if template_manifest.get("commands", {}).get("mock") != "make mock":
+        fail("template baseline must expose mock")
+    if template_manifest.get("commands", {}).get("testMockE2E") != "make test-mock-e2e":
+        fail("template baseline must expose testMockE2E")
     if (
         arguments.template_root / "DEX_WEB_V2_BASELINE"
     ).read_text().strip() != dex_baseline:

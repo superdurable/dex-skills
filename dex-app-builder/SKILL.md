@@ -44,9 +44,11 @@ Use Dex Web v2. Define indexed Attributes, summary/display fields, human-action 
 
 ### Custom frontend
 
-Read [UI workflow](references/ui-workflow.md). Agree on roles, screens, navigation, state, actions, empty/error/loading states, and responsive behavior. Then implement a runnable React TypeScript mock with fixture data in the template web application.
+Read [UI workflow](references/ui-workflow.md). Agree on roles, screens, navigation, state, actions, empty/error/loading states, and responsive behavior. Then implement the runnable React TypeScript experience against the template's mock mode.
 
-Show or describe the verified mock and wait for explicit user approval. Do not define the final HTTP contract, connect live data, or begin backend implementation before that approval.
+Start the template with `make mock`. Use its Go in-memory mock API and visible Mock Controls to exercise the proposed lifecycle, actions, reminders, loading, recovery, and reset behavior without a Dex Server. Extend the mock behavior when the approved product needs different interactions; keep production Flow code and provider integrations out of that path.
+
+Show or describe the verified mock and wait for explicit user approval. Do not connect a real Dex backend or begin production backend implementation before that approval.
 
 ## Stage 3: design and implement the backend
 
@@ -71,6 +73,8 @@ Never invent an unreleased connector API.
 ## Stage 4: verify and hand off
 
 Read [build, test, and handoff](references/build-test-handoff.md). Run the narrowest tests while iterating, then the template's full supported check. Every Flow must pass FDG 2.0 JSON analysis with `valid: true`.
+
+For a custom frontend, preserve the approved mock path and run `make test-mock-e2e` before real Dex verification. The mock proves HTTP and UI interaction behavior only; it does not prove Dex durability, Worker replacement, Timer, RPC, or provider semantics.
 
 Use a real Dex Server for waits, RPCs, Channels, retries, Worker replacement, terminal behavior, and connector boundaries. Use deadline-based convergence rather than fixed sleeps.
 

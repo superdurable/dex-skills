@@ -18,15 +18,17 @@ Do not claim application-level UI controls provide platform RBAC. Keep credentia
 
 ## Mock checkpoint
 
-Implement the first pass in the template React TypeScript application using local typed fixtures. Keep network calls out of the mock path. Cover at least the primary happy path plus empty, loading, validation, and provider-error states.
+Implement the first pass in the template React TypeScript application and run `make mock`. This starts the Go in-memory mock API and Vite hot reload without a Dex Client or Worker. Use the visible Mock Controls to advance the lifecycle, emit reminders, inject one-time start/refresh/approval failures, retry recoverable errors, and reset state. Browser refresh must preserve mock state until Reset or server restart.
 
-Run the frontend tests and production build. Render or open the mock when the environment supports visual inspection. Summarize the observed interactions and wait for explicit user approval.
+Drive the primary lifecycle through the mock API. Local typed fixtures remain appropriate for isolated component states, but they do not replace the runnable interaction path. Cover the happy path plus empty, loading, validation, recoverable provider-error, retry, and terminal states. Keep mock controls out of the production build experience.
+
+Run frontend tests, `make test-mock-e2e`, and the production build. Render or open the mock when the environment supports visual inspection. Summarize the observed interactions and wait for explicit user approval.
 
 Before approval, do not:
 
-- finalize OpenAPI;
-- bind components to live endpoints;
+- treat a provisional mock interaction contract as final;
+- bind components to the real Dex-backed application server;
 - add Dex Client access to the browser;
 - implement backend behavior inferred only from the mock.
 
-After approval, make OpenAPI the HTTP contract source and regenerate both server and browser clients. Browsers call the application API or typed Flow RPC boundary, never raw Dex primitives.
+After approval, finalize OpenAPI as the HTTP contract source, regenerate both server and browser clients, and connect the same approved interactions to the production Go/Dex backend. Browsers call the application API or typed Flow RPC boundary, never raw Dex primitives.

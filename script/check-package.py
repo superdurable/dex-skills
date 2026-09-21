@@ -215,6 +215,8 @@ def check_manifest_common(path: Path, manifest: dict, version: str) -> None:
         fail(f"{path.relative_to(ROOT)} version must be {version}")
     if manifest.get("repository") != "https://github.com/superdurable/dex-skills":
         fail(f"{path.relative_to(ROOT)} must use the dex-skills repository")
+    if manifest.get("author", {}).get("name") != "Super Durable":
+        fail(f"{path.relative_to(ROOT)} publisher must remain Super Durable")
 
 
 def check_manifests(version: str) -> None:
@@ -228,8 +230,10 @@ def check_manifests(version: str) -> None:
     interface = codex.get("interface")
     if not isinstance(interface, dict):
         fail("Codex manifest must define interface metadata")
-    if interface.get("displayName") != "Dex by Superdurable":
-        fail("Codex display name must be Dex by Superdurable")
+    if interface.get("displayName") != "Dex":
+        fail("Codex display name must be Dex")
+    if interface.get("developerName") != "Super Durable":
+        fail("Codex developer name must remain Super Durable")
     for field in ("composerIcon", "logo"):
         if interface.get(field) != "./assets/logo.png":
             fail(f"Codex {field} must use ./assets/logo.png")
@@ -252,6 +256,12 @@ def check_manifests(version: str) -> None:
             fail(f"{MARKETPLACES[name].relative_to(ROOT)} must contain one plugin")
         if plugins[0].get("name") != "superdurable-dex":
             fail(f"{MARKETPLACES[name].relative_to(ROOT)} has the wrong plugin ID")
+
+    if marketplaces["codex"].get("interface", {}).get("displayName") != "Super Durable":
+        fail("Codex marketplace publisher must remain Super Durable")
+    for name in ("claude", "cursor"):
+        if marketplaces[name].get("owner", {}).get("name") != "Super Durable":
+            fail(f"{name} marketplace publisher must remain Super Durable")
 
     codex_entry = marketplaces["codex"]["plugins"][0]
     source = codex_entry.get("source")

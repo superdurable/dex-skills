@@ -78,6 +78,6 @@ jobs:
           VERSION: ${{ steps.metadata.outputs.version }}
         run: |
           gh release create "$TAG" \
-            --title "Dex by Superdurable $VERSION" \
+            --title "Dex $VERSION" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --target "$GITHUB_SHA"
