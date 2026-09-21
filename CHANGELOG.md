@@ -1,6 +1,13 @@
 # Changelog
 
-All notable changes to Dex Developer are documented here.
+All notable changes to Dex Skills are documented here.
+
+## 0.11.0 - 2026-09-21
+
+- Rename the technical skill from `dex-developer` to `dex-sdk`.
+- Add `dex-app-builder` for business discovery, optional UI prototyping, Go backend implementation, strict Dex Web v2 rendering, local verification, and future platform handoff.
+- Publish both skills from the root of the `dex-skills` monorepo in one `superdurable-dex` plugin for Codex, Claude Code, and Cursor.
+- Remove the nested plugin wrapper, backend companion skill, vendored SDK references, and cross-repository synchronization workflow.
 
 ## 0.10.2 - 2026-09-18
 

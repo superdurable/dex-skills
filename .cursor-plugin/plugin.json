@@ -1,0 +1,23 @@
+{
+  "name": "superdurable-dex",
+  "version": "0.11.0",
+  "description": "Build with the Dex SDK and create end-to-end process products for Dex AI Platform.",
+  "author": {
+    "name": "Super Durable"
+  },
+  "homepage": "https://docs.superdurable.io/build-with-ai/dex-developer-skill",
+  "repository": "https://github.com/superdurable/dex-skills",
+  "license": "MIT",
+  "keywords": [
+    "dex",
+    "durable-execution",
+    "workflow",
+    "ai-platform",
+    "coding-agent"
+  ],
+  "logo": "assets/logo.png",
+  "skills": [
+    "./dex-sdk",
+    "./dex-app-builder"
+  ]
+}

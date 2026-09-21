@@ -1,81 +1,55 @@
 # Contributing
 
-The canonical skill is `plugins/dex/skills/dex-developer/SKILL.md`. Shared
-semantics belong in `references/core/`. Language-native APIs belong in the
-matching Python, Go, Java, TypeScript, or Rust directory. Keep all references
-reachable from the skill entrypoint through progressive-disclosure links.
+This repository publishes one plugin with two root-level skills:
 
-Each language directory has the same ten topics: its language entry,
-primitives, patterns, testing, error handling, data handling, observability,
-versioning, gotchas, and advanced features. When public behavior changes,
-review all five handbooks and update every affected language in the same pull
-request. Do not fill a parity gap with an invented API; identify the missing
-runnable implementation instead.
+- `dex-sdk` owns public Dex SDK implementation guidance and its Core and
+  language references.
+- `dex-app-builder` owns the business-first product workflow and platform-only
+  constraints. It links to `dex-sdk` instead of copying SDK references.
 
-## Pin API sources
+Keep every reference reachable from its skill entrypoint. Do not add a
+`plugins/` wrapper, a backend companion skill, or duplicated Core/Go handbooks.
 
-`DEX_BASELINE` contains the immutable Dex release tag used for exact API excerpts.
-Language code fences must be copied as contiguous excerpts from runnable
-examples, SDK tests, or SDK READMEs at that tag. Put a visible pinned link
-and machine-readable marker immediately before each excerpt:
+## Pin source authority
 
-```text
-[Runnable source](https://github.com/superdurable/dex/blob/<DEX_BASELINE>/examples/...)
-<!-- dex-source: examples/... -->
-```
+`DEX_BASELINE` pins exact SDK excerpts. Language code fences must be contiguous
+excerpts from runnable examples, SDK tests, or SDK READMEs at that release, with
+the existing visible source link and `dex-source` marker.
 
-Refresh the baseline deliberately: fetch Dex, review changes since the previous
-tag, update every affected excerpt and link, then run source-fidelity validation
-against a checkout at the new tag. Never use a floating `main` link for an
-exact API source.
+`DEX_WEB_V2_BASELINE` pins the Web v2/FDG 2.0 implementation used by
+`dex-app-builder`. `TEMPLATE_BASELINE` pins the only supported application
+template. Refresh any baseline deliberately and review all affected guidance.
 
 ## Validate a change
 
-Run the repository checks from the root:
+Run from the repository root:
 
 ```bash
 python3 script/check-package.py
-python3 script/check-reference-sources.py --dex-root /path/to/dex
-python3 /path/to/skill-creator/scripts/quick_validate.py \
-  plugins/dex/skills/dex-developer
-python3 /path/to/plugin-creator/scripts/validate_plugin.py plugins/dex
-claude plugin validate .
+python3 script/check-reference-sources.py --dex-root /path/to/dex-sdk-baseline
+python3 script/check-upstream-baselines.py \
+  --dex-root /path/to/dex-web-v2-baseline \
+  --template-root /path/to/dex-template-basic-process
+python3 /path/to/skill-creator/scripts/quick_validate.py dex-sdk
+python3 /path/to/skill-creator/scripts/quick_validate.py dex-app-builder
 ```
 
-The last three commands require the corresponding agent tooling. CI runs the
-package checks and checks out `DEX_BASELINE` to verify paths and excerpts.
+Also validate the Codex, Claude Code, and Cursor manifests with their current
+client tooling and smoke-test that one plugin install exposes exactly the two
+expected skills. For `dex-app-builder`, confirm the backend stage resolves the
+sibling `dex-sdk` Go handbook without copied references.
 
-Before a MINOR release, run five isolated behavior evaluations. Give each agent
-only a realistic language-specific request, the packaged skill, and read-only
-Dex source. Check routing, version verification, real APIs, Flow modeling,
-failure recovery, and executable testing. Fix guidance and rerun failed
-scenarios before release.
+## Version and release
 
-## Version a change
-
-Every change under `plugins/dex/skills/dex-developer/` must update `VERSION` and
-`CHANGELOG.md` in the same pull request. Keep all plugin manifests on the exact
-version in `VERSION`.
+Every change under `dex-sdk/` or `dex-app-builder/` updates `VERSION` and
+`CHANGELOG.md`. Keep every plugin and marketplace manifest on that exact
+version where the format supports a version.
 
 - Increment PATCH for corrections and clarifications.
-- Increment MINOR for new languages, patterns, or capabilities.
-- Increment MAJOR for incompatible identity, invocation, or behavior changes.
+- Increment MINOR for new product workflows, languages, patterns, or other
+  backward-compatible capabilities.
+- Increment MAJOR for incompatible plugin or skill identity changes.
 
-Do not put a version on marketplace entries. The plugin manifests are the only
-package version source.
-
-## Release
-
-For a MINOR release, validate the package and pinned source, smoke-test Codex,
-Claude Code, Cursor, and `npx skills add`, and complete the five language
-evaluations. The pull request remains a draft until CI and those checks pass.
-
-Before merging, run all validation commands, install each package locally, and
-test the skill in a new agent task or reloaded session. After the pull request
-lands on `main`, the Release workflow creates GitHub Release `v<version>` from
-`VERSION` and the matching `CHANGELOG.md` section. If that tag already exists,
-the workflow skips so non-version merges stay quiet.
-
-Marketplace installs should track `main` (or another refreshable branch). Tags
-remain the unified version anchor; Cursor Auto Refresh follows branch pushes,
-while Codex and Claude still need an explicit marketplace refresh.
+After a pull request lands on `main`, the Release workflow validates the full
+package and creates `v<version>` from the matching changelog section. If the tag
+already exists, the workflow skips release creation.

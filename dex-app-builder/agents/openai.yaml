@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dex App Builder"
+  short_description: "Design and build Dex AI process applications"
+  default_prompt: "Use $dex-app-builder to design and build a Dex AI process application."

@@ -19,19 +19,37 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Read Dex baseline
-        id: dex-baseline
+      - name: Read upstream baselines
+        id: baselines
         shell: bash
-        run: echo "revision=$(cat DEX_BASELINE)" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "sdk=$(cat DEX_BASELINE)" >> "$GITHUB_OUTPUT"
+          echo "web=$(cat DEX_WEB_V2_BASELINE)" >> "$GITHUB_OUTPUT"
+          echo "template=$(cat TEMPLATE_BASELINE)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           repository: superdurable/dex
-          ref: ${{ steps.dex-baseline.outputs.revision }}
-          path: upstream-dex
-      - name: Validate package
+          ref: ${{ steps.baselines.outputs.sdk }}
+          path: upstream-dex-sdk
+      - uses: actions/checkout@v4
+        with:
+          repository: superdurable/dex
+          ref: ${{ steps.baselines.outputs.web }}
+          path: upstream-dex-web
+      - uses: actions/checkout@v4
+        with:
+          repository: superdurable/dex-template-basic-process
+          ref: ${{ steps.baselines.outputs.template }}
+          path: upstream-template
+      - name: Validate package and manifests
         run: python3 script/check-package.py
-      - name: Validate reference sources
-        run: python3 script/check-reference-sources.py --dex-root upstream-dex
+      - name: Validate Dex SDK reference sources
+        run: python3 script/check-reference-sources.py --dex-root upstream-dex-sdk
+      - name: Validate Web v2 and template baselines
+        run: |
+          python3 script/check-upstream-baselines.py \
+            --dex-root upstream-dex-web \
+            --template-root upstream-template
       - name: Enforce release metadata
         if: github.event_name == 'pull_request'
         run: python3 script/check-package.py --base-ref "${{ github.event.pull_request.base.sha }}"
