@@ -1,103 +1,93 @@
-# Dex Developer
+# Dex Skills
 
-Dex Developer is the official coding-agent skill for building, debugging,
-testing, and operating applications with [Superdurable Dex](https://docs.superdurable.io).
-It covers the public Dex programming model in Python, Go, Java, TypeScript, and
-Rust.
+Dex Skills is the official agent-skill monorepo for building with
+[Superdurable Dex](https://docs.superdurable.io). One `superdurable-dex` plugin
+ships two skills for Codex, Claude Code, and Cursor:
 
-The skill uses progressive disclosure. Shared guidance lives under
-`references/core/`; each supported language has a matching ten-topic handbook
-under `references/<language>/`. An agent first loads the selected language's
-entry page, then only the modeling, primitives, patterns, testing, operations,
-data, versioning, or advanced guidance needed for the task.
+| Skill | Responsibility |
+| --- | --- |
+| `dex-sdk` | Implement, debug, test, and operate Dex applications in Python, Go, Java, TypeScript, or Rust. |
+| `dex-app-builder` | Discover, prototype, implement, and locally verify an end-to-end Dex AI Platform product with a Go backend. |
 
-This repository is the single source of truth for the `dex-developer` skill.
-The `dex` plugin packages that skill for Codex, Claude Code, and Cursor without
-adding an MCP server, hooks, or application runtime dependencies.
+`dex-app-builder` loads the sibling `dex-sdk` guidance when backend work begins
+and follows only its Core and Go references. Install the complete plugin so both
+skills are present.
 
 ## Install
 
 ### Codex
 
 ```bash
-codex plugin marketplace add superdurable/skill-dex-developer
-codex plugin add dex@superdurable
+codex plugin marketplace add superdurable/dex-skills
+codex plugin add superdurable-dex@superdurable
 ```
 
-Start a new task after installation. Invoke the skill with `$dex-developer`, or
-let Codex select it for Dex application work.
+Start a new task after installation. Invoke `$dex-sdk` for SDK work or
+`$dex-app-builder` for the product workflow.
 
 ### Claude Code
 
-Run these commands inside Claude Code:
+Run inside Claude Code:
 
 ```text
-/plugin marketplace add superdurable/skill-dex-developer
-/plugin install dex@superdurable
+/plugin marketplace add superdurable/dex-skills
+/plugin install superdurable-dex@superdurable
 /reload-plugins
 ```
 
-Invoke the skill with `/dex:dex-developer`.
+Invoke `/superdurable-dex:dex-sdk` or
+`/superdurable-dex:dex-app-builder`.
 
 ### Cursor
 
-Cursor loads the portable Agent Plugin in `plugins/dex`. Until it is listed in
-the public Cursor Marketplace, import this repository into a team marketplace
-or install the skill directly:
+Import `https://github.com/superdurable/dex-skills` from **Customize → From
+GitHub Repository**, then install `superdurable-dex`. The two skills appear as
+`/dex-sdk` and `/dex-app-builder`.
+
+Agent Skills clients can install the same bundle directly:
 
 ```bash
-npx skills add superdurable/skill-dex-developer --skill dex-developer
+npx skills add superdurable/dex-skills --all
 ```
 
-For local plugin development, link `plugins/dex` into
-`~/.cursor/plugins/local/dex`, then restart Cursor or run **Developer: Reload
-Window**. Invoke the skill with `/dex-developer`, or let Cursor select it.
+### Migrating from the old plugin
 
-### Other Agent Skills clients
+The former plugin ID `dex` and invocation `$dex-developer` were replaced by
+`superdurable-dex` and `$dex-sdk`. Remove or update the old marketplace install,
+install `superdurable-dex@superdurable`, and start a new task so the new skill
+names are discovered.
 
-```bash
-npx skills add superdurable/skill-dex-developer --skill dex-developer
-```
+## Dex SDK
 
-## Updates
+`dex-sdk` uses progressive disclosure. Shared semantics live under
+`dex-sdk/references/core/`, and each supported language has a matching handbook.
+The skill inspects the project's installed SDK and version-matched runnable
+sources before choosing exact APIs.
 
-Releases use semantic versions. Agents load an installed or cached copy; they do
-not fetch the latest GitHub content for every prompt.
+Exact source excerpts are pinned to the Dex release in `DEX_BASELINE`. CI checks
+that every marked snippet remains a contiguous excerpt of its declared source.
+The project dependency and lockfile remain authoritative when versions differ.
 
-- Codex: upgrade the `superdurable` marketplace, reinstall
-  `dex@superdurable`, and start a new task.
-- Claude Code: update the marketplace and run `/reload-plugins`. Third-party
-  marketplace auto-update can also be enabled in the plugin UI.
-- Cursor: refresh or reinstall the marketplace plugin. Team marketplaces can
-  enable Auto Refresh. Reload the window when testing a local plugin update.
-- Direct skill installs: rerun the `npx skills add` command.
+## Dex App Builder
 
-The skill version describes this guidance package, not the installed Dex SDK.
-The skill requires the agent to inspect the project's installed SDK and
-version-matched runnable examples before choosing exact APIs.
+`dex-app-builder` starts with business discovery: process maintainers, managers,
+terminal users, permissions, triggers, actions, waits, approvals, recovery, and
+audit requirements. It then decides whether Dex Web v2 is sufficient or a
+custom frontend needs a React mock and explicit approval.
 
-## Source baseline
+Backend implementation is Go-only, starts from
+`superdurable/dex-template-basic-process`, and must satisfy strict Dex Web v2 /
+FDG 2.0 rendering. Connector integrations reuse
+`superdurable/dex-connectors-library` when a compatible implementation exists.
+The workflow finishes with local tests and a clean handoff ready for future Dex
+AI Platform upload; it does not claim that upload is available today.
 
-Exact API excerpts and runnable-source links are pinned to the Dex release tag
-recorded in [DEX_BASELINE](DEX_BASELINE). CI checks out that tag and verifies
-that every marked snippet is a contiguous excerpt of its declared source file.
+## Releases
 
-The baseline makes the handbook reproducible; it does not override the SDK
-installed by a user's project. When versions differ, the project dependency,
-lockfile, installed SDK source, and matching tagged examples take precedence.
+The two skills and all client manifests share the version in `VERSION`. A merge
+to `main` creates GitHub Release `v<version>` when that tag does not already
+exist. See [CONTRIBUTING.md](CONTRIBUTING.md) for validation and release rules.
 
-## Handbook coverage
+## License
 
-The shared core covers architecture, getting started, modeling, primitives,
-StepOptions and durability, pattern selection, testing, troubleshooting,
-operations, versioning, data handling, and durable AI agents. Each language
-handbook covers setup and a
-minimal vertical slice, primitives, the full pattern catalog, integration
-testing, typed errors, durable data, observability, versioning, gotchas, and
-advanced features such as heartbeats, cancellation, selective loading, locks,
-BlobCache, and asynchronous durability.
-
-## Development
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for validation and release rules. The
-plugin is distributed under the [MIT License](LICENSE).
+[MIT](LICENSE)

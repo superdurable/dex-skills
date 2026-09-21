@@ -9,50 +9,58 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PLUGIN = ROOT / "plugins" / "dex"
-LOGO = PLUGIN / "assets" / "logo.png"
-SKILL = PLUGIN / "skills" / "dex-developer"
-REFERENCES = SKILL / "references"
-MANIFESTS = (
-    PLUGIN / "plugin.json",
-    PLUGIN / ".codex-plugin" / "plugin.json",
-    PLUGIN / ".claude-plugin" / "plugin.json",
-)
-MARKETPLACES = (
-    ROOT / ".agents" / "plugins" / "marketplace.json",
-    ROOT / ".claude-plugin" / "marketplace.json",
-    ROOT / ".cursor-plugin" / "marketplace.json",
-)
+SDK = ROOT / "dex-sdk"
+APP_BUILDER = ROOT / "dex-app-builder"
+SDK_REFERENCES = SDK / "references"
+LOGO = ROOT / "assets" / "logo.png"
+MANIFESTS = {
+    "codex": ROOT / ".codex-plugin" / "plugin.json",
+    "claude": ROOT / ".claude-plugin" / "plugin.json",
+    "cursor": ROOT / ".cursor-plugin" / "plugin.json",
+}
+MARKETPLACES = {
+    "codex": ROOT / ".agents" / "plugins" / "marketplace.json",
+    "claude": ROOT / ".claude-plugin" / "marketplace.json",
+    "cursor": ROOT / ".cursor-plugin" / "marketplace.json",
+}
 CORE_TOPICS = {
+    "ai-agents.md",
+    "data-handling.md",
     "error-handling.md",
     "getting-started.md",
     "modeling.md",
+    "operations.md",
+    "patterns.md",
     "primitives.md",
     "step-options.md",
-    "patterns.md",
     "testing.md",
     "troubleshooting.md",
-    "operations.md",
     "versioning.md",
-    "data-handling.md",
-    "ai-agents.md",
 }
 LANGUAGES = ("python", "go", "java", "typescript", "rust")
 LANGUAGE_TOPICS = {
-    "primitives.md",
-    "patterns.md",
-    "testing.md",
-    "error-handling.md",
-    "data-handling.md",
-    "observability.md",
-    "versioning.md",
-    "gotchas.md",
     "advanced-features.md",
+    "data-handling.md",
+    "error-handling.md",
+    "gotchas.md",
+    "observability.md",
+    "patterns.md",
+    "primitives.md",
+    "testing.md",
+    "versioning.md",
+}
+APP_BUILDER_REFERENCES = {
+    "build-test-handoff.md",
+    "connector-architecture.md",
+    "dex-web-v2.md",
+    "product-discovery.md",
+    "ui-workflow.md",
 }
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 DEX_RELEASE_TAG = re.compile(
     r"^(?:[a-z0-9][a-z0-9-]*/)?v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
 )
+FULL_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 MARKDOWN_LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 FENCED_BLOCK = re.compile(r"```.*?```", re.DOTALL)
 SOURCE_MARKER = re.compile(r"<!-- dex-source: ([^\s]+) -->")
@@ -67,9 +75,12 @@ def fail(message: str) -> None:
 
 def load_json(path: Path) -> dict:
     try:
-        return json.loads(path.read_text())
+        value = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError) as error:
         fail(f"invalid JSON in {path.relative_to(ROOT)}: {error}")
+    if not isinstance(value, dict):
+        fail(f"{path.relative_to(ROOT)} must contain a JSON object")
+    return value
 
 
 def version_tuple(version: str) -> tuple[int, int, int]:
@@ -88,39 +99,13 @@ def local_link_target(markdown: Path, target: str) -> Path | None:
     return (markdown.parent / relative_target).resolve()
 
 
-def check_reference_layout(markdown_files: list[Path]) -> None:
-    core_files = {path.name for path in (REFERENCES / "core").glob("*.md")}
-    if core_files != CORE_TOPICS:
-        fail(f"core references must be exactly: {', '.join(sorted(CORE_TOPICS))}")
-
-    for language in LANGUAGES:
-        language_dir = REFERENCES / language
-        expected = {*LANGUAGE_TOPICS, f"{language}.md"}
-        actual = {path.name for path in language_dir.glob("*.md")}
-        if actual != expected:
-            fail(
-                f"{language} references must be exactly: "
-                f"{', '.join(sorted(expected))}"
-            )
-
-    unexpected_root_files = sorted(REFERENCES.glob("*.md"))
-    if unexpected_root_files:
-        rendered = ", ".join(path.name for path in unexpected_root_files)
-        fail(f"references must be grouped under core or a language: {rendered}")
-
-    expected_count = len(CORE_TOPICS) + len(LANGUAGES) * 10
-    if len(markdown_files) != expected_count:
-        fail(f"expected {expected_count} reference files, found {len(markdown_files)}")
-
-
-def check_markdown_links(markdown_files: list[Path], baseline: str) -> None:
-    all_markdown = [SKILL / "SKILL.md", *markdown_files]
-    graph: dict[Path, set[Path]] = {path.resolve(): set() for path in all_markdown}
-
-    for markdown in all_markdown:
+def check_reachable_links(skill: Path, references: list[Path]) -> None:
+    markdown_files = [skill / "SKILL.md", *references]
+    graph = {path.resolve(): set() for path in markdown_files}
+    for markdown in markdown_files:
         content = markdown.read_text()
-        if FLOATING_SOURCE_LINK.search(content):
-            fail(f"floating Dex source link in {markdown.relative_to(ROOT)}")
+        if "[TODO:" in content:
+            fail(f"unfinished placeholder in {markdown.relative_to(ROOT)}")
         prose = FENCED_BLOCK.sub("", content)
         for target in MARKDOWN_LINK.findall(prose):
             resolved = local_link_target(markdown, target)
@@ -128,15 +113,52 @@ def check_markdown_links(markdown_files: list[Path], baseline: str) -> None:
                 continue
             if not resolved.exists():
                 fail(f"broken link in {markdown.relative_to(ROOT)}: {target}")
-            if resolved.suffix == ".md" and resolved in graph:
+            if resolved in graph:
                 graph[markdown.resolve()].add(resolved)
 
+    reachable: set[Path] = set()
+    pending = [(skill / "SKILL.md").resolve()]
+    while pending:
+        current = pending.pop()
+        if current in reachable:
+            continue
+        reachable.add(current)
+        pending.extend(graph[current] - reachable)
+    unreachable = sorted(path for path in references if path.resolve() not in reachable)
+    if unreachable:
+        rendered = ", ".join(str(path.relative_to(ROOT)) for path in unreachable)
+        fail(f"references not reachable from {skill.name}/SKILL.md: {rendered}")
+
+
+def check_sdk(baseline: str) -> None:
+    core_files = {path.name for path in (SDK_REFERENCES / "core").glob("*.md")}
+    if core_files != CORE_TOPICS:
+        fail(f"Core references must be exactly: {', '.join(sorted(CORE_TOPICS))}")
+
+    for language in LANGUAGES:
+        language_dir = SDK_REFERENCES / language
+        expected = {*LANGUAGE_TOPICS, f"{language}.md"}
+        actual = {path.name for path in language_dir.glob("*.md")}
+        if actual != expected:
+            fail(f"{language} references must be exactly: {', '.join(sorted(expected))}")
+
+    references = sorted(SDK_REFERENCES.rglob("*.md"))
+    expected_count = len(CORE_TOPICS) + len(LANGUAGES) * 10
+    if len(references) != expected_count:
+        fail(f"expected {expected_count} Dex SDK references, found {len(references)}")
+    check_reachable_links(SDK, references)
+
+    for markdown in [SDK / "SKILL.md", *references]:
+        content = markdown.read_text()
+        if FLOATING_SOURCE_LINK.search(content):
+            fail(f"floating Dex source link in {markdown.relative_to(ROOT)}")
         for source_path in SOURCE_MARKER.findall(content):
             expected_link = (
                 "https://github.com/superdurable/dex/blob/"
                 f"{baseline}/{source_path}"
             )
-            marker_position = content.index(f"<!-- dex-source: {source_path} -->")
+            marker = f"<!-- dex-source: {source_path} -->"
+            marker_position = content.index(marker)
             preceding = content[max(0, marker_position - 600):marker_position]
             if expected_link not in preceding:
                 fail(
@@ -144,100 +166,143 @@ def check_markdown_links(markdown_files: list[Path], baseline: str) -> None:
                     f"pinned link: {source_path}"
                 )
 
-    reachable: set[Path] = set()
-    pending = [SKILL / "SKILL.md"]
-    while pending:
-        current = pending.pop().resolve()
-        if current in reachable:
-            continue
-        reachable.add(current)
-        pending.extend(graph[current] - reachable)
 
-    unreachable = sorted(path for path in markdown_files if path.resolve() not in reachable)
-    if unreachable:
-        rendered = ", ".join(str(path.relative_to(ROOT)) for path in unreachable)
-        fail(f"references not reachable from SKILL.md: {rendered}")
+def check_app_builder() -> None:
+    references_dir = APP_BUILDER / "references"
+    references = sorted(references_dir.rglob("*.md"))
+    actual = {path.name for path in references}
+    if actual != APP_BUILDER_REFERENCES:
+        fail(
+            "Dex App Builder references must be exactly: "
+            f"{', '.join(sorted(APP_BUILDER_REFERENCES))}"
+        )
+    if (references_dir / "core").exists() or (references_dir / "go").exists():
+        fail("Dex App Builder must not vendor Dex SDK Core or Go references")
+    check_reachable_links(APP_BUILDER, references)
+
+    content = (APP_BUILDER / "SKILL.md").read_text()
+    required = (
+        "../dex-sdk/SKILL.md",
+        "../dex-sdk/references/go/go.md",
+        "Go SDK",
+        "strict FDG 2.0",
+        "external effects in `Execute`",
+        "`WaitFor` free of provider or Dex mutations",
+    )
+    for text in required:
+        if text not in content:
+            fail(f"dex-app-builder/SKILL.md must contain: {text}")
 
 
-def check_skill(baseline: str) -> None:
-    skill_files = sorted(ROOT.glob("**/SKILL.md"))
-    if skill_files != [SKILL / "SKILL.md"]:
-        rendered = ", ".join(str(path.relative_to(ROOT)) for path in skill_files)
-        fail(f"expected one canonical SKILL.md, found: {rendered}")
+def check_skills(baseline: str) -> None:
+    skills = sorted(path.parent for path in ROOT.rglob("SKILL.md"))
+    expected = sorted((SDK, APP_BUILDER))
+    if skills != expected:
+        rendered = ", ".join(str(path.relative_to(ROOT)) for path in skills)
+        fail(f"expected only dex-sdk and dex-app-builder skills, found: {rendered}")
+    if (ROOT / "plugins").exists():
+        fail("plugins/ wrapper must not exist")
+    if any(path.name == "dex-ai-platform-backend" for path in ROOT.rglob("*")):
+        fail("backend companion skill must not exist")
+    check_sdk(baseline)
+    check_app_builder()
 
-    markdown_files = sorted(REFERENCES.rglob("*.md"))
-    check_reference_layout(markdown_files)
-    check_markdown_links(markdown_files, baseline)
+
+def check_manifest_common(path: Path, manifest: dict, version: str) -> None:
+    if manifest.get("name") != "superdurable-dex":
+        fail(f"{path.relative_to(ROOT)} must name plugin superdurable-dex")
+    if manifest.get("version") != version:
+        fail(f"{path.relative_to(ROOT)} version must be {version}")
+    if manifest.get("repository") != "https://github.com/superdurable/dex-skills":
+        fail(f"{path.relative_to(ROOT)} must use the dex-skills repository")
 
 
 def check_manifests(version: str) -> None:
-    for path in MANIFESTS:
-        manifest = load_json(path)
-        if manifest.get("name") != "dex":
-            fail(f"{path.relative_to(ROOT)} must name plugin dex")
-        if manifest.get("version") != version:
-            fail(f"{path.relative_to(ROOT)} version must be {version}")
+    manifests = {name: load_json(path) for name, path in MANIFESTS.items()}
+    for name, manifest in manifests.items():
+        check_manifest_common(MANIFESTS[name], manifest, version)
+
+    codex = manifests["codex"]
+    if codex.get("skills") != "./":
+        fail("Codex manifest must discover root skills with ./")
+    interface = codex.get("interface")
+    if not isinstance(interface, dict):
+        fail("Codex manifest must define interface metadata")
+    if interface.get("displayName") != "Dex by Superdurable":
+        fail("Codex display name must be Dex by Superdurable")
+    for field in ("composerIcon", "logo"):
+        if interface.get(field) != "./assets/logo.png":
+            fail(f"Codex {field} must use ./assets/logo.png")
+
+    cursor = manifests["cursor"]
+    if cursor.get("skills") != ["./dex-sdk", "./dex-app-builder"]:
+        fail("Cursor manifest must expose dex-sdk and dex-app-builder")
+    if cursor.get("logo") != "assets/logo.png":
+        fail("Cursor manifest must use assets/logo.png")
 
     if not LOGO.is_file() or not LOGO.read_bytes().startswith(b"\x89PNG\r\n\x1a\n"):
-        fail("plugins/dex/assets/logo.png must be a PNG file")
+        fail("assets/logo.png must be a PNG file")
 
-    for path in (PLUGIN / "plugin.json", PLUGIN / ".codex-plugin" / "plugin.json"):
-        interface = load_json(path).get("interface")
-        if not isinstance(interface, dict):
-            fail(f"{path.relative_to(ROOT)} must define interface metadata")
-        for field in ("composerIcon", "logo"):
-            if interface.get(field) != "./assets/logo.png":
-                fail(f"{path.relative_to(ROOT)} {field} must use ./assets/logo.png")
-
-    for path in MARKETPLACES:
-        marketplace = load_json(path)
+    marketplaces = {name: load_json(path) for name, path in MARKETPLACES.items()}
+    for name, marketplace in marketplaces.items():
         if marketplace.get("name") != "superdurable":
-            fail(f"{path.relative_to(ROOT)} must name marketplace superdurable")
+            fail(f"{MARKETPLACES[name].relative_to(ROOT)} must name marketplace superdurable")
         plugins = marketplace.get("plugins")
         if not isinstance(plugins, list) or len(plugins) != 1:
-            fail(f"{path.relative_to(ROOT)} must contain one plugin")
-        plugin = plugins[0]
-        if plugin.get("name") != "dex" or "version" in plugin:
-            fail(f"{path.relative_to(ROOT)} must expose unversioned plugin dex")
-        source = plugin.get("source")
-        source_path = source.get("path") if isinstance(source, dict) else source
-        if source_path not in {"./plugins/dex", "plugins/dex"}:
-            fail(f"{path.relative_to(ROOT)} must point to plugins/dex")
+            fail(f"{MARKETPLACES[name].relative_to(ROOT)} must contain one plugin")
+        if plugins[0].get("name") != "superdurable-dex":
+            fail(f"{MARKETPLACES[name].relative_to(ROOT)} has the wrong plugin ID")
 
-    cursor_marketplace = load_json(ROOT / ".cursor-plugin" / "marketplace.json")
-    cursor_plugin = cursor_marketplace["plugins"][0]
-    if cursor_plugin.get("logo") != "plugins/dex/assets/logo.png":
-        fail("Cursor marketplace must use plugins/dex/assets/logo.png")
+    codex_entry = marketplaces["codex"]["plugins"][0]
+    source = codex_entry.get("source")
+    if not isinstance(source, dict) or source.get("path") != "./":
+        fail("Codex marketplace must point to the repository root")
+    if "version" in codex_entry:
+        fail("Codex marketplace entry must remain unversioned")
+
+    claude_entry = marketplaces["claude"]["plugins"][0]
+    if claude_entry.get("source") != "./" or claude_entry.get("version") != version:
+        fail("Claude marketplace must point to the versioned repository root")
+    expected_skills = ["./dex-sdk", "./dex-app-builder"]
+    if claude_entry.get("skills") != expected_skills:
+        fail("Claude marketplace must expose both renamed skills")
+
+    cursor_entry = marketplaces["cursor"]["plugins"][0]
+    if cursor_entry.get("source") != "./" or cursor_entry.get("version") != version:
+        fail("Cursor marketplace must point to the versioned repository root")
+    if cursor_entry.get("logo") != "assets/logo.png":
+        fail("Cursor marketplace must use assets/logo.png")
 
 
 def check_agent_rules() -> None:
     agents = (ROOT / "AGENTS.md").read_text()
     claude = (ROOT / "CLAUDE.md").read_text()
-    cursor = (ROOT / ".cursor" / "rules" / "dex-ai-platform-sync.mdc").read_text()
+    cursor = (ROOT / ".cursor" / "rules" / "dex-skills.mdc").read_text()
     if agents != claude:
         fail("AGENTS.md and CLAUDE.md must contain equivalent rules")
     if not cursor.endswith(agents):
         fail("Cursor rule must contain the same repository instructions")
     pull_request_template = (ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md").read_text()
-    if "Dex-AI-Platform-PR:" not in pull_request_template:
-        fail("pull request template must require Dex-AI-Platform-PR")
+    if "Dex-AI-Platform-PR:" in pull_request_template:
+        fail("pull request template must not require a paired repository")
+    if "quick_validate.py" not in pull_request_template:
+        fail("pull request template must require skill validation")
 
 
 def git_output(*arguments: str) -> str:
-    result = subprocess.run(
+    return subprocess.run(
         ["git", *arguments],
         cwd=ROOT,
         check=True,
         capture_output=True,
         text=True,
-    )
-    return result.stdout
+    ).stdout
 
 
 def check_release_change(base_ref: str, current_version: str) -> None:
     changed = set(git_output("diff", "--name-only", f"{base_ref}...HEAD").splitlines())
-    skill_prefix = "plugins/dex/skills/dex-developer/"
-    if not any(path.startswith(skill_prefix) for path in changed):
+    skill_prefixes = ("dex-sdk/", "dex-app-builder/")
+    if not any(path.startswith(skill_prefixes) for path in changed):
         return
     required = {"CHANGELOG.md", "VERSION"}
     missing = required - changed
@@ -260,13 +325,17 @@ def main() -> None:
     version_tuple(current_version)
     baseline = (ROOT / "DEX_BASELINE").read_text().strip()
     if DEX_RELEASE_TAG.fullmatch(baseline) is None:
-        fail("DEX_BASELINE must contain a published Dex release tag such as sdk-go/v0.10.0")
-    check_skill(baseline)
+        fail("DEX_BASELINE must contain a published Dex release tag")
+    for name in ("DEX_WEB_V2_BASELINE", "TEMPLATE_BASELINE"):
+        if FULL_COMMIT.fullmatch((ROOT / name).read_text().strip()) is None:
+            fail(f"{name} must contain a full lowercase commit")
+
+    check_skills(baseline)
     check_manifests(current_version)
     check_agent_rules()
     if arguments.base_ref:
         check_release_change(arguments.base_ref, current_version)
-    print(f"validated dex plugin {current_version} at Dex baseline {baseline}")
+    print(f"validated superdurable-dex {current_version} with two root skills")
 
 
 if __name__ == "__main__":

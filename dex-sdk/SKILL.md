@@ -1,9 +1,9 @@
 ---
-name: dex-developer
-description: Develop, debug, test, and operate applications built with Superdurable Dex in Python, Go, Java, TypeScript, or Rust. Use when a user mentions Dex Flows, Steps, Attributes, Channels, Streams, RPCs, SubFlows, Workers, Dex Web, or dexcli. Do not activate for unrelated uses of the word "dex" or for Dex framework/server implementation work.
+name: dex-sdk
+description: Implement, debug, test, and operate applications with the Superdurable Dex SDK in Python, Go, Java, TypeScript, or Rust. Use for technical work involving Dex Flows, Steps, Attributes, Channels, Streams, RPCs, SubFlows, Workers, Dex Web, or dexcli. Do not activate for end-to-end business product discovery or unrelated uses of the word "dex".
 ---
 
-# Dex Developer
+# Dex SDK
 
 Build reliable applications through Dex's public programming model. Keep the user's experience in Dex terms and APIs.
 

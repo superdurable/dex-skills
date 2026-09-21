@@ -1,3 +1,8 @@
+---
+description: Maintain the Dex Skills monorepo and its two public skills
+alwaysApply: true
+---
+
 # Dex Skills Repository Instructions
 
 This repository publishes one `superdurable-dex` plugin for Codex, Claude Code,

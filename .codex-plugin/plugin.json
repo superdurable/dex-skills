@@ -1,0 +1,39 @@
+{
+  "name": "superdurable-dex",
+  "version": "0.11.0",
+  "description": "Build with the Dex SDK and create end-to-end process products for Dex AI Platform.",
+  "author": {
+    "name": "Super Durable",
+    "url": "https://superdurable.io"
+  },
+  "homepage": "https://docs.superdurable.io/build-with-ai/dex-developer-skill",
+  "repository": "https://github.com/superdurable/dex-skills",
+  "license": "MIT",
+  "keywords": [
+    "dex",
+    "durable-execution",
+    "workflow",
+    "ai-platform",
+    "coding-agent"
+  ],
+  "skills": "./",
+  "interface": {
+    "displayName": "Dex by Superdurable",
+    "shortDescription": "Build with Dex SDK and create process products",
+    "longDescription": "Use Dex SDK for implementation, debugging, testing, and operations, or Dex App Builder for business discovery, optional UI prototyping, Go backend implementation, strict Web v2 rendering, and local verification.",
+    "developerName": "Super Durable",
+    "category": "Productivity",
+    "capabilities": [
+      "Guidance"
+    ],
+    "websiteURL": "https://docs.superdurable.io/build-with-ai/dex-developer-skill",
+    "defaultPrompt": [
+      "Use $dex-sdk to design a reliable Dex Flow.",
+      "Use $dex-app-builder to design a process application.",
+      "Use $dex-app-builder to prototype and build this workflow."
+    ],
+    "brandColor": "#78C51C",
+    "composerIcon": "./assets/logo.png",
+    "logo": "./assets/logo.png"
+  }
+}

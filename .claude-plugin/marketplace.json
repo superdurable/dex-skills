@@ -4,13 +4,18 @@
     "name": "Super Durable"
   },
   "metadata": {
-    "description": "Official plugins for Superdurable developer tools"
+    "description": "Official skills for building with Superdurable Dex"
   },
   "plugins": [
     {
-      "name": "dex",
-      "source": "./plugins/dex",
-      "description": "Build and operate durable applications with Dex"
+      "name": "superdurable-dex",
+      "source": "./",
+      "description": "Dex SDK guidance and end-to-end Dex AI Platform product development.",
+      "version": "0.11.0",
+      "skills": [
+        "./dex-sdk",
+        "./dex-app-builder"
+      ]
     }
   ]
 }

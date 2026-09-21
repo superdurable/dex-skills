@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "dex",
+      "name": "superdurable-dex",
       "source": {
         "source": "local",
-        "path": "./plugins/dex"
+        "path": "./"
       },
       "policy": {
         "installation": "AVAILABLE",

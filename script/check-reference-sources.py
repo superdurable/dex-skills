@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-REFERENCES = ROOT / "plugins" / "dex" / "skills" / "dex-developer" / "references"
+REFERENCES = ROOT / "dex-sdk" / "references"
 SOURCE_BLOCK = re.compile(
     r"<!-- dex-source: (?P<path>[^\s]+) -->\s*\n"
     r"```(?P<language>[^\n]*)\n(?P<snippet>.*?)\n```",
