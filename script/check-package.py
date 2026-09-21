@@ -195,7 +195,7 @@ def check_app_builder() -> None:
 
 
 def check_skills(baseline: str) -> None:
-    skills = sorted(path.parent for path in ROOT.rglob("SKILL.md"))
+    skills = sorted(path.parent for path in ROOT.glob("*/SKILL.md"))
     expected = sorted((SDK, APP_BUILDER))
     if skills != expected:
         rendered = ", ".join(str(path.relative_to(ROOT)) for path in skills)
