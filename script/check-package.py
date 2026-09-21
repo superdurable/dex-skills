@@ -210,6 +210,19 @@ def check_manifests(version: str) -> None:
         fail("Cursor marketplace must use plugins/dex/assets/logo.png")
 
 
+def check_agent_rules() -> None:
+    agents = (ROOT / "AGENTS.md").read_text()
+    claude = (ROOT / "CLAUDE.md").read_text()
+    cursor = (ROOT / ".cursor" / "rules" / "dex-ai-platform-sync.mdc").read_text()
+    if agents != claude:
+        fail("AGENTS.md and CLAUDE.md must contain equivalent rules")
+    if not cursor.endswith(agents):
+        fail("Cursor rule must contain the same repository instructions")
+    pull_request_template = (ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md").read_text()
+    if "Dex-AI-Platform-PR:" not in pull_request_template:
+        fail("pull request template must require Dex-AI-Platform-PR")
+
+
 def git_output(*arguments: str) -> str:
     result = subprocess.run(
         ["git", *arguments],
@@ -250,6 +263,7 @@ def main() -> None:
         fail("DEX_BASELINE must contain a published Dex release tag such as sdk-go/v0.10.0")
     check_skill(baseline)
     check_manifests(current_version)
+    check_agent_rules()
     if arguments.base_ref:
         check_release_change(arguments.base_ref, current_version)
     print(f"validated dex plugin {current_version} at Dex baseline {baseline}")

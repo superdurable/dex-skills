@@ -35,3 +35,57 @@ jobs:
       - name: Enforce release metadata
         if: github.event_name == 'pull_request'
         run: python3 script/check-package.py --base-ref "${{ github.event.pull_request.base.sha }}"
+
+  dex-ai-platform-pull-request:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Resolve merged paired pull request
+        id: paired
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          number="$(python3 script/check-dex-ai-platform-sync.py --github-event "$GITHUB_EVENT_PATH" --print-platform-pr)"
+          response="$(gh api "repos/superdurable/skill-dex-ai-platform/pulls/$number")"
+          if [[ "$(jq -r '.merged_at // empty' <<<"$response")" == "" ]]; then
+            echo "Dex AI Platform pull request $number must be merged first" >&2
+            exit 1
+          fi
+          echo "revision=$(jq -r '.head.sha' <<<"$response")" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: superdurable/skill-dex-ai-platform
+          ref: ${{ steps.paired.outputs.revision }}
+          path: paired-dex-ai-platform
+      - name: Validate paired bundled backend
+        run: |
+          python3 script/check-dex-ai-platform-sync.py \
+            --source . \
+            --platform-root paired-dex-ai-platform \
+            --source-commit "${{ github.event.pull_request.head.sha }}" \
+            --source-pr "${{ github.event.pull_request.number }}" \
+            --github-event "$GITHUB_EVENT_PATH"
+
+  dex-ai-platform-main:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: superdurable/skill-dex-ai-platform
+          ref: main
+          path: dex-ai-platform-main
+      - name: Validate released bundled backend
+        run: |
+          python3 script/check-dex-ai-platform-sync.py \
+            --source . \
+            --platform-root dex-ai-platform-main \
+            --source-commit HEAD \
+            --main

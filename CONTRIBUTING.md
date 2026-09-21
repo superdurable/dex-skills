@@ -79,3 +79,15 @@ the workflow skips so non-version merges stay quiet.
 Marketplace installs should track `main` (or another refreshable branch). Tags
 remain the unified version anchor; Cursor Auto Refresh follows branch pushes,
 while Codex and Claude still need an explicit marketplace refresh.
+
+## Dex AI Platform synchronization
+
+Every pull request must have a paired pull request in
+`superdurable/skill-dex-ai-platform`. Add its URL to the pull request body with
+the exact `Dex-AI-Platform-PR:` field from the template. Regenerate the bundled
+Core/Go companion from the Dex Developer pull request head, review semantic
+changes to its platform entrypoint, and merge the platform pull request first.
+
+CI compares the paired manifest, skill tree, version, Dex baseline, file set,
+hashes, and byte content. Push and release checks repeat the comparison against
+the platform `main` branch. See `AGENTS.md` for the serialized merge procedure.

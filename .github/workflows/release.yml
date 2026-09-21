@@ -17,6 +17,20 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: actions/checkout@v4
+        with:
+          repository: superdurable/skill-dex-ai-platform
+          ref: main
+          path: dex-ai-platform-main
+
+      - name: Validate Dex AI Platform synchronization
+        run: |
+          python3 script/check-dex-ai-platform-sync.py \
+            --source . \
+            --platform-root dex-ai-platform-main \
+            --source-commit HEAD \
+            --main
+
       - name: Read version
         id: version
         shell: bash
