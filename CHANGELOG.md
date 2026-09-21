@@ -2,6 +2,11 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.12.1 - 2026-09-21
+
+- Guide Attribute designs to reuse namespace-level typed Search Attribute slots and scope raw generic-key queries with FlowType.
+- Document stable domain-key exceptions, persistent local schema changes, and the prohibition on indexing PII.
+
 ## 0.12.0 - 2026-09-21
 
 - Add the basic-process template's Go mock server and Mock Controls as the required custom-frontend interaction checkpoint before connecting a real Dex backend.

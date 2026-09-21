@@ -42,6 +42,10 @@ The default local **dexcli dev** stack starts Temporal with SQLite. SQLite alloc
 
 Index keys are shared across Flow types. Reusing one key with the same type does not consume another slot. Previously registered application keys remain in a persisted local database and reduce the current remainder. Worker startup fails while synchronizing indexes if a new key exceeds the remaining capacity.
 
+Plan a namespace-wide pool before implementation. For unrelated Flow types, prefer generic typed slots such as **CustomKeyword**, **CustomText**, and **CustomInt**. Use **CustomKeyword2**, **CustomKeyword3**, and later numbers only when a Flow needs more slots of that type. A raw visibility query that filters a generic slot must also constrain **FlowType**. Reserve business keys such as **AccountID** for values whose type, meaning, and query semantics stay stable across the namespace. Do not index sensitive data or PII.
+
+Changing a persisted local store's index key, type, or enabled state does not remove the old Search Attribute. Use a fresh local store and new ports while validating the new schema, or migrate the store deliberately.
+
 Treat this as a local development constraint, not an application schema limit. Do not remove production query fields merely to fit local SQLite. To test more keys locally, point **dexcli dev** at an external Temporal deployment with enough visibility capacity using **--external-temporal-address**.
 
 Production capacity is determined by its Temporal visibility backend. Elasticsearch-backed deployments do not have SQLite's fixed per-type slot pool, although Elasticsearch mapping limits can still apply. Temporal Cloud and self-hosted SQL visibility stores have their own limits. Verify the target environment against [Temporal's current Search Attribute limits](https://docs.temporal.io/search-attribute#custom-search-attribute-limits).
