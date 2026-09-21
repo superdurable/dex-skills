@@ -42,7 +42,9 @@ Steps, timeout handlers, and RPCs receive regular Attribute values automatically
 
 Lock the exact AttributeMap instance when Steps or RPCs can race on it. Do not treat an AttributeMap index as an index over its instances: all instances share one Flow search field, later writes replace that field, and instance keys are not searchable. AttributeMap enumeration is not server-side pagination.
 
-Before assigning many distinct index keys, read [Indexed Attribute capacity](operations.md#indexed-attribute-capacity). The default local **dexcli dev** stack has a smaller SQLite index pool than an Elasticsearch-backed production deployment.
+Plan indexed Attribute keys as one namespace-level pool before assigning them to individual Flow types. Prefer generic typed slots: use **CustomKeyword**, **CustomText**, **CustomInt**, and similar first slots; number additional slots of the same type as **CustomKeyword2**, **CustomKeyword3**, and so on. Two logical Attributes in one Flow need separate physical keys. Use a domain key such as **AccountID** only when its type, meaning, and query semantics are stable for every Flow type in the namespace.
+
+Generic slots can mean different things for different Flow types. Every raw visibility query that filters a generic slot must also filter **FlowType**. Do not index sensitive data or PII. Before assigning many distinct index keys, read [Indexed Attribute capacity](operations.md#indexed-attribute-capacity). The default local **dexcli dev** stack has a smaller SQLite index pool than an Elasticsearch-backed production deployment.
 
 Read [data-handling.md](data-handling.md) for large values, map chunking, BlobCache locality, and external projections.
 
