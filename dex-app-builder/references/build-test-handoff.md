@@ -4,7 +4,9 @@
 
 Use the basic-process template's stable commands. Change `openapi/openapi.yaml`, then regenerate; never hand-edit generated Go or TypeScript clients.
 
-Run the narrowest relevant unit or frontend check after each edit batch. Before handoff run the repository's full `make check`, including FDG 2.0 validation.
+For custom frontends, use `make mock` as the interaction-approval loop and run `make test-mock-e2e` after UI behavior changes. Run the narrowest relevant unit or frontend check after each edit batch. Before handoff run the repository's full `make check`, including mock E2E, real Dex integration and E2E, Worker replacement, FDG 2.0 validation, and the production build.
+
+Treat mock results as HTTP/UI evidence only. They cannot establish Dex durability, Worker replacement, Timer, RPC, retry, or provider semantics.
 
 ## Durable verification
 
@@ -28,6 +30,7 @@ Use deadline-based polling and report Flow IDs and status on failure. Do not hid
 Ensure:
 
 - `superverse.yaml` and `.superverse/template.json` remain valid;
+- custom UI interactions are approved against the mock server and Mock Controls;
 - secrets are absent from files, logs, generated values, and archives;
 - dependencies and connector versions are pinned;
 - the repository has a clean, reviewable commit;

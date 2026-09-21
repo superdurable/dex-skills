@@ -2,6 +2,13 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.12.0 - 2026-09-21
+
+- Add the basic-process template's Go mock server and Mock Controls as the required custom-frontend interaction checkpoint before connecting a real Dex backend.
+- Pin the supported template to version `1.2.0` and validate its `make mock` and `make test-mock-e2e` commands.
+- Shorten the Codex plugin display name and GitHub release title to `Dex` while retaining plugin ID `superdurable-dex` and publisher `Super Durable`.
+- Upgrade the Codex, Claude Code, and Cursor package metadata to `0.12.0`.
+
 ## 0.11.0 - 2026-09-21
 
 - Rename the technical skill from `dex-developer` to `dex-sdk`.
