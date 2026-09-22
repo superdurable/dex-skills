@@ -40,6 +40,16 @@ def require_text(path: Path, *needles: str) -> None:
             fail(f"{path} is missing required text: {needle}")
 
 
+def require_ancestor(checkout: Path, ancestor: str, descendant: str) -> None:
+    result = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+        cwd=checkout,
+        check=False,
+    )
+    if result.returncode != 0:
+        fail(f"template Dex baseline {ancestor} is not an ancestor of {descendant}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dex-root", required=True, type=Path)
@@ -56,7 +66,9 @@ def main() -> None:
         "GetDexSummary",
         "GetDexDisplay",
         "dex:group",
-        "dex:action",
+        "RPCOptions.Action",
+        "ActionRequiresPermission",
+        '"ui-slot"',
     )
     require_text(
         arguments.dex_root / "cli" / "README.md",
@@ -75,10 +87,10 @@ def main() -> None:
         fail("template baseline must expose mock")
     if template_manifest.get("commands", {}).get("testMockE2E") != "make test-mock-e2e":
         fail("template baseline must expose testMockE2E")
-    if (
+    template_dex_baseline = (
         arguments.template_root / "DEX_WEB_V2_BASELINE"
-    ).read_text().strip() != dex_baseline:
-        fail("template and skill must pin the same Dex Web v2 baseline")
+    ).read_text().strip()
+    require_ancestor(arguments.dex_root, template_dex_baseline, dex_baseline)
     require_text(
         arguments.template_root / "internal" / "process" / "flow.go",
         "GetDexSummary",

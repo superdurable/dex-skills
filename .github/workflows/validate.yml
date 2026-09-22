@@ -36,6 +36,7 @@ jobs:
           repository: superdurable/dex
           ref: ${{ steps.baselines.outputs.web }}
           path: upstream-dex-web
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           repository: superdurable/dex-template-basic-process
