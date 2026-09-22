@@ -41,7 +41,7 @@ Ask whether the product needs a custom frontend.
 
 ### No custom frontend
 
-Use Dex Web v2. Define indexed Attributes, summary/display fields, human-action Steps, and Action RPCs so Run and Queue modes provide the required experience. Give every Action exactly one stable permission. The surrounding application authenticates users and maps their roles to permissions; choosing a working permission in an operator UI never grants it. Do not add React code merely to reproduce these surfaces.
+Use Dex Web v2. Define indexed Attributes, summary/display fields, human-action Steps, and Action RPCs so Run and Work Queue modes provide the required experience. Give every Action exactly one stable permission. The surrounding application authenticates users and maps their roles to permissions; choosing **Working as** in an operator UI only filters work and never grants that permission. Do not add React code merely to reproduce these surfaces.
 
 ### Custom frontend
 
@@ -60,6 +60,8 @@ Dex SDK supplies the public SDK guidance. The platform constraints in this skill
 Read [Dex Web v2](references/dex-web-v2.md) before editing a Flow. State the Flow identity, input/output, Steps, transitions, Attributes, Channels, RPCs, timers, retries, recovery, and connector boundaries before code.
 
 Model each human operation as a typed Go Action with one **ActionRequiresPermission** option. Use lowercase domain keys such as **refund.manage** or **refund.message**. Do not use a role name as the authorization contract when several roles can share an operation or one role can hold several permissions.
+
+Do not add Step locks merely to maintain Work Queue permissions. The Worker submits the complete Action mapping only when a successful invocation writes an Action condition source. The Server derives the projection from authoritative state in the same Workflow Task. Keep Action RPC locks when their state check and business effect must be atomic.
 
 Keep external effects in `Execute`. `WaitFor` only declares durable conditions and must not query or mutate providers or Dex state. This platform-specific rule overrides more permissive generic Dex guidance.
 

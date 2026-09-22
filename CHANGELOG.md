@@ -6,7 +6,9 @@ All notable changes to Dex Skills are documented here.
 
 - Teach Dex App Builder to separate business roles from the permissions required by human Actions.
 - Require one stable permission per Action and keep identity-to-permission authorization at the trusted application boundary.
-- Pin SDK source guidance to the published Go SDK `sdk-go/v0.10.1` release.
+- Document typed Go Action registration, UI slots, Work Queue discovery, and multi-permission search for Dex AI Platform applications.
+- Explain Server-managed Action permission projection and remove projection-only Attribute locking from application guidance.
+- Pin SDK source guidance to `sdk-go/v0.10.2` and Dex Web v2 guidance to merged pull request 517.
 
 ## 0.12.1 - 2026-09-21
 
