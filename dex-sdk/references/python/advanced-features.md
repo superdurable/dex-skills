@@ -10,7 +10,7 @@ Declare Attribute/map-instance locks for conflicting handlers. Lock narrowly; ke
 
 A synchronous streaming Execute yields all `StepOutput` values and returns the decision. An async Execute returns a decision and awaits heartbeat. Buffered Stream `write` is synchronous in async code.
 
-[Pinned SDK contract](https://github.com/superdurable/dex/blob/sdk-go/v0.10.0/sdk-python/tests/typecheck_contracts.py)
+[Pinned SDK contract](https://github.com/superdurable/dex/blob/sdk-go/v0.10.1/sdk-python/tests/typecheck_contracts.py)
 <!-- dex-source: sdk-python/tests/typecheck_contracts.py -->
 ```python
 class StreamingStep(Step[Input]):
@@ -31,7 +31,7 @@ class StreamingStep(Step[Input]):
 
 Set heartbeat timeout for long work. Decode a prior checkpoint only when present, resume from externally committed progress, and keep emitting. Cancellation is cooperative; check `context.is_cancellation_requested()` in bounded loops and cancel external awaits safely.
 
-Sync durability waits for persistence acknowledgement. Async can replay recently acknowledged attempts; use only for idempotent work and test replay. See [durability runnable](https://github.com/superdurable/dex/blob/sdk-go/v0.10.0/examples/python/dex_examples/primitives/durability/durability_flow.py).
+Sync durability waits for persistence acknowledgement. Async can replay recently acknowledged attempts; use only for idempotent work and test replay. See [durability runnable](https://github.com/superdurable/dex/blob/sdk-go/v0.10.1/examples/python/dex_examples/primitives/durability/durability_flow.py).
 
 Set a short-operation Flow default with `StartFlowOptions(config_override=FlowConfig(step_durability=StepDurability.ASYNC))`. Leave ordinary methods at `StepDurability.DEFAULT`. Override known long methods with `StepOptions(wait_for_durability=StepDurability.SYNC)` or `execute_durability=StepDurability.SYNC`; the two phases are independent.
 

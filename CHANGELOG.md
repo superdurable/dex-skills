@@ -2,6 +2,12 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.13.0 - 2026-09-21
+
+- Teach Dex App Builder to separate business roles from the permissions required by human Actions.
+- Require one stable permission per Action and keep identity-to-permission authorization at the trusted application boundary.
+- Pin SDK source guidance to the published Go SDK `sdk-go/v0.10.1` release.
+
 ## 0.12.1 - 2026-09-21
 
 - Guide Attribute designs to reuse namespace-level typed Search Attribute slots and scope raw generic-key queries with FlowType.

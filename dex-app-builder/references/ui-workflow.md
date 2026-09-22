@@ -7,6 +7,7 @@ Use this only after the user chooses a custom frontend.
 Agree on:
 
 - role-specific entry points and navigation;
+- how authenticated roles become the permissions available to each entry point;
 - list, detail, create, action, and completion experiences;
 - which state is canonical and how stale state is refreshed;
 - action eligibility and confirmation;
@@ -14,7 +15,7 @@ Agree on:
 - responsive behavior and accessibility;
 - which Dex Web v2 surfaces remain available to maintainers.
 
-Do not claim application-level UI controls provide platform RBAC. Keep credentials and provider secrets server-side.
+Do not claim application-level UI controls provide platform RBAC. A permission selector filters work; it does not grant permission. Enforce identity-to-permission mapping at the trusted application boundary. Keep credentials and provider secrets server-side.
 
 ## Mock checkpoint
 

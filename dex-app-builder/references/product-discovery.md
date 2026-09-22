@@ -2,18 +2,18 @@
 
 Do not start implementation until the product owner confirms the business model.
 
-## Role and operation matrix
+## Role, operation, and permission matrix
 
 Capture at least:
 
-| Actor | Goal | Can start | Can view | Can act | Can maintain |
+| Actor | Goal | Can start | Can view | Actions and permissions | Can maintain |
 | --- | --- | --- | --- | --- | --- |
-| Process maintainer | Own process definition and policy | product-specific | all required operational state | recovery/configuration actions | definitions and integrations |
-| Manager or operator | Review and resolve work | optional | assigned or scoped runs | approve, reject, edit, retry, escalate | no code by default |
-| Terminal user | Request or participate | usually their request | their relevant status | supply requested information | no |
-| External system | Trigger or exchange data | Trigger capability | query only when required | typed integration action/event | no |
+| Process maintainer | Own process definition and policy | product-specific | all required operational state | recovery/configuration Actions with explicit permissions | definitions and integrations |
+| Manager or operator | Review and resolve work | optional | assigned or scoped runs | approve, reject, edit, retry, or escalate with one permission per Action | no code by default |
+| Terminal user | Request or participate | usually their request | their relevant status | supply requested information with an explicit permission when exposed as an Action | no |
+| External system | Trigger or exchange data | Trigger capability | query only when required | typed integration Action or event | no |
 
-Replace generic labels with domain names. Record which operations require authentication, authorization, audit, or a reason.
+Replace generic labels with domain names. Record which operations require authentication, authorization, audit, or a reason. Keep roles and permissions separate: a role can hold several permissions, and several roles can share one permission.
 
 ## Lifecycle questions
 
@@ -34,7 +34,7 @@ Confirm:
 
 Before code, provide:
 
-1. the role/operation matrix;
+1. the role/operation/permission matrix;
 2. a numbered lifecycle with decisions and terminal outcomes;
 3. proposed Flow, Step, state, message, timer, RPC, and connector boundaries;
 4. unresolved tradeoffs.

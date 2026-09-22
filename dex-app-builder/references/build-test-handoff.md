@@ -18,6 +18,7 @@ Cover:
 - duplicate start/request behavior;
 - durable wait and Worker replacement;
 - Action eligibility, valid action, duplicate/late action, and terminal rejection;
+- role-to-permission mapping, unauthorized Action rejection, and multi-permission work discovery at the application boundary;
 - retry and exhausted-recovery behavior;
 - provider idempotency and unknown-outcome reconciliation;
 - summary/display reads before, during, and after terminal completion;
