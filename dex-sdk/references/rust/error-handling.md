@@ -6,7 +6,7 @@ Separate handler failures from controller/client failures. A Step or RPC returns
 
 Return errors with `?` when a durable read or write fails. For an application failure, construct a stable error type and useful message. `HandlerError::retry_after` overrides the next retry delay for that failure; `StepOptions::execute_retry` still bounds attempts.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.10.2/examples/rust/src/primitives/custom_retry/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/src/primitives/custom_retry/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/custom_retry/flow.rs -->
 ```rust
     fn options(&self) -> StepOptions<Self::Input> {
@@ -35,7 +35,7 @@ Make Execute side effects idempotent across attempts. Dex retries a logical meth
 
 Configure retry policies for the phase that can fail. WaitFor should normally be pure durable preparation. If WaitFor exhaustion is explicitly recoverable, set `WaitForFailurePolicy::Proceed`; Execute must then check `context.wait_for_method_failed()` before selecting a recovery transition.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.10.2/examples/rust/src/primitives/proceed_on_wait_failure/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/src/primitives/proceed_on_wait_failure/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/proceed_on_wait_failure/flow.rs -->
 ```rust
     fn options(&self) -> StepOptions<Self::Input> {
@@ -70,7 +70,7 @@ Match `SdkError` variants that affect external behavior, such as `FlowAlreadySta
 
 Unlike the class-based SDKs, `SdkError` is one enum containing both service-backed variants and local `FlowDefinition`, `InvalidArgument`, `ValueMapping`, and `InvalidStepResult` defects. Never discard every `SdkError` to implement a remote-failure policy. Match the documented service variant for the operation, or use `service_error().is_some()` only at a narrow boundary that intentionally handles every remote variant identically.
 
-For an idempotent start, set one stable `StartFlowOptions::request_id(...)` and `ignore_already_started(true)` only when a retry of that same logical request may attach to the existing run. A remaining `SdkError::FlowAlreadyStarted` means a different Request ID owns the Flow ID. Treat it as a domain conflict unless the coordinator contract deliberately redirects the command to that existing Flow. Another service-backed variant can leave acceptance unknown and requires authoritative admission reconciliation or a same-Request-ID retry.
+For an idempotent start, set one stable `StartFlowOptions::request_id(...)` and `ignore_already_started(true)` only when a retry of that same logical request may attach to the existing run. A remaining `SdkError::FlowAlreadyStarted` means a different Request ID owns the Flow ID. Treat it as a domain conflict unless the coordinator contract deliberately redirects the command to that existing Flow. Another service-backed variant can leave acceptance unknown; retry with the same identities or read owning domain state, never a dedicated start-deduplication table.
 
 For an explicitly best-effort external `Client::write_stream`, suppress only `SdkError::Service { .. }`, the remote fallback produced by that operation. Propagate local argument and value-mapping variants. Context Stream writes inside a handler remain `HandlerResult` work and must participate in the Step's retry or recovery policy.
 

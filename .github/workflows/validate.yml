@@ -24,6 +24,7 @@ jobs:
         shell: bash
         run: |
           echo "sdk=$(cat DEX_BASELINE)" >> "$GITHUB_OUTPUT"
+          echo "server=$(cat DEX_SERVER_BASELINE)" >> "$GITHUB_OUTPUT"
           echo "web=$(cat DEX_WEB_V2_BASELINE)" >> "$GITHUB_OUTPUT"
           echo "template=$(cat TEMPLATE_BASELINE)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4

@@ -8,7 +8,7 @@ Use `errors.As` for `*dex.FlowNotFoundError`, `*dex.FlowNotActiveError`, `*dex.F
 
 Every concrete remote Client error unwraps to `*dex.ServiceError`; local definition, value-mapping, argument, and programming errors do not. Use `errors.As(err, &serviceError)` only at a narrow boundary whose policy intentionally treats every remote Dex outcome the same. Ordinary domain logic should continue matching the concrete error type it can decide.
 
-For an idempotent start, set one stable `StartFlowOptions.RequestID` and configure `AlreadyStarted: &dex.AlreadyStartedOptions{IgnoreError: true}` only when a retry of that same logical request may attach to the existing run. A remaining `*dex.FlowAlreadyStartedError` means a different Request ID owns the Flow ID. Treat it as a domain conflict unless the coordinator contract deliberately redirects the command to that existing Flow. Another service error can leave acceptance unknown and requires authoritative admission reconciliation or a same-Request-ID retry.
+For an idempotent start, set one stable `StartFlowOptions.RequestID` and configure `AlreadyStarted: &dex.AlreadyStartedOptions{IgnoreError: true}` only when a retry of that same logical request may attach to the existing run. A remaining `*dex.FlowAlreadyStartedError` means a different Request ID owns the Flow ID. Treat it as a domain conflict unless the coordinator contract deliberately redirects the command to that existing Flow. Another service error can leave acceptance unknown; retry with the same identities or read owning domain state, never a dedicated start-deduplication table.
 
 For an explicitly best-effort external `Client.WriteStream`, an `errors.As` match on `*dex.ServiceError` may be logged with sanitized identity and discarded. Otherwise return the error. Context operations inside a handler, including Stream writes, must still return or wrap their error so Dex owns retry and recovery.
 
@@ -16,7 +16,7 @@ For an explicitly best-effort external `Client.WriteStream`, an `errors.As` matc
 
 Return an error when Step options should decide retry. Use `dex.RetryAfter` only when the application knows a meaningful delay. Never add an in-memory retry loop around Step work; it disappears with the Worker and hides attempts.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.10.2/examples/go/patterns/polling/backoff.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/go/patterns/polling/backoff.go)
 <!-- dex-source: examples/go/patterns/polling/backoff.go -->
 ```go
 	result, err := step.service.AttemptExternalAPICall("Poll for BackoffPollingFlow")

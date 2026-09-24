@@ -16,9 +16,11 @@ Keep every reference reachable from its skill entrypoint. Do not add a
 excerpts from runnable examples, SDK tests, or SDK READMEs at that release, with
 the existing visible source link and `dex-source` marker.
 
-`DEX_WEB_V2_BASELINE` pins the Web v2/FDG 2.0 implementation used by
-`dex-app-builder`. `TEMPLATE_BASELINE` pins the only supported application
-template. Refresh any baseline deliberately and review all affected guidance.
+`DEX_SERVER_BASELINE` pins the released Server required by App Builder.
+`DEX_WEB_V2_BASELINE` pins the released Web v2/FDG 2.0 implementation.
+`TEMPLATE_BASELINE` pins the published release of the only supported
+application template. Refresh any baseline deliberately and review all affected
+guidance.
 
 ## Validate a change
 

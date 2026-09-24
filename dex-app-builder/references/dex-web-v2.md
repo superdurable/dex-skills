@@ -1,6 +1,6 @@
 # Dex Web v2 and FDG 2.0
 
-Baseline: Dex commit `9c1d2d0d986b21c47c7c9be9cc3abd5125a16801`, containing the Run and Work Queue experience through merged Dex pull request 517.
+Baselines: Dex Server `v0.11.4`, Dex Web v2 `v0.2.0`, and Dex Go SDK `v0.11.3`. Web v2 includes permission-based Work Queue, cumulative permission history, trusted-header enforcement, dynamic definition sources, embedded reverse-proxy mounts, and operation-specific Connector factory rendering.
 
 Web v2 is Go-only. Validate every Flow with the v2 analyzer and never fall back to v1.
 
@@ -15,7 +15,11 @@ Dex Web derives its experience from:
 - waits on Channels/ChannelMaps for actionable human work;
 - eligible Action RPCs for operator operations.
 
-**Working as** selects one declared Action permission and filters Work Queue candidates. It does not authenticate a user or grant permission. A trusted application maps authenticated roles to permissions. Its **POST /api/v2/search** request may send several **workQueuePermissions**; a run matches any requested permission, then Flow type and other filters apply with AND.
+In development `local-selector` mode, **Working as** selects one declared Action permission and filters Work Queue candidates. It does not authenticate a user or grant permission.
+
+Production uses `trusted-header` behind an authenticated host or reverse proxy. The boundary strips browser-supplied permission headers, maps authenticated roles to permissions, and injects exactly one **X-Dex-Work-Queue-Permissions** header. Dex Web hides the selector, ignores request-body permissions, and authorizes Search and Actions against that trusted set. Port 8802 must not be reachable around the proxy.
+
+**POST /api/v2/search** accepts several permissions; a run matches any requested permission, then Flow type and other filters apply with AND. A historical permission match discovers work that is or was available. Dex Web rechecks current Action eligibility when the run opens.
 
 ## Source layout
 
@@ -76,9 +80,11 @@ An Action without input uses `dex.None`. Otherwise every exported JSON field in 
 
 The Go Worker includes the complete Action permission mapping only when a successful WaitFor, Execute, timeout Execute, or RPC invocation writes or deletes an Action condition source. Unrelated writes, failed invocations, and query-only RPCs omit it. Initial Flow and SubFlow state receives its projection directly from the Go SDK, including RPC-only Flows.
 
-The Server overlays those business writes on authoritative Attribute state, evaluates every mapping, sorts and deduplicates the available permissions, and updates `DexWorkQueuePermissions` in the same Workflow Task. It skips an unchanged projection and removes an empty one. Application Steps do not need projection-only Attribute locks.
+The Server overlays those business writes on authoritative Attribute state, evaluates every mapping, sorts and deduplicates newly matching permissions, and atomically adds them to `DexWorkQueuePermissions`. Once matched, a permission remains in that Flow execution's history, carries across Continue-as-New, and remains searchable after completion. Empty mappings and later state changes do not remove history. Application Steps do not need projection-only Attribute locks.
 
-Dex Web follows the same rule for editable fields: only `SetAttributes` calls that modify an Action condition source include the complete mapping. An Action definition is a stable contract for an active Flow. Deploying changed or removed mappings does not migrate existing state until a later source write, an explicit empty mapping, or a new run applies that definition.
+Dex Web follows the same rule for editable fields: only `SetAttributes` calls that modify an Action condition source include the complete mapping. An Action definition is a stable contract for an active Flow. A changed definition is evaluated on a later source write or a new Flow. Removing or renaming a permission does not clear existing history.
+
+Permission history is discovery data, not authorization evidence or proof that an Action remains eligible. Every Action RPC rechecks current business state. Hosted callers authorize the RPC against the trusted permission set.
 
 ## Validation
 

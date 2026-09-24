@@ -18,7 +18,7 @@ Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundExcepti
 
 Normal domain logic catches only the concrete exceptions whose outcomes it can decide. Every remote Client exception extends the public `DexServiceException`; local validation, definition, serialization, value-mapping, and programming failures do not. Catch the base only at a narrow boundary whose policy intentionally treats every remote Dex failure the same, such as service availability translation or explicitly best-effort output. Do not repeat that translation around every invocation. Catching `RuntimeException` is not equivalent because it also hides local SDK and application defects.
 
-For an idempotent start, set one stable `StartFlowOptions.Builder.requestId(...)` and use `ignoreAlreadyStarted(true)` only when a retry of that same logical request may attach to the existing run. A remaining `FlowAlreadyStartedException` means the existing Flow carries a different Request ID. Treat it as a domain conflict unless the resource-scoped coordinator contract deliberately redirects the command to that existing Flow. A different `DexServiceException` can leave start acceptance unknown and requires authoritative admission reconciliation or a same-Request-ID retry.
+For an idempotent start, set one stable `StartFlowOptions.Builder.requestId(...)` and use `ignoreAlreadyStarted(true)` only when a retry of that same logical request may attach to the existing run. A remaining `FlowAlreadyStartedException` means the existing Flow carries a different Request ID. Treat it as a domain conflict unless the resource-scoped coordinator contract deliberately redirects the command to that existing Flow. A different `DexServiceException` can leave start acceptance unknown; retry with the same identities or read owning domain state, never a dedicated start-deduplication table.
 
 ## Closed-Flow races
 
@@ -41,7 +41,7 @@ For an explicitly best-effort external `Client.writeStream`, catch `DexServiceEx
 - Test both `waitFor` and `execute` exhaustion when both are configured.
 - Never use a recovery Step as a generic exception sink.
 
-[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/sdk-go/v0.10.2/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
+[Pinned heartbeat/cancellation source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stepheartbeat/StepHeartbeatFlow.java -->
 ```java
                 if (context.isCancellationRequested()) {

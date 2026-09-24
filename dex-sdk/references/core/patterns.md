@@ -2,6 +2,12 @@
 
 Choose the smallest tested Flow shape that matches the business requirement. Then read the selected language's **patterns.md** for exact APIs and runnable sources.
 
+## Root Flow admission
+
+Start one domain-named root Flow directly from the application boundary. Use a stable Flow ID for the logical operation, a Request ID derived from the complete logical start request, and the explicit ID reuse policy that matches the lifecycle. A retry of the same request reuses both identities; the same Flow ID with a different Request ID is a conflict unless the domain intentionally routes commands to one coordinator.
+
+Do not create a separate database table, row, outbox, lease, lock, cache, or admission projection to deduplicate or serialize Flow starts. Store request fingerprints or accepted state only when they are genuine fields of the owning domain record. When the caller needs a durable acceptance response before the Flow completes, wait for the named admission Step and then read that domain record.
+
 ## Parallel Steps
 
 - **Static parallelism**: the branches are known when the Flow is defined. Emit explicit independent Steps; add a join only when the business outcome requires one.
@@ -92,4 +98,4 @@ Represent one entity lifecycle as a Flow, keep its current state in Attributes, 
 Sources:
 
 - Pattern catalog: https://docs.superdurable.io/design-patterns
-- Baseline runnable implementations: https://github.com/superdurable/dex/tree/sdk-go/v0.10.2/examples
+- Baseline runnable implementations: https://github.com/superdurable/dex/tree/sdk-go/v0.11.3/examples

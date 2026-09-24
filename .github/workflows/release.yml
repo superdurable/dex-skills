@@ -31,6 +31,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
           echo "sdk=$(cat DEX_BASELINE)" >> "$GITHUB_OUTPUT"
+          echo "server=$(cat DEX_SERVER_BASELINE)" >> "$GITHUB_OUTPUT"
           echo "web=$(cat DEX_WEB_V2_BASELINE)" >> "$GITHUB_OUTPUT"
           echo "template=$(cat TEMPLATE_BASELINE)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
@@ -43,6 +44,7 @@ jobs:
           repository: superdurable/dex
           ref: ${{ steps.metadata.outputs.web }}
           path: upstream-dex-web
+          fetch-depth: 0
       - uses: actions/checkout@v4
         with:
           repository: superdurable/dex-template-basic-process
