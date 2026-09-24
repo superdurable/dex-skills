@@ -2,6 +2,15 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.14.0 - 2026-09-24
+
+- Upgrade Dex App Builder to Server v0.11.4, Dex Web v2 v0.2.0, Go SDK v0.11.3, and basic-process template v1.3.0.
+- Require an explicit No custom UI or Custom UI decision during process discovery.
+- Keep only a Hello World/OpenAPI architecture shell when Dex Web provides the complete management experience.
+- Reserve generic HTTP for controlled internal systems and require released dedicated connectors for external providers.
+- Add the authorized connector fork, upstream pull request, local verification, and release-blocker workflow.
+- Refresh all pinned Dex SDK source links and language baseline versions.
+
 ## 0.13.0 - 2026-09-21
 
 - Teach Dex App Builder to separate business roles from the permissions required by human Actions.

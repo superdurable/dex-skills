@@ -10,7 +10,7 @@ Use Step/RPC load options for AttributeMap instances, Channels, and ChannelMaps.
 
 ## Buffered Streams
 
-[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/sdk-go/v0.10.2/examples/typescript/src/primitives/stream/stream-flow.ts)
+[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/src/primitives/stream/stream-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/stream/stream-flow.ts -->
 ```typescript
   public async execute(context: Context, input: string): Promise<StepDecision> {

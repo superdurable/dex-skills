@@ -37,8 +37,27 @@ Use a durable snapshot RPC for canonical state. Streams may improve live present
 
 Agents use the same typed Query and Action capabilities as deterministic Steps. Dex owns durable state, approval waits, retries, reconciliation, and cleanup. Connector code does not become a second workflow engine.
 
+## Provider classification
+
+Every interaction with an external provider uses a dedicated connector. This
+includes Trigger, Query, Action, Event, and reusable integration UI. The
+generic HTTP connector is permitted only for an organization-controlled
+internal system. Do not use it as an escape hatch for external SaaS APIs.
+
 ## Reuse and contribution
 
-Inspect `https://github.com/superdurable/dex-connectors-library` first. Reuse a compatible released connector. When no implementation exists, add an application-local adapter behind the intended connector port.
+Inspect `https://github.com/superdurable/dex-connectors-library` and its
+released component tags first. Reuse the latest compatible released dedicated
+connector.
 
-A library contribution is a separate repository mutation and requires explicit user authorization. Keep the local adapter until the connector is released; then pin the release, replace the adapter, and rerun real integration and E2E coverage.
+When no suitable connector exists, explain the gap and obtain authorization
+before changing GitHub state. Fork the library from current `origin/main`,
+implement the dedicated connector with its manifest, generated surface,
+provider tests, and real Dex coverage, push the fork, and open an upstream pull
+request for review.
+
+The application may continue local verification against the fork through an
+uncommitted `go.work` or temporary `replace`. Never commit a branch, commit
+SHA, pseudo-version, or local replacement as the production dependency. Keep
+the connector release as a production handoff blocker. After release, pin its
+exact component tag and rerun integration and E2E coverage.

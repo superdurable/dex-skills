@@ -1,8 +1,35 @@
-# Custom UI workflow
+# Application surface workflow
 
-Use this only after the user chooses a custom frontend.
+Use this after discovery identifies whether the application needs custom
+process UI.
 
-## Interaction design
+## No custom UI
+
+Dex Web owns every process-management interaction. Adapt the template to keep:
+
+- a non-business Hello World React page;
+- the Go HTTP server and OpenAPI source;
+- generated Go server interfaces and TypeScript client;
+- one `GetApplicationInfo` operation used by the page;
+- generation, build, and smoke-test commands.
+
+Remove process state, management operations, Action/Attribute proxy endpoints,
+dashboards, forms, mock lifecycle state, Mock Controls, fixtures, and related
+tests. The shell must not present approval, display, status, list, search,
+detail, retry, or escalation controls.
+
+Retain a webhook only when it is confirmed integration ingress. An external
+provider webhook belongs to its dedicated Connector Trigger/Event. An internal
+system may use the generic HTTP webhook connector.
+
+Do not require mock approval for the inert shell. Verify that the generated
+client calls `GetApplicationInfo`, the production build passes, and no
+management route remains. If custom behavior is requested later, follow the
+workflow below before connecting it to production.
+
+## Custom UI
+
+### Interaction design
 
 Agree on:
 
@@ -17,7 +44,7 @@ Agree on:
 
 Do not claim application-level UI controls provide platform RBAC. A permission selector filters work; it does not grant permission. Enforce identity-to-permission mapping at the trusted application boundary. Keep credentials and provider secrets server-side.
 
-## Mock checkpoint
+### Mock checkpoint
 
 Implement the first pass in the template React TypeScript application and run `make mock`. This starts the Go in-memory mock API and Vite hot reload without a Dex Client or Worker. Use the visible Mock Controls to advance the lifecycle, emit reminders, inject one-time start/refresh/approval failures, retry recoverable errors, and reset state. Browser refresh must preserve mock state until Reset or server restart.
 

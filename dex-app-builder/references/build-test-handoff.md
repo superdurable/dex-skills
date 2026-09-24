@@ -4,7 +4,9 @@
 
 Use the basic-process template's stable commands. Change `openapi/openapi.yaml`, then regenerate; never hand-edit generated Go or TypeScript clients.
 
-For custom frontends, use `make mock` as the interaction-approval loop and run `make test-mock-e2e` after UI behavior changes. Run the narrowest relevant unit or frontend check after each edit batch. Before handoff run the repository's full `make check`, including mock E2E, real Dex integration and E2E, Worker replacement, FDG 2.0 validation, and the production build.
+For **No custom UI**, reduce OpenAPI to `GetApplicationInfo` plus confirmed integration ingress, regenerate both clients, and remove process-management routes and mock lifecycle code. Verify the Hello World page through the generated client. Do not run a mock approval checkpoint for an inert shell.
+
+For **Custom UI**, use `make mock` as the interaction-approval loop and run `make test-mock-e2e` after UI behavior changes. Run the narrowest relevant unit or frontend check after each edit batch. Before handoff run the repository's full `make check`, including mock E2E, real Dex integration and E2E, Worker replacement, FDG 2.0 validation, and the production build.
 
 Treat mock results as HTTP/UI evidence only. They cannot establish Dex durability, Worker replacement, Timer, RPC, retry, or provider semantics.
 
@@ -19,11 +21,15 @@ Cover:
 - durable wait and Worker replacement;
 - Action eligibility, valid action, duplicate/late action, and terminal rejection;
 - role-to-permission mapping, unauthorized Action rejection, and multi-permission work discovery at the application boundary;
-- concurrent Action-source writes without projection-only locks, including an empty final permission union;
+- concurrent Action-source writes without projection-only locks and cumulative permission history after state changes and completion;
 - retry and exhausted-recovery behavior;
 - provider idempotency and unknown-outcome reconciliation;
 - summary/display reads before, during, and after terminal completion;
 - connector Trigger/Event correlation when used.
+
+For a No custom UI application, also assert that no approval, display, status,
+list, search, detail, retry, escalation, Action-proxy, or Attribute-proxy HTTP
+route remains. Test each retained webhook independently from Dex Web management.
 
 Use deadline-based polling and report Flow IDs and status on failure. Do not hide or skip a failing check.
 
@@ -32,10 +38,13 @@ Use deadline-based polling and report Flow IDs and status on failure. Do not hid
 Ensure:
 
 - `superverse.yaml` and `.superverse/template.json` remain valid;
+- the confirmed UI mode is recorded;
+- a No custom UI shell contains no business controls or management routes;
 - custom UI interactions are approved against the mock server and Mock Controls;
 - secrets are absent from files, logs, generated values, and archives;
-- dependencies and connector versions are pinned;
+- dependencies and released connector versions are pinned;
+- connector fork/PR status and any release blocker are explicit;
 - the repository has a clean, reviewable commit;
 - limitations and unimplemented integrations are explicit.
 
-Dex AI Platform upload is not available yet. State that the repository is ready for future import and encourage upload when the platform exposes it. Do not invent an upload command, deployment URL, or success result.
+Dex AI Platform upload is not available yet. State that the repository is ready for future import only when no connector release blocker remains. Do not invent an upload command, deployment URL, or success result.

@@ -186,6 +186,12 @@ def check_app_builder() -> None:
         "../dex-sdk/references/go/go.md",
         "Go SDK",
         "strict FDG 2.0",
+        "### No custom UI",
+        "### Custom UI",
+        "GetApplicationInfo",
+        "trusted authentication boundary",
+        "generic HTTP connector only for organization-controlled internal systems",
+        "fork the library and open an upstream pull request",
         "external effects in `Execute`",
         "`WaitFor` free of provider or Dex mutations",
     )
@@ -336,9 +342,12 @@ def main() -> None:
     baseline = (ROOT / "DEX_BASELINE").read_text().strip()
     if DEX_RELEASE_TAG.fullmatch(baseline) is None:
         fail("DEX_BASELINE must contain a published Dex release tag")
-    for name in ("DEX_WEB_V2_BASELINE", "TEMPLATE_BASELINE"):
-        if FULL_COMMIT.fullmatch((ROOT / name).read_text().strip()) is None:
-            fail(f"{name} must contain a full lowercase commit")
+    for name in ("DEX_SERVER_BASELINE", "DEX_WEB_V2_BASELINE"):
+        release_baseline = (ROOT / name).read_text().strip()
+        if DEX_RELEASE_TAG.fullmatch(release_baseline) is None:
+            fail(f"{name} must contain a published Dex release tag")
+    if FULL_COMMIT.fullmatch((ROOT / "TEMPLATE_BASELINE").read_text().strip()) is None:
+        fail("TEMPLATE_BASELINE must contain a full lowercase commit")
 
     check_skills(baseline)
     check_manifests(current_version)

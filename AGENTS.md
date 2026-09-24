@@ -9,8 +9,8 @@ directly at the repository root.
 - `dex-sdk` is the technical capability layer for implementing, debugging,
   testing, and operating applications through the public Dex SDK.
 - `dex-app-builder` is the end-to-end product workflow for business discovery,
-  optional UI validation, Go backend implementation, local testing, and Dex AI
-  Platform handoff.
+  an explicit no-custom-UI or custom-UI decision, Go backend implementation,
+  local testing, and Dex AI Platform handoff.
 - During backend implementation, `dex-app-builder` loads `dex-sdk` and follows
   only its Core and Go guidance. Do not duplicate those references.
 - Platform constraints are stricter: Go only, strict FDG 2.0, provider effects
@@ -23,5 +23,6 @@ version, repository, skill paths, and display metadata. Do not reintroduce a
 `plugins/` wrapper or a third backend skill.
 
 Every skill change updates `VERSION` and `CHANGELOG.md`. Validate Dex SDK source
-excerpts against `DEX_BASELINE`, and validate Web v2 and the basic-process
-template against `DEX_WEB_V2_BASELINE` and `TEMPLATE_BASELINE`.
+excerpts against `DEX_BASELINE`, and validate Server, Web v2, and the
+basic-process template against `DEX_SERVER_BASELINE`,
+`DEX_WEB_V2_BASELINE`, and `TEMPLATE_BASELINE`.
