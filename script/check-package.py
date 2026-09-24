@@ -57,10 +57,9 @@ APP_BUILDER_REFERENCES = {
     "ui-workflow.md",
 }
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-DEX_RELEASE_TAG = re.compile(
+PUBLISHED_RELEASE_TAG = re.compile(
     r"^(?:[a-z0-9][a-z0-9-]*/)?v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
 )
-FULL_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 MARKDOWN_LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 FENCED_BLOCK = re.compile(r"```.*?```", re.DOTALL)
 SOURCE_MARKER = re.compile(r"<!-- dex-source: ([^\s]+) -->")
@@ -340,14 +339,15 @@ def main() -> None:
     current_version = (ROOT / "VERSION").read_text().strip()
     version_tuple(current_version)
     baseline = (ROOT / "DEX_BASELINE").read_text().strip()
-    if DEX_RELEASE_TAG.fullmatch(baseline) is None:
+    if PUBLISHED_RELEASE_TAG.fullmatch(baseline) is None:
         fail("DEX_BASELINE must contain a published Dex release tag")
     for name in ("DEX_SERVER_BASELINE", "DEX_WEB_V2_BASELINE"):
         release_baseline = (ROOT / name).read_text().strip()
-        if DEX_RELEASE_TAG.fullmatch(release_baseline) is None:
+        if PUBLISHED_RELEASE_TAG.fullmatch(release_baseline) is None:
             fail(f"{name} must contain a published Dex release tag")
-    if FULL_COMMIT.fullmatch((ROOT / "TEMPLATE_BASELINE").read_text().strip()) is None:
-        fail("TEMPLATE_BASELINE must contain a full lowercase commit")
+    template_baseline = (ROOT / "TEMPLATE_BASELINE").read_text().strip()
+    if PUBLISHED_RELEASE_TAG.fullmatch(template_baseline) is None:
+        fail("TEMPLATE_BASELINE must contain a published template release tag")
 
     check_skills(baseline)
     check_manifests(current_version)

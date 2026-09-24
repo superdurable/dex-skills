@@ -18,8 +18,9 @@ the existing visible source link and `dex-source` marker.
 
 `DEX_SERVER_BASELINE` pins the released Server required by App Builder.
 `DEX_WEB_V2_BASELINE` pins the released Web v2/FDG 2.0 implementation.
-`TEMPLATE_BASELINE` pins the only supported application template. Refresh any
-baseline deliberately and review all affected guidance.
+`TEMPLATE_BASELINE` pins the published release of the only supported
+application template. Refresh any baseline deliberately and review all affected
+guidance.
 
 ## Validate a change
 
