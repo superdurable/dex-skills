@@ -6,11 +6,11 @@ Read core semantics first; this page gives Python shapes at the pinned baseline.
 
 Subclass `Flow[InputT]` and `Step[InputT]`. `get_steps` returns `StepList.start_step(instance).other_steps(...)`. A Step without `wait_for` executes immediately. `Wait.until`, all/any condition APIs, and `Wait.skip_immediately` control waiting. Return `go_to`, `go_to_many`, `dead_end`, graceful, or force decisions.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/python/dex_examples/primitives/flow/example_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/python/dex_examples/primitives/flow/example_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/example_flow.py -->
 ```python
-class ExampleStep(Step[int]):
-    def __init__(self, finish: FinishStep) -> None:
+class Example(Step[int]):
+    def __init__(self, finish: Finish) -> None:
         self.finish = finish
 
     def wait_for(self, context: Context, input: int) -> Wait:
@@ -18,7 +18,7 @@ class ExampleStep(Step[int]):
         return Wait.skip_immediately()
 
     def execute(self, context: Context, input: int) -> StepDecision:
-        return go_to(FinishStep, input + 1)
+        return go_to(Finish, input + 1)
 ```
 
 Among ready `Wait.any_of` candidates, Dex uses canonical Timer, Channel, then SubFlow order and preserves argument order within each kind. An earlier unready Condition does not block a later ready one. Only the winning Channel consumes messages. For strict priority, return only the current higher-priority Condition until it resolves.
@@ -37,7 +37,7 @@ Timer belongs in `wait_for` as a durable condition, never `asyncio.sleep` for du
 
 Streams are typed feeds registered in persistence schema. In sync generator handlers, `yield` every Stream output. In async handlers, Stream writes are synchronous API calls at the pinned surface while heartbeat is awaited. Consumers resume from tokens.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/python/dex_examples/primitives/stream/stream_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/python/dex_examples/primitives/stream/stream_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/stream/stream_flow.py -->
 ```python
 class RenderPreview(Step[str]):
@@ -53,15 +53,15 @@ class RenderPreview(Step[str]):
 
 Use `read_stream` for forward, one-at-a-time, optionally long-polling consumption. Use `list_stream_messages` on `Client` or `AsyncClient` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `next_page_token` unchanged until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/python/dex_examples/primitives/stream/controller.py)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/python/dex_examples/primitives/stream/controller.py)
 <!-- dex-source: examples/python/dex_examples/primitives/stream/controller.py -->
 ```python
-        page = await app_state.client.list_stream_messages(
-            required_query("workflowId"),
-            app_state.stream.progress,
-            required_int_query("pageSize"),
-            optional_query("beforePageToken", ""),
-        )
+page = await app_state.client.list_stream_messages(
+    required_query("workflowId"),
+    app_state.stream.progress,
+    required_int_query("pageSize"),
+    optional_query("beforePageToken", ""),
+)
 ```
 
 The before-page token is exclusive and scope-bound. The first page uses an empty token. Listing is a best-effort retained snapshot: concurrent newer writes stay outside the older-page chain, while trimming may remove messages. A trimmed anchor returns an empty page. The server requires a positive page size and caps it at 1000 by default.

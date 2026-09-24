@@ -6,27 +6,27 @@ Separate handler failures from controller/client failures. A Step or RPC returns
 
 Return errors with `?` when a durable read or write fails. For an application failure, construct a stable error type and useful message. `HandlerError::retry_after` overrides the next retry delay for that failure; `StepOptions::execute_retry` still bounds attempts.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/src/primitives/custom_retry/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/src/primitives/custom_retry/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/custom_retry/flow.rs -->
 ```rust
-    fn options(&self) -> StepOptions<Self::Input> {
-        StepOptions::new().execute_retry(RetryPolicy::new().maximum_attempts(5))
-    }
+fn options(&self) -> StepOptions<Self::Input> {
+    StepOptions::new().execute_retry(RetryPolicy::new().maximum_attempts(5))
+}
 
-    fn execute(
-        &self,
-        context: &mut Context,
-        ready_after_attempt: Self::Input,
-    ) -> HandlerResult<StepDecision> {
-        if i32::try_from(context.attempt()).unwrap_or(i32::MAX) < ready_after_attempt {
-            return Err(HandlerError::retry_after(
-                7,
-                "CustomRetry",
-                format!("not ready on attempt {}", context.attempt()),
-            ));
-        }
-        Ok(StepDecision::graceful_complete(String::from("ready")))
+fn execute(
+    &self,
+    context: &mut Context,
+    ready_after_attempt: Self::Input,
+) -> HandlerResult<StepDecision> {
+    if i32::try_from(context.attempt()).unwrap_or(i32::MAX) < ready_after_attempt {
+        return Err(HandlerError::retry_after(
+            7,
+            "CustomRetry",
+            format!("not ready on attempt {}", context.attempt()),
+        ));
     }
+    Ok(StepDecision::graceful_complete(String::from("ready")))
+}
 ```
 
 Make Execute side effects idempotent across attempts. Dex retries a logical method execution; a remote service may have accepted the previous call even when the Worker did not observe the response.
@@ -35,21 +35,21 @@ Make Execute side effects idempotent across attempts. Dex retries a logical meth
 
 Configure retry policies for the phase that can fail. WaitFor should normally be pure durable preparation. If WaitFor exhaustion is explicitly recoverable, set `WaitForFailurePolicy::Proceed`; Execute must then check `context.wait_for_method_failed()` before selecting a recovery transition.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/src/primitives/proceed_on_wait_failure/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/src/primitives/proceed_on_wait_failure/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/proceed_on_wait_failure/flow.rs -->
 ```rust
-    fn options(&self) -> StepOptions<Self::Input> {
-        StepOptions::new()
-            .wait_for_failure(WaitForFailurePolicy::Proceed)
-            .wait_for_retry(RetryPolicy::new().maximum_attempts(2))
-    }
+fn options(&self) -> StepOptions<Self::Input> {
+    StepOptions::new()
+        .wait_for_failure(WaitForFailurePolicy::Proceed)
+        .wait_for_retry(RetryPolicy::new().maximum_attempts(2))
+}
 
-    fn wait_for(&self, _context: &mut Context, _input: Self::Input) -> HandlerResult<Wait> {
-        Err(HandlerError::new(
-            "ProceedOnWaitFailure",
-            "planned WaitFor failure",
-        ))
-    }
+fn wait_for(&self, _context: &mut Context, _input: Self::Input) -> HandlerResult<Wait> {
+    Err(HandlerError::new(
+        "ProceedOnWaitFailure",
+        "planned WaitFor failure",
+    ))
+}
 ```
 
 Never enable Proceed without a deliberate Execute branch; otherwise failed preparation is mistaken for successful readiness.

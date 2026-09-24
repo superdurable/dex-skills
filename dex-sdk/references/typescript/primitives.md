@@ -17,21 +17,21 @@ Choose primitives from the business behavior first, then encode them with the SD
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
+[Pinned wait example](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/typescript/src/primitives/wait-types/wait-types-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/wait-types/wait-types-flow.ts -->
 ```typescript
-    if (input.mode === "any") {
-      return Wait.anyOf(
-        channelA.forOne("signal"),
-        Timer.byDuration(timeoutMs, "timeout"),
-      );
-    }
-    if (input.mode === "all") {
-      return Wait.allOf(
-        channelA.forOne("signal-a"),
-        channelB.forOne("signal-b"),
-      );
-    }
+if (input.mode === "any") {
+  return Wait.anyOf(
+    channelA.forOne("signal"),
+    Timer.byDuration(timeoutMs, "timeout"),
+  );
+}
+if (input.mode === "all") {
+  return Wait.allOf(
+    channelA.forOne("signal-a"),
+    channelB.forOne("signal-b"),
+  );
+}
 ```
 
 Among ready `Wait.anyOf` candidates, Dex uses canonical Timer, Channel, then SubFlow order and preserves argument order within each kind. An earlier unready Condition does not block a later ready one. Only the winning Channel consumes messages. For strict priority, return only the current higher-priority Condition until it resolves.
@@ -46,42 +46,42 @@ Use `stringCodec`, `booleanCodec`, `int64Codec`, `doubleCodec`, `bytesCodec`, or
 
 Use `Client.readStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.listStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `nextPageToken` unchanged until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/src/primitives/stream/controller.ts)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/typescript/src/primitives/stream/controller.ts)
 <!-- dex-source: examples/typescript/src/primitives/stream/controller.ts -->
 ```typescript
-    const page = await client.listStreamMessages(
-      String(request.query.workflowId ?? ""),
-      progress,
-      Number(request.query.pageSize),
-      String(request.query.beforePageToken ?? ""),
-    );
+const page = await client.listStreamMessages(
+  String(request.query.workflowId ?? ""),
+  progress,
+  Number(request.query.pageSize),
+  String(request.query.beforePageToken ?? ""),
+);
 ```
 
 The before-page token is exclusive and scope-bound. The first page uses an empty token. Listing is a best-effort retained snapshot: concurrent newer writes stay outside the older-page chain, while trimming may remove messages. A trimmed anchor returns an empty page. The server requires a positive page size and caps it at 1000 by default.
 
 ## State, locks, and transaction
 
-[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/src/primitives/channel/channel-flow.ts)
+[Pinned Channel transaction example](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/typescript/src/primitives/channel/channel-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/channel/channel-flow.ts -->
 ```typescript
-  @rpc({
-    isTransactional: true,
-    loadChannels: [queuedMessages],
-    inputCodec: queuedMessageReferenceCodec,
-  })
-  public moveQueuedMessageToPrioritizedMessages(
-    context: Context,
-    queuedMessage: QueuedMessageReference,
-  ): void {
-    const messageToPrioritize = queuedMessages.findPendingMessage(
-      context,
-      queuedMessage.messageId,
-    );
-    queuedMessages.delete(context, queuedMessage.messageId);
-    if (messageToPrioritize !== undefined) {
-      prioritizedMessages.publish(context, messageToPrioritize.value);
-    }
+@rpc({
+  isTransactional: true,
+  loadChannels: [queuedMessages],
+  inputCodec: queuedMessageReferenceCodec,
+})
+public moveQueuedMessageToPrioritizedMessages(
+  context: Context,
+  queuedMessage: QueuedMessageReference,
+): void {
+  const messageToPrioritize = queuedMessages.findPendingMessage(
+    context,
+    queuedMessage.messageId,
+  );
+  queuedMessages.delete(context, queuedMessage.messageId);
+  if (messageToPrioritize !== undefined) {
+    prioritizedMessages.publish(context, messageToPrioritize.value);
   }
+}
 ```
 
 Staged Attribute and Channel mutations commit with a successful handler result. An exception discards that attempt's mutations. Locks coordinate only handlers requesting the same lock; external effects still need idempotency.

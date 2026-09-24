@@ -49,6 +49,7 @@ Then load only the references required by the task:
 | Failure diagnosis | [Troubleshooting](references/core/troubleshooting.md) and [Error handling](references/core/error-handling.md) | selected language's **error-handling.md** and **gotchas.md** |
 | Production inspection or mutation | [Operations](references/core/operations.md) | selected language's **observability.md** |
 | Server deployment or component topology | [Operations](references/core/operations.md) | language entry for Client and Worker targets |
+| Connector selection, local credentials, or named connections | [Operations](references/core/operations.md) | language entry for runtime support |
 | Large state, maps, or projections | [Data handling](references/core/data-handling.md) | selected language's **data-handling.md** |
 | Open-Flow compatibility or upgrade | [Versioning](references/core/versioning.md) | selected language's **versioning.md** |
 | Cancellation, BlobCache, or other advanced behavior | relevant core topic | selected language's **advanced-features.md** |

@@ -1,6 +1,6 @@
 # Python handbook
 
-Use this page first for Python. The [baseline project](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/python/pyproject.toml) selects `dex-python-sdk==0.9.0`; check `pyproject.toml`/lockfile and installed metadata before relying on baseline syntax.
+Use this page first for Python. The [baseline project](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/python/pyproject.toml) selects `dex-python-sdk==0.9.0`; check `pyproject.toml`/lockfile and installed metadata before relying on baseline syntax.
 
 ## Runtime choice
 
@@ -19,9 +19,13 @@ uv run --frozen python main.py
 
 Defaults use Dex `localhost:8801`, Worker `127.0.0.1:8803`, and HTTP `127.0.0.1:8080`.
 
+## Connector runtime support
+
+The Connector local JSON loader and generated `NewLocalConnection` API are Go-only. Do not invent a Python loader or deserialize Dex Web's credential file into Flow state. For a Python application, keep provider credentials behind an application-owned secret/runtime adapter until an official Python Connector SDK exposes the same contract.
+
 ## Minimal Flow
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/python/dex_examples/primitives/flow/example_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/python/dex_examples/primitives/flow/example_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/example_flow.py -->
 ```python
 status = Attribute("status", str)
@@ -30,8 +34,8 @@ notify = Channel("notify", None)
 
 class ExampleFlow(Flow[int]):
     def __init__(self) -> None:
-        self.finish = FinishStep()
-        self.example = ExampleStep(self.finish)
+        self.finish = Finish()
+        self.example = Example(self.finish)
 
     def get_steps(self) -> StepList[int]:
         return StepList.start_step(self.example).other_steps(self.finish)
@@ -44,10 +48,10 @@ Instantiate Steps once per Flow object and return those same instances in `StepL
 
 A synchronous Step directly returns a decision:
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/python/dex_examples/primitives/flow/example_flow.py)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/python/dex_examples/primitives/flow/example_flow.py)
 <!-- dex-source: examples/python/dex_examples/primitives/flow/example_flow.py -->
 ```python
-class FinishStep(Step[int]):
+class Finish(Step[int]):
     def execute(self, context: Context, input: int) -> StepDecision:
         status.set(context, "done")
         return graceful_complete(input + 1)
@@ -55,7 +59,7 @@ class FinishStep(Step[int]):
 
 ## Registry, Worker, Client
 
-The async [application composition](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/python/dex_examples/app.py) shows Flow construction, Registry, BlobCache, AsyncClient, and AsyncWorker. The [sync example](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/python/sync-python/sync_examples/app.py) shows the synchronous counterpart. Inject services in constructors; use a provider for a Client needed after circular bootstrap.
+The async [application composition](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/python/dex_examples/app.py) shows Flow construction, Registry, BlobCache, AsyncClient, and AsyncWorker. The [sync example](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/python/sync-python/sync_examples/app.py) shows the synchronous counterpart. Inject services in constructors; use a provider for a Client needed after circular bootstrap.
 
 ## Route by task
 

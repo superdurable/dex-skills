@@ -1,6 +1,6 @@
 # Java handbook
 
-Use this page first for Java application work. Then load the topic page that matches the task. The [baseline build](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/build.gradle) uses `io.superdurable:dex-sdk:0.9.0`, Spring Boot, and JDK 17 or newer. The application's Gradle or Maven lockfile remains authoritative.
+Use this page first for Java application work. Then load the topic page that matches the task. The [baseline build](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/build.gradle) uses `io.superdurable:dex-sdk:0.9.0`, Spring Boot, and JDK 17 or newer. The application's Gradle or Maven lockfile remains authoritative.
 
 ## Project shape
 
@@ -8,9 +8,13 @@ Keep Flow and Step types in application packages, expose them as Spring beans, b
 
 The official example layout separates `products/`, `patterns/`, `primitives/`, and `shared/`. A smaller service normally needs `flows/`, `steps/`, `model/`, and a bootstrap/configuration class.
 
+## Connector runtime support
+
+The Connector local JSON loader and generated `NewLocalConnection` API are Go-only. Do not invent a Java loader or deserialize Dex Web's credential file into Flow state. For a Java application, keep provider credentials behind an application-owned secret/runtime adapter until an official Java Connector SDK exposes the same contract.
+
 ## Minimal Flow
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java -->
 ```java
 @Component
@@ -19,7 +23,7 @@ public class ExampleFlow implements Flow<Integer> {
     public static final Channel<Void> notify = Channel.define("notify", Void.class);
 
     private final ExampleStep exampleStep = new ExampleStep();
-    private final FinishStep finishStep = new FinishStep();
+    private final Finish finishStep = new Finish();
 
     @Override
     public StepList<Integer> getSteps() {
@@ -34,43 +38,43 @@ public class ExampleFlow implements Flow<Integer> {
 
 A Flow returns its complete Step registry once. The first Step input type must match `Flow<I>`. All persisted definitions belong in `getPersistenceSchema()`.
 
-[Pinned Step source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
+[Pinned Step source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/flow/ExampleFlow.java -->
 ```java
-    final class ExampleStep implements Step<Integer> {
-        @Override
-        public Class<Integer> getInputType() {
-            return Integer.class;
-        }
-
-        @Override
-        public Wait waitFor(final Context context, final Integer input) {
-            status.set(context, "running");
-            return Wait.skipImmediately();
-        }
-
-        @Override
-        public StepDecision execute(final Context context, final Integer input) {
-            return StepDecision.goTo(FinishStep.class, input + 1);
-        }
+final class ExampleStep implements Step<Integer> {
+    @Override
+    public Class<Integer> getInputType() {
+        return Integer.class;
     }
+
+    @Override
+    public Wait waitFor(final Context context, final Integer input) {
+        status.set(context, "running");
+        return Wait.skipImmediately();
+    }
+
+    @Override
+    public StepDecision execute(final Context context, final Integer input) {
+        return StepDecision.goTo(Finish.class, input + 1);
+    }
+}
 ```
 
 ## Registry, Worker, and Client
 
-[Pinned bootstrap source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
+[Pinned bootstrap source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/config/DexConfig.java -->
 ```java
-    @Bean
-    public Registry registry(final List<Flow<?>> flows) {
-        return new Registry(new ArrayList<Flow<?>>(flows));
-    }
+@Bean
+public Registry registry(final List<Flow<?>> flows) {
+    return new Registry(new ArrayList<Flow<?>>(flows));
+}
 
-    @Bean(destroyMethod = "close")
-    public BlobCache blobCache(
-            @Value("${dex.blob-cache-dir}") final String blobCacheDir) {
-        return BlobCache.open(new BlobCacheConfig(blobCacheDir, 1L << 30));
-    }
+@Bean(destroyMethod = "close")
+public BlobCache blobCache(
+        @Value("${dex.blob-cache-dir}") final String blobCacheDir) {
+    return BlobCache.open(new BlobCacheConfig(blobCacheDir, 1L << 30));
+}
 ```
 
 Create the Worker before the Client so the Client can use `worker.getWorkerTarget()`. Start the blocking Worker on a managed thread and close Worker, Client, and BlobCache during application shutdown. Do not create a cache per request.

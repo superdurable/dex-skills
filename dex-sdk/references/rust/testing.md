@@ -6,18 +6,18 @@ Prefer integration tests against a real Dex Server. Unit tests can validate pure
 
 Start `dexcli dev`, build the same Registry used by production, create a temporary BlobCache, bind the Worker to a free address, and run it on a dedicated thread. Construct a Client with the same Worker target. Stop and join the Worker and close the cache during teardown.
 
-[Integration source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/tests/dex_integration.rs)
+[Integration source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/tests/dex_integration.rs)
 <!-- dex-source: examples/rust/tests/dex_integration.rs -->
 ```rust
-        let client = Client::try_new(
-            registry,
-            Arc::clone(&cache),
-            ClientOptions::new()
-                .server_address(server_address)
-                .worker_target(worker.worker_target().clone()),
-        )
-        .expect("create Rust examples Client");
-        client.health_check().expect("Dex health check");
+let client = Client::try_new(
+    registry,
+    Arc::clone(&cache),
+    ClientOptions::new()
+        .server_address(server_address)
+        .worker_target(worker.worker_target().clone()),
+)
+.expect("create Rust examples Client");
+client.health_check().expect("Dex health check");
 ```
 
 Use `tempfile::TempDir` for BlobCache isolation and ask the OS for a free Worker port. Do not share a fixed Flow ID across tests.
@@ -26,23 +26,23 @@ Use `tempfile::TempDir` for BlobCache isolation and ask the OS for a free Worker
 
 Poll observable Dex state until a short deadline. Do not use a fixed sleep as the assertion mechanism; scheduling and retries are asynchronous.
 
-[Integration source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/tests/dex_integration.rs)
+[Integration source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/tests/dex_integration.rs)
 <!-- dex-source: examples/rust/tests/dex_integration.rs -->
 ```rust
-    fn await_engagement_status(&self, flow_id: &str, expected: &str) -> EngagementStatus {
-        let deadline = Instant::now() + Duration::from_secs(20);
-        while Instant::now() < deadline {
-            let status = self
-                .client
-                .invoke_rpc_without_input(flow_id, DESCRIBE_ENGAGEMENT)
-                .expect("describe Rust Engagement Flow");
-            if status.status == expected {
-                return status;
-            }
-            thread::yield_now();
+fn await_engagement_status(&self, flow_id: &str, expected: &str) -> EngagementStatus {
+    let deadline = Instant::now() + Duration::from_secs(20);
+    while Instant::now() < deadline {
+        let status = self
+            .client
+            .invoke_rpc_without_input(flow_id, DESCRIBE_ENGAGEMENT)
+            .expect("describe Rust Engagement Flow");
+        if status.status == expected {
+            return status;
         }
-        panic!("Rust Engagement Flow did not reach {expected}");
+        thread::yield_now();
     }
+    panic!("Rust Engagement Flow did not reach {expected}");
+}
 ```
 
 Poll via RPC or Client state that represents the business invariant. Include the last observed value in new failure messages where possible.

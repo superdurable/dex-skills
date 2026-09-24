@@ -6,15 +6,15 @@ Use `StepOptions` and `@RPC` load declarations to request only the AttributeMap 
 
 ## Heartbeat and buffered Stream progress
 
-[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamFlow.java)
+[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamFlow.java -->
 ```java
-        public StepDecision execute(final Context context, final String input) {
-            final BufferedTextStream writer = BufferedTextStream.create(context, progress);
-            writer.write("Rendering preview for " + input);
-            writer.write("Preview ready for " + input);
-            return StepDecision.gracefulComplete("Rendered " + input);
-        }
+public StepDecision execute(final Context context, final String input) {
+    final BufferedTextStream writer = BufferedTextStream.create(context, progress);
+    writer.write("Rendering preview for " + input);
+    writer.write("Preview ready for " + input);
+    return StepDecision.gracefulComplete("Rendered " + input);
+}
 ```
 
 Create one buffered writer per invocation. Flush/finalization occurs with handler completion; retries do not reconstruct unsent text. Keep a separate durable Attribute for authoritative progress.
@@ -27,38 +27,38 @@ Create one buffered writer per invocation. Flush/finalization occurs with handle
 
 Override `Flow.handleTimeout` and select handler timeout policy only when the business needs a final notification, compensation, or explicit outcome. Give the handler its own retries and loads. Its recovery target must be a registered `Step<Void>` and can inspect `Context.getRecoveryError()`.
 
-[Pinned timeout start source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/patterns/timeout/TimeoutController.java)
+[Pinned timeout start source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/src/main/java/io/superdurable/dex/patterns/timeout/TimeoutController.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/patterns/timeout/TimeoutController.java -->
 ```java
-                StartFlowOptions.newBuilder()
-                        .timeout(Duration.ofMinutes(1))
-                        .timeoutPolicy(FlowTimeoutPolicy.HANDLER)
-                        .timeoutHandlerOptions(FlowTimeoutHandlerOptions.newBuilder()
-                                .methodTimeout(Duration.ofSeconds(30))
-                                .retry(RetryPolicy.newBuilder().maximumAttempts(3).build())
-                                .build())
-                        .build());
+StartFlowOptions.newBuilder()
+        .timeout(Duration.ofMinutes(1))
+        .timeoutPolicy(FlowTimeoutPolicy.HANDLER)
+        .timeoutHandlerOptions(FlowTimeoutHandlerOptions.newBuilder()
+                .methodTimeout(Duration.ofSeconds(30))
+                .retry(RetryPolicy.newBuilder().maximumAttempts(3).build())
+                .build())
+        .build());
 ```
 
 Use `AttributeLock.of(attribute)` for handler locks. Do not pass an Attribute directly to `addLock`.
 
-[Pinned timeout option source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/sdk-java/src/test/java/io/superdurable/dex/WorkerServiceIntegrationTest.java)
+[Pinned timeout option source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/sdk-java/src/test/java/io/superdurable/dex/WorkerServiceIntegrationTest.java)
 <!-- dex-source: sdk-java/src/test/java/io/superdurable/dex/WorkerServiceIntegrationTest.java -->
 ```java
-        final FlowTimeoutHandlerOptions timeoutOptions =
-                FlowTimeoutHandlerOptions.newBuilder()
-                        .methodTimeout(Duration.ofSeconds(10))
-                        .heartbeatTimeout(Duration.ofSeconds(5))
-                        .retry(RetryPolicy.newBuilder().maximumAttempts(3).build())
-                        .durability(StepDurability.ASYNC)
-                        .addLock(AttributeLock.of(status))
-                        .addLoadAttributeMap(attributes)
-                        .addLoadAttributeMapInstance(attributes, "tenant-a")
-                        .addLoadChannel(commands)
-                        .addLoadChannelMap(channels)
-                        .addLoadChannelMapInstance(channels, "tenant-a")
-                        .onFailureProceedTo(TimeoutRecoveryStep.class)
-                        .build();
+final FlowTimeoutHandlerOptions timeoutOptions =
+        FlowTimeoutHandlerOptions.newBuilder()
+                .methodTimeout(Duration.ofSeconds(10))
+                .heartbeatTimeout(Duration.ofSeconds(5))
+                .retry(RetryPolicy.newBuilder().maximumAttempts(3).build())
+                .durability(StepDurability.ASYNC)
+                .addLock(AttributeLock.of(status))
+                .addLoadAttributeMap(attributes)
+                .addLoadAttributeMapInstance(attributes, "tenant-a")
+                .addLoadChannel(commands)
+                .addLoadChannelMap(channels)
+                .addLoadChannelMapInstance(channels, "tenant-a")
+                .onFailureProceedTo(TimeoutRecoveryStep.class)
+                .build();
 ```
 
 ## Cancellation selectors

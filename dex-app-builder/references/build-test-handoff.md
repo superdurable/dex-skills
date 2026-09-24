@@ -43,6 +43,8 @@ Ensure:
 - custom UI interactions are approved against the mock server and Mock Controls;
 - secrets are absent from files, logs, generated values, and archives;
 - dependencies and released connector versions are pinned;
+- each configurable Connector Step has a static connection name matching its generated Connection;
+- the displayed local connection path and **DEX_CONNECTOR_CONFIG_FILE** launch command work after a Dex Web restart;
 - connector fork/PR status and any release blocker are explicit;
 - the repository has a clean, reviewable commit;
 - limitations and unimplemented integrations are explicit.

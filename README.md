@@ -92,13 +92,20 @@ the mock journey, then `make check` for real Dex durability and rendering.
 
 Backend implementation is Go-only, starts from
 `superdurable/dex-template-basic-process`, and must satisfy strict Dex Web v2 /
-FDG 2.0 rendering. The supported stack is basic-process release `v0.1.0`
-(template contract `1.3.0`), Dex Server `v0.11.4`, Dex Web v2 `v0.2.0`, and Dex
-Go SDK `v0.11.3`. Connector integrations reuse released
+FDG 2.0 rendering. The supported stack is basic-process release `v0.2.0`
+(template contract `1.3.0`), Dex Server `v0.11.4`, Dex Web v2 `v0.3.0`, and Dex
+Go SDK `v0.12.0`. Connector integrations reuse released
 dedicated connectors from `superdurable/dex-connectors-library`. Generic HTTP
 is reserved for controlled internal systems; a missing external-provider
 connector follows an authorized fork and upstream-PR workflow and blocks
 production handoff until released.
+
+For Go applications, Dex Web reads statically named Connector Steps from FDG
+2.0 and configures released Gmail, GitHub, or other supported connectors in the
+local **Connections** view. The default plaintext development store is
+`~/.dex/connectors/connections.json`; pass `--connector-config-dir` to isolate a
+stack. Start the application with **DEX_CONNECTOR_CONFIG_FILE** set to the
+absolute path shown by Dex Web.
 The mock validates HTTP and UI behavior only; it cannot prove Dex durability,
 Worker replacement, Timer, or RPC semantics. The workflow finishes with local
 tests and a clean handoff ready for future Dex AI Platform upload; it does not

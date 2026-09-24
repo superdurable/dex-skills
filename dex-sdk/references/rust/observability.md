@@ -18,17 +18,17 @@ At shutdown, stop the Worker, join its thread, and close BlobCache. A panic in t
 
 Heartbeat long-running Execute work at bounded intervals. On retry, resume from the last heartbeat value. Check cancellation during the same loop.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/src/primitives/heartbeat/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/src/primitives/heartbeat/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/heartbeat/flow.rs -->
 ```rust
-        let completed_batches = context.last_heartbeat_value::<i32>()?.unwrap_or_default();
-        for batch in completed_batches..batches {
-            if context.is_cancelled() {
-                return Ok(StepDecision::dead_end());
-            }
-            thread::sleep(Duration::from_secs(2));
-            context.record_heartbeat_value(batch + 1)?;
-        }
+let completed_batches = context.last_heartbeat_value::<i32>()?.unwrap_or_default();
+for batch in completed_batches..batches {
+    if context.is_cancelled() {
+        return Ok(StepDecision::dead_end());
+    }
+    thread::sleep(Duration::from_secs(2));
+    context.record_heartbeat_value(batch + 1)?;
+}
 ```
 
 The heartbeat is recovery progress, not the final business commit. Write it only after the corresponding batch is safely repeatable or complete.

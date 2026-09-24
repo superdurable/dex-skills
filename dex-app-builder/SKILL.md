@@ -10,7 +10,7 @@ Build the smallest coherent product that solves the confirmed business process. 
 ## Fixed product boundary
 
 - Use `https://github.com/superdurable/dex-template-basic-process` as the application template.
-- Target Dex Server `v0.11.4`, Dex Web v2 `v0.2.0`, and Dex Go SDK `v0.11.3`.
+- Target Dex Server `v0.11.4`, Dex Web v2 `v0.3.0`, and Dex Go SDK `v0.12.0`.
 - Implement Dex backend code only with the Go SDK.
 - Target strict Dex Web v2 / FDG 2.0 rendering. Never fall back to rendering v1.
 - Treat Dex Web v2 as the process-management UI for Runs, Work Queue, search, details, edits, and Actions unless the user confirms a custom UI is necessary.
@@ -87,13 +87,15 @@ For connectors:
 
 1. inspect the released catalog in `superdurable/dex-connectors-library` before writing integration code;
 2. reuse the latest compatible released dedicated connector for every external provider;
-3. use the generic HTTP connector only for organization-controlled internal systems;
-4. require dedicated Connector Trigger, Query, Action, Event, and UI capabilities for external providers;
-5. when a connector is absent or defective, explain the gap and obtain authorization to fork the library and open an upstream pull request;
-6. implement the connector from current `origin/main`, push the fork, and open the pull request for review;
-7. continue local application verification with the fork through an uncommitted `go.work` or temporary `replace`;
-8. never commit a branch, commit SHA, pseudo-version, or local replacement as a production dependency;
-9. after release, pin the exact connector tag and rerun real integration and E2E coverage.
+3. give every operation-specific factory a static `ConnectionName` matching the generated Connection's runtime name;
+4. use the generated `NewLocalConnection` with the Connector SDK local store for local verification;
+5. use the generic HTTP connector only for organization-controlled internal systems;
+6. require dedicated Connector Trigger, Query, Action, Event, and UI capabilities for external providers;
+7. when a connector is absent or defective, explain the gap and obtain authorization to fork the library and open an upstream pull request;
+8. implement the connector from current `origin/main`, push the fork, and open the pull request for review;
+9. continue local application verification with the fork through an uncommitted `go.work` or temporary `replace`;
+10. never commit a branch, commit SHA, pseudo-version, or local replacement as a production dependency;
+11. after release, pin the exact connector tag and rerun real integration and E2E coverage.
 
 Make connector mutations idempotent and reconcile unknown outcomes query-first. A missing connector release blocks production handoff. Never invent an unreleased connector API.
 
