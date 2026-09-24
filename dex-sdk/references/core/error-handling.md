@@ -18,9 +18,11 @@ The public error shape is language-specific. Python, Java, and TypeScript expose
 
 Treat the Flow ID and start Request ID as separate identities. Reuse one stable Request ID only for retries of the same logical start request.
 
+Use Dex itself as the start deduplication boundary. Derive the Flow ID from the logical operation or resource, derive the Request ID from the complete logical start request, and choose the SDK's explicit ID reuse policy. Do not add an application-owned table, row, outbox, lease, lock, cache, or generic admission projection solely to deduplicate or serialize Flow starts.
+
 The start option that ignores an already-started error returns the existing run only when the existing execution carries the same Request ID. If the SDK still returns its typed already-started error, the Flow ID belongs to a different logical start request. Handle that as a domain conflict unless the resource-scoped Flow contract deliberately routes the new command to the existing coordinator. Do not translate it into generic service unavailability or assume the requested work already happened.
 
-A different remote failure from `startFlow` can leave acceptance unknown. Reconcile an immutable admission record or other authoritative domain state before deciding whether to return success or retry. If no such fact exists, return an explicit retryable/unknown outcome and require the same Request ID on retry.
+A different remote failure from `startFlow` can leave acceptance unknown. Retry with the same Flow ID and Request ID, or reconcile business state already stored in the owning domain record. If neither establishes acceptance, return an explicit retryable or unknown outcome. Do not shadow Dex start identity in a dedicated database record.
 
 ## Closed-Flow races
 
@@ -38,13 +40,14 @@ After an ambiguous provider or Client mutation, query the authoritative remote o
 
 When a Stream or progress write is explicitly best effort, select only service-backed failures using the language SDK's public model because the side channel deliberately treats those failures as lossy. This means the remote-only base in Python, Java, or TypeScript, `errors.As` to Go's `*ServiceError`, or Rust's service-backed variant for that operation. Log sanitized identity and phase metadata and continue the business Flow. Let local definition, validation, serialization, and programming failures surface. Retained Stream data is never the authoritative record of business completion.
 
-If an API must return the first admission decision after a Flow can close quickly, persist that decision immutably in an authoritative domain record or projection. Do not make a late RPC to a possibly closed Flow the only source of admission correctness.
+If an API must return the first admission decision after a Flow can close quickly, wait for the named admission Step or Flow result and read any accepted business state from its owning domain record. Do not make a late RPC to a possibly closed Flow the only source of correctness, and do not create a generic admission projection solely for start deduplication.
 
 ## Design review
 
 - Does every caught error change a domain decision, retry policy, or boundary translation?
 - Are typed conflicts handled before a remote-error fallback?
 - Can an accepted mutation lose its response, and if so, what authoritative fact reconciles it?
+- Does Flow start idempotency rely only on Dex identity rather than an extra database mechanism?
 - Are retries bounded, idempotent, and tied to one stable Request ID?
 - Can a closed or missing Flow converge without an unnecessary status call?
 - Does best-effort observation remain separate from authoritative business state?

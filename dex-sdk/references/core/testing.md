@@ -18,7 +18,9 @@ Use deadline-based polling or the SDK's long-poll result API. Do not use a fixed
 - Fire and skip Timers where supported; verify the business deadline and timeout-handler path.
 - Exercise parallel branches and SubFlows with a deliberate failure and cancellation policy.
 - Lose or reconnect a Stream consumer and recover canonical state through a typed snapshot RPC.
-- Start with a duplicate Flow ID or request ID and assert the language SDK's typed result.
+- Retry the same logical start with the same Flow ID and Request ID and verify it attaches or converges without duplicate effects.
+- Start the same Flow ID with a different Request ID and assert the language SDK's typed conflict.
+- Make start acceptance ambiguous, retry with the same identities, and verify correctness without an application-owned start-deduplication table.
 - Interact after terminal completion and assert the not-active or terminal behavior.
 
 ## Data and deployment scenarios
