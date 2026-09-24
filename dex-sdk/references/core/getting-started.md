@@ -50,11 +50,12 @@ Before debugging code, verify:
 - the Worker and Client use compatible payload codecs and blob cache/storage
 - all Attributes and Channels used by handlers are in the Flow persistence schema
 - Indexed Attributes are synchronized before the Worker starts serving
+- local Go Connector applications receive the exact Connections path through **DEX_CONNECTOR_CONFIG_FILE**
 
 ## Source material
 
 - Quick start: https://docs.superdurable.io/quick-start
 - Primitive overview: https://docs.superdurable.io/primitives
-- Baseline runnable examples: https://github.com/superdurable/dex/tree/sdk-go/v0.11.3/examples
+- Baseline runnable examples: https://github.com/superdurable/dex/tree/sdk-go/v0.12.0/examples
 
 When a local Dex checkout is available, copy API usage from its runnable **examples/** files rather than from prose or memory.

@@ -2,6 +2,14 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.15.0 - 2026-09-24
+
+- Add the Dex Web v2 Connections workflow for exact released Connector modules and statically named connections.
+- Document the persistent local JSON store, configurable directory, restart behavior, and application launch contract.
+- Define Go-only local Connector loading and explicit unsupported boundaries for Python, Java, TypeScript, and Rust.
+- Upgrade source baselines to Dex Go SDK v0.12.0, Dex Web v2 v0.3.0, and basic-process v0.2.0.
+- Refresh pinned Dex source links and synchronized Codex, Claude Code, and Cursor plugin manifests.
+
 ## 0.14.0 - 2026-09-24
 
 - Require Dex Flow ID, start Request ID, and ID reuse policy to own root-start deduplication; prohibit dedicated database admission tables or other shadow deduplication mechanisms.

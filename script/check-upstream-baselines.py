@@ -93,6 +93,22 @@ def main() -> None:
     require_text(
         arguments.dex_root / "cli" / "internal" / "flowviz" / "go_connector_factory.go",
         "parseConnectorFactoryStep",
+        '"connectionName"',
+        '"moduleVersion"',
+    )
+    require_text(
+        arguments.dex_root / "cli" / "internal" / "dev" / "config.go",
+        "connector-config-dir",
+    )
+    require_text(
+        arguments.dex_root / "web" / "connector_connection_store.go",
+        "connections.json",
+        "os.Rename",
+    )
+    require_text(
+        arguments.dex_root / "web" / "connector_oauth.go",
+        "code_verifier",
+        'credentials["access_token"]',
     )
 
     template_manifest = json.loads(

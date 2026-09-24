@@ -10,15 +10,15 @@ Use Step/RPC load options for AttributeMap instances, Channels, and ChannelMaps.
 
 ## Buffered Streams
 
-[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/src/primitives/stream/stream-flow.ts)
+[Pinned buffered Stream source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/typescript/src/primitives/stream/stream-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/stream/stream-flow.ts -->
 ```typescript
-  public async execute(context: Context, input: string): Promise<StepDecision> {
-    const writer = progress.bufferedText(context, { flushIntervalMs: 500 });
-    writer.write(`Rendering preview for ${input}`);
-    writer.write(`Preview ready for ${input}`);
-    return gracefulComplete(`Rendered ${input}`);
-  }
+public async execute(context: Context, input: string): Promise<StepDecision> {
+  const writer = progress.bufferedText(context, { flushIntervalMs: 500 });
+  writer.write(`Rendering preview for ${input}`);
+  writer.write(`Preview ready for ${input}`);
+  return gracefulComplete(`Rendered ${input}`);
+}
 ```
 
 Create the writer within one invocation. Buffered text flushes before the final result, but unsent data is not restored or deduplicated on retry. Keep durable status elsewhere.

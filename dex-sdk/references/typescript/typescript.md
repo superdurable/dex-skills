@@ -1,18 +1,22 @@
 # TypeScript handbook
 
-Read this page first for TypeScript application work, then open only the topic reference needed. The [baseline package](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/package.json) uses `@superdurable/dex@0.9.0` on Node.js 22 or 24. Always inspect the application's lockfile and installed declarations before using a precise API.
+Read this page first for TypeScript application work, then open only the topic reference needed. The [baseline package](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/typescript/package.json) uses `@superdurable/dex@0.9.0` on Node.js 22 or 24. Always inspect the application's lockfile and installed declarations before using a precise API.
 
 ## Project shape
 
 Keep Flow/Step definitions separate from HTTP handlers, construct all Flow instances in one registry module, and create one `Registry`, `BlobCache`, `Worker`, and `Client` per process. Pass the Client into adapters or a controlled holder when async Steps start or interact with other Flows. Values cross the boundary through `Codec<T>`.
 
+## Connector runtime support
+
+The Connector local JSON loader and generated `NewLocalConnection` API are Go-only. Do not invent a TypeScript loader or deserialize Dex Web's credential file into Flow state. For a TypeScript application, keep provider credentials behind an application-owned secret/runtime adapter until an official TypeScript Connector SDK exposes the same contract.
+
 ## Minimal Flow
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/src/primitives/flow/example-flow.ts)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/typescript/src/primitives/flow/example-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/flow/example-flow.ts -->
 ```typescript
 export class ExampleFlow implements Flow<number> {
-  private readonly finish = new FinishStep();
+  private readonly finish = new Finish();
   private readonly example = new ExampleStep(this.finish);
 
   public getFlowType(): string {
@@ -30,13 +34,13 @@ export class ExampleFlow implements Flow<number> {
 
 Each Step supplies a stable `getStepType()` and an input codec when a non-default wire form is required. A Flow returns all registered Step instances once. The starting Step input must match `Flow<I>`.
 
-[Pinned Step source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/src/primitives/flow/example-flow.ts)
+[Pinned Step source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/typescript/src/primitives/flow/example-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/flow/example-flow.ts -->
 ```typescript
 class ExampleStep implements Step<number> {
   public readonly inputCodec = doubleCodec;
 
-  public constructor(private readonly finish: FinishStep) {}
+  public constructor(private readonly finish: Finish) {}
 
   public getStepType(): string {
     return "ExampleStep";
@@ -48,33 +52,33 @@ class ExampleStep implements Step<number> {
   }
 
   public execute(_context: Context, input: number): StepDecision {
-    return goTo(FinishStep, input + 1);
+    return goTo(Finish, input + 1);
   }
 }
 ```
 
 ## Registry, Worker, and Client
 
-[Pinned process bootstrap](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/typescript/src/main.ts)
+[Pinned process bootstrap](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/typescript/src/main.ts)
 <!-- dex-source: examples/typescript/src/main.ts -->
 ```typescript
-  const registry = createExampleRegistry();
-  const blobCache = openBlobCache({
-    directory: env.blobCacheDir,
-    maxBytes: 1 << 30,
-  });
-  const worker = new Worker(registry, blobCache, {
-    bindAddress: env.workerBindAddress,
-    serverAddress: env.serverAddress,
-    ...(env.workerTarget !== undefined
-      ? { workerTarget: { address: env.workerTarget } }
-      : {}),
-  });
-  await worker.start();
-  const client = new Client(registry, blobCache, {
-    serverAddress: env.serverAddress,
-    workerTarget: worker.workerTarget,
-  });
+const registry = createExampleRegistry();
+const blobCache = openBlobCache({
+  directory: env.blobCacheDir,
+  maxBytes: 1 << 30,
+});
+const worker = new Worker(registry, blobCache, {
+  bindAddress: env.workerBindAddress,
+  serverAddress: env.serverAddress,
+  ...(env.workerTarget !== undefined
+    ? { workerTarget: { address: env.workerTarget } }
+    : {}),
+});
+await worker.start();
+const client = new Client(registry, blobCache, {
+  serverAddress: env.serverAddress,
+  workerTarget: worker.workerTarget,
+});
 ```
 
 Await Worker startup before accepting application traffic. Close Client and Worker and then close BlobCache on shutdown.

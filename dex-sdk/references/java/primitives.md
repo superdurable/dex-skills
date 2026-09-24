@@ -17,23 +17,23 @@ Choose the primitive from the behavior the application needs, not from a preferr
 
 ## Wait composition
 
-[Pinned wait example](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java)
+[Pinned wait example](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/waittypes/WaitTypesFlow.java -->
 ```java
-                case "any":
-                    return Wait.anyOf(
-                            channelA.forOne("signal"),
-                            Timer.byDuration(timeout, "timeout"));
-                case "all":
-                    return Wait.allOf(
-                            channelA.forOne("signal-a"),
-                            channelB.forOne("signal-b"));
-                case "combo":
-                    return Wait.anyCombinationOf(
-                            ConditionCombination.of(
-                                    channelA.forOne("signal-a"),
-                                    Timer.byDuration(timeout, "timeout")),
-                            ConditionCombination.of(channelB.forOne("signal-b")));
+case "any":
+    return Wait.anyOf(
+            channelA.forOne("signal"),
+            Timer.byDuration(timeout, "timeout"));
+case "all":
+    return Wait.allOf(
+            channelA.forOne("signal-a"),
+            channelB.forOne("signal-b"));
+case "combo":
+    return Wait.anyCombinationOf(
+            ConditionCombination.of(
+                    channelA.forOne("signal-a"),
+                    Timer.byDuration(timeout, "timeout")),
+            ConditionCombination.of(channelB.forOne("signal-b")));
 ```
 
 Among ready `Wait.anyOf` candidates, Dex uses canonical Timer, Channel, then SubFlow order and preserves argument order within each kind. An earlier unready Condition does not block a later ready one. Only the winning Channel consumes messages. For strict priority, return only the current higher-priority Condition until it resolves.
@@ -42,18 +42,18 @@ Use condition IDs when code must distinguish winners, and for every condition in
 
 ## Durable state and locking
 
-[Pinned Attribute example](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java)
+[Pinned Attribute example](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/attribute/AttributeFlow.java -->
 ```java
-        @Override
-        public StepOptions getStepOptions() {
-            return StepOptions.newBuilder()
-                    .addWaitForLock(AttributeLock.of(status))
-                    .addWaitForLock(AttributeLock.of(progress, "payment"))
-                    .addExecuteLock(AttributeLock.of(status))
-                    .addExecuteLock(AttributeLock.of(progress, "payment"))
-                    .build();
-        }
+@Override
+public StepOptions getStepOptions() {
+    return StepOptions.newBuilder()
+            .addWaitForLock(AttributeLock.of(status))
+            .addWaitForLock(AttributeLock.of(progress, "payment"))
+            .addExecuteLock(AttributeLock.of(status))
+            .addExecuteLock(AttributeLock.of(progress, "payment"))
+            .build();
+}
 ```
 
 Locks coordinate only Steps and RPCs that request the same lock. They do not make external calls transactional. AttributeMap and ChannelMap instance names must be stable business keys.
@@ -66,14 +66,14 @@ An RPC without Attribute locks or `isTransactional` can query a retained termina
 
 Use `Client.readStream` for forward, one-at-a-time, optionally long-polling consumption. Use `Client.listStreamMessages` for non-blocking newest-first pages. Pass the typed Stream directly, and pass `getNextPageToken()` unchanged until it is empty.
 
-[Pinned runnable listing](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java)
+[Pinned runnable listing](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java)
 <!-- dex-source: examples/java/src/main/java/io/superdurable/dex/primitives/stream/StreamController.java -->
 ```java
-        final StreamMessagesPage<String> page = client.listStreamMessages(
-                workflowId,
-                flow.progress,
-                pageSize,
-                beforePageToken);
+final StreamMessagesPage<String> page = client.listStreamMessages(
+        workflowId,
+        flow.progress,
+        pageSize,
+        beforePageToken);
 ```
 
 The before-page token is exclusive and scope-bound. The first page uses an empty token. Listing is a best-effort retained snapshot: concurrent newer writes stay outside the older-page chain, while trimming may remove messages. A trimmed anchor returns an empty page. The server requires a positive page size and caps it at 1000 by default.

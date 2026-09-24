@@ -50,6 +50,20 @@ Treat this as a local development constraint, not an application schema limit. D
 
 Production capacity is determined by its Temporal visibility backend. Elasticsearch-backed deployments do not have SQLite's fixed per-type slot pool, although Elasticsearch mapping limits can still apply. Temporal Cloud and self-hosted SQL visibility stores have their own limits. Verify the target environment against [Temporal's current Search Attribute limits](https://docs.temporal.io/search-attribute#custom-search-attribute-limits).
 
+## Local Connector credentials
+
+Dex Web v2 can configure exact released official Connector modules for Go Flows during loopback **dexcli dev**. The Flow must use an operation-specific factory and a static connection name. Generic factories, local replacements, unreleased module versions, or version conflicts remain visible but are not configurable.
+
+The default plaintext development store is `~/.dex/connectors/connections.json`. Pass **--connector-config-dir** to choose an isolated directory. Use the absolute path displayed in Connections mode when starting the application:
+
+```bash
+DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-command>
+```
+
+The file survives Dex Web and application restarts. Restarting Dex Web clears pending OAuth/PKCE exchanges, OAuth client secrets, and Studio UI sessions because those remain in memory. Stored short-lived credentials remain until expiry or explicit local deletion. Deletion does not revoke the provider grant.
+
+Only the Go Connector SDK currently provides the local file loader. Never put the JSON record, access token, API key, or secret-bearing generated value into Flow state, logs, browser messages, or application responses.
+
 ## Deploy Dex Server components
 
 The `dex-server` image starts Web, API, and Interpreter in one OS process by default. It serves FlowService gRPC on port 8801 and Dex Web HTTP on port 8802.

@@ -191,6 +191,8 @@ def check_app_builder() -> None:
         "trusted authentication boundary",
         "generic HTTP connector only for organization-controlled internal systems",
         "fork the library and open an upstream pull request",
+        "static `ConnectionName`",
+        "generated `NewLocalConnection`",
         "external effects in `Execute`",
         "`WaitFor` free of provider or Dex mutations",
     )

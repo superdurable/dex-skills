@@ -12,27 +12,27 @@ Use module-level `static LazyLock<T>` for `Attribute`, `Channel`, and `Stream` d
 
 Register every definition used by a Flow. Registration catches a load for an undeclared definition. Keep logical names stable and unique within the Flow. Use maps when the set of keys grows dynamically; do not create dynamic logical definition names.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/src/primitives/attribute/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/src/primitives/attribute/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/attribute/flow.rs -->
 ```rust
-    fn persistence(&self) -> PersistenceSchema {
-        PersistenceSchema::new()
-            .attribute(&STATUS)
-            .attribute(&EMAIL)
-            .attribute_map(&self.progress)
-    }
+fn persistence(&self) -> PersistenceSchema {
+    PersistenceSchema::new()
+        .attribute(&STATUS)
+        .attribute(&EMAIL)
+        .attribute_map(&self.progress)
+}
 ```
 
 ## Selective loading
 
 Map and Channel state is not implicitly hydrated for every invocation. Declare phase-specific loads on `StepOptions`, or attach loads to an RPC definition. Load a full map only when the algorithm truly needs all instances; prefer `attribute_map.load(instance)` or `channel_map.load_messages(instance)` for one partition.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/src/primitives/channel/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/src/primitives/channel/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/channel/flow.rs -->
 ```rust
-    fn options(&self) -> StepOptions<Self::Input> {
-        StepOptions::new().execute_load_channel(&QUEUED_MESSAGES)
-    }
+fn options(&self) -> StepOptions<Self::Input> {
+    StepOptions::new().execute_load_channel(&QUEUED_MESSAGES)
+}
 ```
 
 Loading controls availability in Worker Context; it does not request serialization between competing writers.
@@ -51,14 +51,14 @@ WaitFor and Execute are separate retryable method executions. Durable writes mad
 
 Client and Worker share an `Arc<BlobCache>` so payload hydration and upload can use local content-addressed storage. Choose a process-local directory, byte capacity, and entry capacity; close the cache during shutdown. The example bootstrap is the source of truth for constructor shape.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.11.3/examples/rust/src/main.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/src/main.rs)
 <!-- dex-source: examples/rust/src/main.rs -->
 ```rust
-    let cache = Arc::new(BlobCache::open(BlobCacheConfig::new(
-        cache_directory,
-        64 * 1024 * 1024,
-        10_000,
-    )?)?);
+let cache = Arc::new(BlobCache::open(BlobCacheConfig::new(
+    cache_directory,
+    64 * 1024 * 1024,
+    10_000,
+)?)?);
 ```
 
 Do not use BlobCache as business persistence. Durable references remain owned by Dex; local cache entries are replaceable acceleration.
