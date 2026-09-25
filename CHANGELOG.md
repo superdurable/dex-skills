@@ -2,6 +2,14 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.18.0 - 2026-09-24
+
+- Remove the retired Connector SDK `TriggerRPC` policy layer from application guidance.
+- Make applications own typed RPC registration, RPC options, locks, and bounded redelivery handling.
+- Upgrade the Dex CLI baseline to v0.13.2 for released `sdkgo` Connector analysis.
+- Upgrade the released Slack example reference to v0.3.0 and Gmail to v0.4.0.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.18.0.
+
 ## 0.17.1 - 2026-09-24
 
 - Upgrade the Dex Server and CLI baselines to v0.13.1 for released Connector Trigger discovery and setup.

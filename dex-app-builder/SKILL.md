@@ -10,7 +10,7 @@ Build the smallest coherent product that solves the confirmed business process. 
 ## Fixed product boundary
 
 - Use `https://github.com/superdurable/dex-template-basic-process` as the application template.
-- Target Dex Server `v0.13.1`, Dex CLI `v0.13.1`, and Dex Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files before verification. Dex Web v2 is embedded in Server and CLI.
+- Target Dex Server `v0.13.1`, Dex CLI `v0.13.2`, and Dex Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files before verification. Dex Web v2 is embedded in Server and CLI.
 - Implement Dex backend code only with the Go SDK.
 - Target strict Dex Web v2 / FDG 2.0 rendering. Never fall back to rendering v1.
 - Treat Dex Web v2 as the process-management UI for Runs, Work Queue, search, details, edits, and Actions unless the user confirms a custom UI is necessary.
@@ -99,7 +99,7 @@ For connectors:
 
 For every Trigger binding, give the generated factory a static connection name and binding name. Keep its matcher configuration separate from workspace credentials. Supply an application-owned `FlowIDResolver`, then choose either `NewDexFlowTriggerTarget` with a typed Flow and input builder or `NewDexRPCTriggerTarget` with a typed RPC definition. Do not add manifest-level Flow/RPC Trigger kinds or a configurable RPC-name string.
 
-For an RPC target, construct `TriggerRPC` with the Flow's bound method and application handler. Register `Definition()` with `DefaultOptions()`, include `PersistenceAttribute()` in the Flow schema, and pass the same definition to the target. This keeps the RPC name and types aligned while transactionally deduplicating provider event IDs.
+For an RPC target, register the application's bound method with application-owned `dex.RPCOptions`, then pass that method directly to the target. The application decides whether redelivery needs deduplication, which bounded domain state records it, and which business state or effect requires a lock. Do not add connector-owned persistence or locks to every Trigger RPC.
 
 Make connector mutations idempotent and reconcile unknown outcomes query-first. A missing connector release blocks production handoff. Never invent an unreleased connector API.
 
