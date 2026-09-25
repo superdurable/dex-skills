@@ -2,6 +2,15 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.17.0 - 2026-09-24
+
+- Add provider-neutral Connector Trigger guidance with application-owned typed Flow and RPC routing.
+- Document binding identity, at-least-once delivery, durable event deduplication, and separate connection and Trigger configuration.
+- Add released Slack thread and Gmail thread examples for Trigger, Query, typed RPC, and Mutation integration.
+- Upgrade the Dex Server and CLI baselines to v0.13.0 and document their embedded Connector Studio delivery.
+- Accept the supported template's older embedded Server and CLI tags when they are ancestors of the App Builder baselines.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.17.0.
+
 ## 0.16.0 - 2026-09-24
 
 - Replace durable-wait maximum-time guidance with caller-visible Request Timeout and advanced Internal Handler Timeout semantics.

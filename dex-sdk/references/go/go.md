@@ -25,6 +25,12 @@ Official Go connectors can load the Dex Web development store with `localconfig.
 
 Configuration is captured when the store loads. Credentials are reread for each provider call, so reauthorization does not require a restart; configuration changes do. Keep generated secret values outside Flow state and logs.
 
+Provider-neutral Triggers run outside Steps. Give each generated Trigger factory a static binding name, then pass an application-owned target. `NewDexFlowTriggerTarget` takes the typed Flow, a stable `FlowIDResolver`, and an input builder. `NewDexRPCTriggerTarget` takes a typed RPC definition and the same identity resolver; no string RPC name is configured.
+
+For RPC delivery, construct `TriggerRPC` from the Flow's bound method and application event handler. Register its `Definition()` with `DefaultOptions()`, include `PersistenceAttribute()` in the Flow schema, and delegate the bound method to `Handle`. This atomically deduplicates stable provider event IDs without putting business behavior in the connector.
+
+Use the released [Slack example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.1.0/connectors/slack/examples/thread-approval) and [Gmail example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.2.0/connectors/google/gmail/examples/thread-reply) as the exact integration references.
+
 ## Minimal Flow
 
 Declare schema at package scope, embed defaults, register Step types, and return a decision from every Execute method.

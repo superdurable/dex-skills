@@ -19,7 +19,7 @@ tests. The shell must not present approval, display, status, list, search,
 detail, retry, or escalation controls.
 
 Retain a webhook only when it is confirmed integration ingress. An external
-provider webhook belongs to its dedicated Connector Trigger/Event. An internal
+provider webhook belongs to its dedicated Connector Trigger. An internal
 system may use the generic HTTP webhook connector.
 
 Do not require mock approval for the inert shell. Verify that the generated

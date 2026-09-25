@@ -95,18 +95,40 @@ def main() -> None:
         '"moduleVersion"',
     )
     require_text(
+        arguments.dex_root / "cli" / "internal" / "flowviz" / "go_connector_trigger.go",
+        "collectConnectorTriggerBindings",
+        '"bindingName"',
+        "TriggerBindingFactoryConfigMarker",
+    )
+    require_text(
         arguments.dex_root / "cli" / "internal" / "dev" / "config.go",
         "connector-config-dir",
     )
     require_text(
         arguments.dex_root / "web" / "connector_connection_store.go",
         "connections.json",
+        "TriggerBindings",
+        "putTriggerBinding",
         "os.Rename",
     )
     require_text(
         arguments.dex_root / "web" / "connector_oauth.go",
         "code_verifier",
-        'credentials["access_token"]',
+        "connectorOAuthResponseValue",
+        "credentials[mapping.Credential]",
+        "credentialSecrets",
+    )
+    require_text(
+        arguments.dex_root / "web" / "connector_slack.go",
+        "validateConnectorTriggerBindingConfiguration",
+        "handleListSlackChannels",
+        "handleListSlackUsers",
+    )
+    require_text(
+        arguments.dex_root / "web" / "app" / "v2" / "connections" / "ConnectionsPage.tsx",
+        "slack.channels-list",
+        "slack.users-list",
+        "trigger.configuration.write",
     )
 
     template_manifest = json.loads(
@@ -123,13 +145,21 @@ def main() -> None:
     template_cli_baseline = (
         arguments.template_root / "DEX_CLI_BASELINE"
     ).read_text().strip()
-    if template_cli_baseline != cli_baseline:
-        fail("template Dex CLI baseline must match Dex App Builder")
+    require_ancestor(
+        arguments.dex_root,
+        template_cli_baseline,
+        cli_baseline,
+        "template Dex CLI baseline",
+    )
     template_server_baseline = (
         arguments.template_root / "DEX_SERVER_BASELINE"
     ).read_text().strip()
-    if template_server_baseline != server_baseline:
-        fail("template Dex Server baseline must match Dex App Builder")
+    require_ancestor(
+        arguments.dex_root,
+        template_server_baseline,
+        server_baseline,
+        "template Dex Server baseline",
+    )
     require_text(
         arguments.template_root / "go.mod",
         "github.com/superdurable/dex/sdk-go v0.11.3",

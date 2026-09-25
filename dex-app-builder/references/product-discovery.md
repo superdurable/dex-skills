@@ -50,7 +50,7 @@ Dex Web cannot provide. Record which requirement forces the custom surface.
 
 ## Connector decision
 
-List every external Trigger, Query, Action, Event, and integration UI. Match
+List every external Trigger, Query, Mutation, and integration UI. Match
 each to a released dedicated connector before implementation. Mark an endpoint
 as internal only when the organization owns and controls it; only those
 connections may use the generic HTTP connector. Record every missing connector

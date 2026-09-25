@@ -1,6 +1,6 @@
 # Dex Web v2 and FDG 2.0
 
-Baselines: Dex Server `v0.12.0`, Dex CLI `v0.12.0`, and Dex Go SDK `v0.12.0`. Both Server and CLI embed Web v2, including permission-based Work Queue, cumulative permission history, trusted-header enforcement, dynamic definition sources, embedded reverse-proxy mounts, and local setup for operation-specific Connector factories.
+Baselines: Dex Server `v0.13.0`, Dex CLI `v0.13.0`, and Dex Go SDK `v0.12.1`. Both Server and CLI embed Web v2, including permission-based Work Queue, cumulative permission history, trusted-header enforcement, dynamic definition sources, embedded reverse-proxy mounts, and local setup for Connector operations and Trigger bindings.
 
 Web v2 is Go-only. Validate every Flow with the v2 analyzer and never fall back to v1.
 
@@ -21,11 +21,13 @@ Production uses `trusted-header` behind an authenticated host or reverse proxy. 
 
 ## Connections mode
 
-In loopback **dexcli dev**, `/v2/connections` groups Connector Steps by connector ID and static connection name. It shows the exact module version, dependent Flows, Steps, and operations, plus **Missing**, **Ready**, **Expired**, **Conflict**, or **Unsupported** status. The Step drawer links the same identity to its setup page.
+In loopback **dexcli dev**, `/v2/connections` groups Connector Steps and Trigger bindings by connector ID and static connection name. It shows the exact module version, dependent Flows, Steps, operations, and bindings, plus **Missing**, **Ready**, **Expired**, **Conflict**, or **Unsupported** status. The Step drawer links the same identity to its setup page.
 
 Automatic setup requires an operation-specific factory from an exact official released module, a static `ConnectionName`, and no local module replacement. Different module versions for one connector/name key are a blocking conflict. Generic factories and unsupported dependencies still render the Flow but cannot write credentials.
 
 Dex Web verifies release metadata and the Studio artifact. A supported Studio bundle runs in an opaque-origin sandbox; otherwise the host renders the manifest form. Neither surface receives stored credential values. OAuth client credentials, PKCE state, and UI sessions are memory-only.
+
+Connection credentials and Trigger matcher configuration are separate records. Changing one binding does not change another Flow that reuses the same connection. Slack Studio writes stable channel and member IDs while displaying names, raw IDs, copy controls, and manual-ID fallback. Provider tokens and app secrets remain host-owned and are never sent to the Studio iframe.
 
 **POST /api/v2/search** accepts several permissions; a run matches any requested permission, then Flow type and other filters apply with AND. A historical permission match discovers work that is or was available. Dex Web rechecks current Action eligibility when the run opens.
 
