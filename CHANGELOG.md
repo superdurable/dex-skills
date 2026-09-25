@@ -2,6 +2,13 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.21.0 - 2026-09-25
+
+- Replace Connector mapper guidance with pure `MapToOperationInput` callbacks and document optional `ResultAttribute` use.
+- Replace error-returning Trigger filters with pure `TriggerFilter`, `FlowInputMapper`, and `RPCInputMapper` application callbacks.
+- Upgrade Slack example references to v0.6.0, Gmail to v0.7.0, Connector SDK guidance to v0.6.0, and Dex CLI to v0.13.5.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.21.0.
+
 ## 0.20.0 - 2026-09-25
 
 - Require application-owned typed filters before Connector Trigger Flow starts and RPC invocations.
