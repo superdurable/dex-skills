@@ -10,7 +10,7 @@ Build the smallest coherent product that solves the confirmed business process. 
 ## Fixed product boundary
 
 - Use `https://github.com/superdurable/dex-template-basic-process` as the application template.
-- Target Dex Server `v0.11.4`, Dex Web v2 `v0.3.0`, and Dex Go SDK `v0.12.0`.
+- Target Dex Server `v0.12.0`, Dex CLI `v0.12.0`, and Dex Go SDK `v0.12.0`. Dex Web v2 is embedded in Server and CLI.
 - Implement Dex backend code only with the Go SDK.
 - Target strict Dex Web v2 / FDG 2.0 rendering. Never fall back to rendering v1.
 - Treat Dex Web v2 as the process-management UI for Runs, Work Queue, search, details, edits, and Actions unless the user confirms a custom UI is necessary.

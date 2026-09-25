@@ -17,7 +17,9 @@ excerpts from runnable examples, SDK tests, or SDK READMEs at that release, with
 the existing visible source link and `dex-source` marker.
 
 `DEX_SERVER_BASELINE` pins the released Server required by App Builder.
-`DEX_WEB_V2_BASELINE` pins the released Web v2/FDG 2.0 implementation.
+`DEX_CLI_BASELINE` pins the released local tooling and embedded Web v2/FDG 2.0
+implementation. The Server release embeds the same Dex Web source for hosted
+environments.
 `TEMPLATE_BASELINE` pins the published release of the only supported
 application template. Refresh any baseline deliberately and review all affected
 guidance.
@@ -30,7 +32,7 @@ Run from the repository root:
 python3 script/check-package.py
 python3 script/check-reference-sources.py --dex-root /path/to/dex-sdk-baseline
 python3 script/check-upstream-baselines.py \
-  --dex-root /path/to/dex-web-v2-baseline \
+  --dex-root /path/to/dex-cli-baseline \
   --template-root /path/to/dex-template-basic-process
 python3 /path/to/skill-creator/scripts/quick_validate.py dex-sdk
 python3 /path/to/skill-creator/scripts/quick_validate.py dex-app-builder

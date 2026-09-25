@@ -1,6 +1,6 @@
 # Dex Web v2 and FDG 2.0
 
-Baselines: Dex Server `v0.11.4`, Dex Web v2 `v0.3.0`, and Dex Go SDK `v0.12.0`. Web v2 includes permission-based Work Queue, cumulative permission history, trusted-header enforcement, dynamic definition sources, embedded reverse-proxy mounts, and local setup for operation-specific Connector factories.
+Baselines: Dex Server `v0.12.0`, Dex CLI `v0.12.0`, and Dex Go SDK `v0.12.0`. Both Server and CLI embed Web v2, including permission-based Work Queue, cumulative permission history, trusted-header enforcement, dynamic definition sources, embedded reverse-proxy mounts, and local setup for operation-specific Connector factories.
 
 Web v2 is Go-only. Validate every Flow with the v2 analyzer and never fall back to v1.
 
