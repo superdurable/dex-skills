@@ -26,7 +26,7 @@ Trigger processing verifies and normalizes the inbound event, preserves its stab
 
 The application supplies a `FlowIDResolver`. It chooses `NewDexFlowTriggerTarget` with a typed Flow and input builder to start a Flow, or `NewDexRPCTriggerTarget` with a typed RPC definition to invoke an existing Flow. Never route through a configurable RPC-name string.
 
-Flow starts reuse the provider event ID as the request ID. The resolved Flow ID owns root-event deduplication. RPC delivery uses an application-constructed `TriggerRPC`: register `Definition()` with `DefaultOptions()`, include `PersistenceAttribute()` in the Flow schema, delegate the bound Flow method to `Handle`, and pass the same definition to the target. The application owns the event handler; the helper only provides typed registration and transactional event-ID deduplication.
+Flow starts reuse the provider event ID as the request ID. The resolved Flow ID owns root-event deduplication. For RPC delivery, register the application's bound method with application-owned `dex.RPCOptions` and pass that method directly to the target. The application owns redelivery policy, bounded deduplication state when needed, and locks for the exact business state or effect that must commit atomically.
 
 Query and Mutation run from `Execute`. Mutation supplies a stable idempotency key. If the result is uncertain, persist that outcome and query before retrying. Do not let Trigger source handlers mutate Dex primitives directly.
 
@@ -87,8 +87,8 @@ exact component tag and rerun integration and E2E coverage.
 
 ## Released Trigger examples
 
-Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.1.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, thread query, typed reply RPC, and thread-reply Mutation.
+Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.3.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, thread query, typed reply RPC, and thread-reply Mutation.
 
-Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.2.0/connectors/google/gmail/examples/thread-reply) for a polled root message, message query, typed reply RPC, and email-reply Mutation. Its polling transport is a local alpha path, not a production push-delivery design.
+Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.4.0/connectors/google/gmail/examples/thread-reply) for a polled root message, message query, typed reply RPC, and email-reply Mutation. Its polling transport is a local alpha path, not a production push-delivery design.
 
-Both examples derive one stable Flow ID from provider thread identity. They absorb redelivery through deterministic starts and `TriggerRPC` event-ID persistence, and move uncertain or rejected external writes into explicit recovery instead of blind resend.
+Both examples derive one stable Flow ID from provider thread identity. They absorb root redelivery through deterministic starts, handle reply redelivery in bounded application-owned thread state, and move uncertain or rejected external writes into explicit recovery instead of blind resend.

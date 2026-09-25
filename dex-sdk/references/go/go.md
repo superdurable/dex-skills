@@ -27,9 +27,9 @@ Configuration is captured when the store loads. Credentials are reread for each 
 
 Provider-neutral Triggers run outside Steps. Give each generated Trigger factory a static binding name, then pass an application-owned target. `NewDexFlowTriggerTarget` takes the typed Flow, a stable `FlowIDResolver`, and an input builder. `NewDexRPCTriggerTarget` takes a typed RPC definition and the same identity resolver; no string RPC name is configured.
 
-For RPC delivery, construct `TriggerRPC` from the Flow's bound method and application event handler. Register its `Definition()` with `DefaultOptions()`, include `PersistenceAttribute()` in the Flow schema, and delegate the bound method to `Handle`. This atomically deduplicates stable provider event IDs without putting business behavior in the connector.
+For RPC delivery, register the application's bound method with application-owned `dex.RPCOptions`, then pass that method directly to `NewDexRPCTriggerTarget`. The application decides whether stable provider event IDs need deduplication, stores only bounded domain state, and locks only the business state or effect that must commit atomically.
 
-Use the released [Slack example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.1.0/connectors/slack/examples/thread-approval) and [Gmail example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.2.0/connectors/google/gmail/examples/thread-reply) as the exact integration references.
+Use the released [Slack example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.3.0/connectors/slack/examples/thread-approval) and [Gmail example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.4.0/connectors/google/gmail/examples/thread-reply) as the exact integration references.
 
 ## Minimal Flow
 

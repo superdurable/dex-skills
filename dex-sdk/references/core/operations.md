@@ -64,7 +64,7 @@ The file survives Dex Web and application restarts. Restarting Dex Web clears pe
 
 Only the Go Connector SDK currently provides the local file loader. Never put the JSON record, access token, API key, or secret-bearing generated value into Flow state, logs, browser messages, or application responses.
 
-Connection credentials and Trigger binding matchers are separate. One connection may serve several Flows without sharing their filters. Trigger delivery is at least once: use deterministic Flow IDs for starts and the Connector SDK's typed `TriggerRPC` persistence for RPC event deduplication.
+Connection credentials and Trigger binding matchers are separate. One connection may serve several Flows without sharing their filters. Trigger delivery is at least once: use deterministic Flow IDs for starts. Application RPCs own their redelivery policy, bounded deduplication state when needed, and business locks.
 
 ## Deploy Dex Server components
 
