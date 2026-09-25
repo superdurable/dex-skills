@@ -45,7 +45,7 @@ Ensure:
 - dependencies and released connector versions are pinned;
 - each configurable Connector Step has a static connection name matching its generated Connection;
 - each Connector Step branch receives only its current operation result, while application Attributes retain domain context;
-- every Connector factory uses `BuildOperationInput` and graph-only `Annotations`;
+- every Connector factory uses pure `MapToOperationInput` and graph-only `Annotations`;
 - each Connector Trigger binding has a static binding name, application-owned Flow ID resolver, and typed target;
 - the displayed local connection path and **DEX_CONNECTOR_CONFIG_FILE** launch command work after a Dex Web restart;
 - connector fork/PR status and any release blocker are explicit;
