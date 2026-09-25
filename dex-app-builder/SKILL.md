@@ -10,7 +10,7 @@ Build the smallest coherent product that solves the confirmed business process. 
 ## Fixed product boundary
 
 - Use `https://github.com/superdurable/dex-template-basic-process` as the application template.
-- Target Dex Server `v0.13.1`, Dex CLI `v0.13.2`, and Dex Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files before verification. Dex Web v2 is embedded in Server and CLI.
+- Target Dex Server `v0.13.2`, Dex CLI `v0.13.4`, and Dex Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files before verification. Dex Web v2 is embedded in Server and CLI.
 - Implement Dex backend code only with the Go SDK.
 - Target strict Dex Web v2 / FDG 2.0 rendering. Never fall back to rendering v1.
 - Treat Dex Web v2 as the process-management UI for Runs, Work Queue, search, details, edits, and Actions unless the user confirms a custom UI is necessary.
@@ -96,6 +96,8 @@ For connectors:
 9. continue local application verification with the fork through an uncommitted `go.work` or temporary `replace`;
 10. never commit a branch, commit SHA, pseudo-version, or local replacement as a production dependency;
 11. after release, pin the exact connector tag and rerun real integration and E2E coverage.
+
+Each Connector Step passes only its current operation result to a branch target. Use generated result aliases such as `ListThreadMessagesResult` or `PostThreadReplyResult`. Persist thread identity, customer input, recovery context, and other business state in an application Step and Attribute before entering the Connector Step. Build the provider operation input with `BuildOperationInput`; never recover upstream context from a result envelope. Use `Annotations` only for graph grouping and explanation metadata.
 
 For every Trigger binding, give the generated factory a static connection name and binding name. Keep its matcher configuration separate from workspace credentials. Supply an application-owned `FlowIDResolver`, then choose either `NewDexFlowTriggerTarget` with a typed Flow and input builder or `NewDexRPCTriggerTarget` with a typed RPC definition. Do not add manifest-level Flow/RPC Trigger kinds or a configurable RPC-name string.
 
