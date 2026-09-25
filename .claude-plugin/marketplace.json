@@ -11,7 +11,7 @@
       "name": "superdurable-dex",
       "source": "./",
       "description": "Dex SDK guidance and end-to-end Dex AI Platform product development.",
-      "version": "0.19.0",
+      "version": "0.20.0",
       "skills": [
         "./dex-sdk",
         "./dex-app-builder"

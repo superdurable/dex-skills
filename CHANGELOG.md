@@ -2,6 +2,13 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.20.0 - 2026-09-25
+
+- Require application-owned typed filters before Connector Trigger Flow starts and RPC invocations.
+- Document filtered-event consumption, retryable filter failures, replay determinism, and provider matcher boundaries.
+- Upgrade Slack example references to v0.5.0, Gmail to v0.6.0, and Connector SDK guidance to v0.4.0.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.20.0.
+
 ## 0.19.0 - 2026-09-25
 
 - Define Connector Steps as result-only boundaries with application-owned durable context.
