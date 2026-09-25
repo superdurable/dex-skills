@@ -2,6 +2,11 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.17.1 - 2026-09-24
+
+- Upgrade the Dex Server and CLI baselines to v0.13.1 for released Connector Trigger discovery and setup.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.17.1.
+
 ## 0.17.0 - 2026-09-24
 
 - Add provider-neutral Connector Trigger guidance with application-owned typed Flow and RPC routing.
