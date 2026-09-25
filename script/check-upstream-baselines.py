@@ -91,6 +91,8 @@ def main() -> None:
     require_text(
         arguments.dex_root / "cli" / "internal" / "flowviz" / "go_connector_factory.go",
         "parseConnectorFactoryStep",
+        "parseConnectorAnnotations",
+        '"annotations"',
         '"connectionName"',
         '"moduleVersion"',
     )

@@ -22,6 +22,8 @@ Credentials belong to Connector Runtime, never Flow state, IDs, logs, browser co
 
 Every operation-specific factory in a configurable Go Flow also declares a static `ConnectionName`. It must match the generated Connection's runtime name. Dex Web uses connector ID plus connection name as the local identity and blocks writes when one identity resolves to different module versions.
 
+A Connector Step emits only the current Query or Mutation result. Generated aliases such as `ListThreadMessagesResult` and `PostThreadReplyResult` are non-recursive aliases of `sdkgo.QueryResult` or `sdkgo.MutationResult`. `BuildOperationInput` maps the current application Step input into provider input, but that application input is not copied into the result. Persist domain context in an application-owned Attribute before invoking the Connector Step. Use `Annotations` only for graph group and explanation metadata.
+
 Trigger processing verifies and normalizes the inbound event, preserves its stable provider event ID, and delivers it at least once. The connector does not classify a Trigger as Flow-start or RPC delivery.
 
 The application supplies a `FlowIDResolver`. It chooses `NewDexFlowTriggerTarget` with a typed Flow and input builder to start a Flow, or `NewDexRPCTriggerTarget` with a typed RPC definition to invoke an existing Flow. Never route through a configurable RPC-name string.
@@ -87,8 +89,8 @@ exact component tag and rerun integration and E2E coverage.
 
 ## Released Trigger examples
 
-Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.3.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, thread query, typed reply RPC, and thread-reply Mutation.
+Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.4.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, thread query, typed reply RPC, and thread-reply Mutation.
 
-Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.4.0/connectors/google/gmail/examples/thread-reply) for a polled root message, message query, typed reply RPC, and email-reply Mutation. Its polling transport is a local alpha path, not a production push-delivery design.
+Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.5.0/connectors/google/gmail/examples/thread-reply) for a polled root message, message query, typed reply RPC, and email-reply Mutation. Its polling transport is a local alpha path, not a production push-delivery design.
 
 Both examples derive one stable Flow ID from provider thread identity. They absorb root redelivery through deterministic starts, handle reply redelivery in bounded application-owned thread state, and move uncertain or rejected external writes into explicit recovery instead of blind resend.

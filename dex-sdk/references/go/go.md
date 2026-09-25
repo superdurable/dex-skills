@@ -25,11 +25,13 @@ Official Go connectors can load the Dex Web development store with `localconfig.
 
 Configuration is captured when the store loads. Credentials are reread for each provider call, so reauthorization does not require a restart; configuration changes do. Keep generated secret values outside Flow state and logs.
 
+Connector Step branch targets receive only the current generated result alias. Query aliases resolve to `sdkgo.QueryResult[OUT]`; Mutation aliases resolve to `sdkgo.MutationResult[OUT]`. `BuildOperationInput` may derive provider input from the current application Step input, but that input is not present in the result. Persist business context with an application Step and Attribute before the Connector call, then reload it in success, failure, RPC, and recovery Steps. Use `Annotations` for graph group and explanation metadata; do not use it for visual styling.
+
 Provider-neutral Triggers run outside Steps. Give each generated Trigger factory a static binding name, then pass an application-owned target. `NewDexFlowTriggerTarget` takes the typed Flow, a stable `FlowIDResolver`, and an input builder. `NewDexRPCTriggerTarget` takes a typed RPC definition and the same identity resolver; no string RPC name is configured.
 
 For RPC delivery, register the application's bound method with application-owned `dex.RPCOptions`, then pass that method directly to `NewDexRPCTriggerTarget`. The application decides whether stable provider event IDs need deduplication, stores only bounded domain state, and locks only the business state or effect that must commit atomically.
 
-Use the released [Slack example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.3.0/connectors/slack/examples/thread-approval) and [Gmail example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.4.0/connectors/google/gmail/examples/thread-reply) as the exact integration references.
+Use the released [Slack example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.4.0/connectors/slack/examples/thread-approval) and [Gmail example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.5.0/connectors/google/gmail/examples/thread-reply) as the exact integration references. Both use Connector SDK `sdkgo/v0.3.0`.
 
 ## Minimal Flow
 

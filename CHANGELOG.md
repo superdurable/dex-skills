@@ -2,6 +2,14 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.19.0 - 2026-09-25
+
+- Define Connector Steps as result-only boundaries with application-owned durable context.
+- Replace `Presentation` and `BuildInput` guidance with graph-only `Annotations` and `BuildOperationInput`.
+- Upgrade Slack example references to v0.4.0, Gmail to v0.5.0, and Connector SDK guidance to v0.3.0.
+- Upgrade the Dex Server baseline to v0.13.2 and CLI baseline to v0.13.4.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.19.0.
+
 ## 0.18.0 - 2026-09-24
 
 - Remove the retired Connector SDK `TriggerRPC` policy layer from application guidance.
