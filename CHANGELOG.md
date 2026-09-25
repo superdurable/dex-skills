@@ -8,7 +8,13 @@ All notable changes to Dex Skills are documented here.
 - Explain transparent transport reattachment, typed Request Timeout errors, and reattachment after caller timeout.
 - Document when nonzero Internal Handler Timeout protects Temporal's 10 in-flight Update limit and its 2,000-Update history tradeoff.
 - Upgrade the Dex SDK source baseline to v0.12.1 and refresh pinned source links.
-- Decouple the independently released SDK and Dex Web baseline validation and synchronize plugin manifests.
+- Decouple the independently released SDK and CLI baseline validation.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.16.0.
+
+## 0.15.1 - 2026-09-24
+
+- Remove the standalone Dex Web baseline and pin its embedded hosted and local delivery through Server v0.12.0 and CLI v0.12.0.
+- Upgrade the basic-process baseline to v0.2.1 and template contract 1.4.1.
 
 ## 0.15.0 - 2026-09-24
 

@@ -23,6 +23,6 @@ version, repository, skill paths, and display metadata. Do not reintroduce a
 `plugins/` wrapper or a third backend skill.
 
 Every skill change updates `VERSION` and `CHANGELOG.md`. Validate Dex SDK source
-excerpts against `DEX_BASELINE`, and validate Server, Web v2, and the
-basic-process template against `DEX_SERVER_BASELINE`,
-`DEX_WEB_V2_BASELINE`, and `TEMPLATE_BASELINE`.
+excerpts against `DEX_BASELINE`, and validate Server, CLI, and the basic-process
+template against `DEX_SERVER_BASELINE`, `DEX_CLI_BASELINE`, and
+`TEMPLATE_BASELINE`. Dex Web is embedded in the Server and CLI releases.
