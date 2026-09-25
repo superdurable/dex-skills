@@ -2,6 +2,14 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.16.0 - 2026-09-24
+
+- Replace durable-wait maximum-time guidance with caller-visible Request Timeout and advanced Internal Handler Timeout semantics.
+- Explain transparent transport reattachment, typed Request Timeout errors, and reattachment after caller timeout.
+- Document when nonzero Internal Handler Timeout protects Temporal's 10 in-flight Update limit and its 2,000-Update history tradeoff.
+- Upgrade the Dex SDK source baseline to v0.12.1 and refresh pinned source links.
+- Decouple the independently released SDK and Dex Web baseline validation and synchronize plugin manifests.
+
 ## 0.15.0 - 2026-09-24
 
 - Add the Dex Web v2 Connections workflow for exact released Connector modules and statically named connections.

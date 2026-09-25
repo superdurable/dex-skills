@@ -4,7 +4,7 @@
 
 Application errors from WaitFor, Execute, RPC, and timeout handlers drive configured retry/recovery. Typed Client errors describe Dex outcomes. Context/transport errors describe caller cancellation or connectivity. Keep these layers distinct.
 
-Use `errors.As` for `*dex.FlowNotFoundError`, `*dex.FlowNotActiveError`, `*dex.FlowAlreadyStartedError`, `*dex.LongPollTimeoutError`, `*dex.WaitHandlerTimeoutError`, and `*dex.FlowUncompletedError`. Durable Step and Attribute waits hide retryable transport long-poll expiry by reattaching with the effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeoutError` means the configured total handler budget expired. Keep `ServiceError.SubStatus` for diagnostics; never parse strings.
+Use `errors.As` for `*dex.FlowNotFoundError`, `*dex.FlowNotActiveError`, `*dex.FlowAlreadyStartedError`, `*dex.LongPollTimeoutError`, `*dex.RequestTimeoutError`, and `*dex.FlowUncompletedError`. Durable Step and Attribute waits never expose transport long-poll expiry; they reattach with the effective Request ID and preserve the total `RequestTimeout` budget. `RequestTimeoutError` means that caller-visible budget expired, not that the Flow or accepted durable Update failed. `InternalHandlerTimeout` rollover is transparent. Keep `ServiceError.SubStatus` for diagnostics; never parse strings.
 
 Every concrete remote Client error unwraps to `*dex.ServiceError`; local definition, value-mapping, argument, and programming errors do not. Use `errors.As(err, &serviceError)` only at a narrow boundary whose policy intentionally treats every remote Dex outcome the same. Ordinary domain logic should continue matching the concrete error type it can decide.
 
@@ -16,7 +16,7 @@ For an explicitly best-effort external `Client.WriteStream`, an `errors.As` matc
 
 Return an error when Step options should decide retry. Use `dex.RetryAfter` only when the application knows a meaningful delay. Never add an in-memory retry loop around Step work; it disappears with the Worker and hides attempts.
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/go/patterns/polling/backoff.go)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.1/examples/go/patterns/polling/backoff.go)
 <!-- dex-source: examples/go/patterns/polling/backoff.go -->
 ```go
 result, err := step.service.AttemptExternalAPICall("Poll for BackoffPollingFlow")
