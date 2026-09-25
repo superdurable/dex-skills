@@ -6,7 +6,7 @@ Separate handler failures from controller/client failures. A Step or RPC returns
 
 Return errors with `?` when a durable read or write fails. For an application failure, construct a stable error type and useful message. `HandlerError::retry_after` overrides the next retry delay for that failure; `StepOptions::execute_retry` still bounds attempts.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/src/primitives/custom_retry/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.1/examples/rust/src/primitives/custom_retry/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/custom_retry/flow.rs -->
 ```rust
 fn options(&self) -> StepOptions<Self::Input> {
@@ -35,7 +35,7 @@ Make Execute side effects idempotent across attempts. Dex retries a logical meth
 
 Configure retry policies for the phase that can fail. WaitFor should normally be pure durable preparation. If WaitFor exhaustion is explicitly recoverable, set `WaitForFailurePolicy::Proceed`; Execute must then check `context.wait_for_method_failed()` before selecting a recovery transition.
 
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.0/examples/rust/src/primitives/proceed_on_wait_failure/flow.rs)
+[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.12.1/examples/rust/src/primitives/proceed_on_wait_failure/flow.rs)
 <!-- dex-source: examples/rust/src/primitives/proceed_on_wait_failure/flow.rs -->
 ```rust
 fn options(&self) -> StepOptions<Self::Input> {
@@ -66,7 +66,7 @@ Record recovery progress durably before triggering another non-idempotent action
 
 ## Client errors
 
-Match `SdkError` variants that affect external behavior, such as `FlowAlreadyStarted`, `WaitHandlerTimeout`, `RpcLockConflict`, Channel message absence, or Worker invocation failure. Durable Step and Attribute waits automatically reattach transport long polls with their effective Request ID. The server derives a namespaced ID when none is supplied and advances its `-N` generation after a completed handler timeout. `WaitHandlerTimeout` means the configured total handler budget expired; it does not mean the Flow failed. Controllers should map known conflicts and invalid requests distinctly from infrastructure failures. Preserve `source()` chains in logs. Do not retry every `SdkError`; only retry operations whose semantics and request IDs make repetition safe.
+Match `SdkError` variants that affect external behavior, such as `FlowAlreadyStarted`, `RequestTimeout`, `RpcLockConflict`, Channel message absence, or Worker invocation failure. Durable Step and Attribute waits never expose transport long-poll expiry; they reattach with the effective Request ID and preserve the total request budget. `RequestTimeout` means that caller-visible budget expired, not that the Flow or accepted durable Update failed. Internal handler rollover is transparent. Controllers should map known conflicts and invalid requests distinctly from infrastructure failures. Preserve `source()` chains in logs. Do not retry every `SdkError`; only retry operations whose semantics and request IDs make repetition safe.
 
 Unlike the class-based SDKs, `SdkError` is one enum containing both service-backed variants and local `FlowDefinition`, `InvalidArgument`, `ValueMapping`, and `InvalidStepResult` defects. Never discard every `SdkError` to implement a remote-failure policy. Match the documented service variant for the operation, or use `service_error().is_some()` only at a narrow boundary that intentionally handles every remote variant identically.
 

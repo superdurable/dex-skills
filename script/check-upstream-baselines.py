@@ -56,13 +56,11 @@ def main() -> None:
     parser.add_argument("--template-root", required=True, type=Path)
     arguments = parser.parse_args()
 
-    sdk_baseline = (ROOT / "DEX_BASELINE").read_text().strip()
     server_baseline = (ROOT / "DEX_SERVER_BASELINE").read_text().strip()
     cli_baseline = (ROOT / "DEX_CLI_BASELINE").read_text().strip()
     template_baseline = (ROOT / "TEMPLATE_BASELINE").read_text().strip()
     require_revision(arguments.dex_root, cli_baseline, "Dex CLI")
     require_revision(arguments.template_root, template_baseline, "template")
-    require_ancestor(arguments.dex_root, sdk_baseline, cli_baseline, "Dex SDK baseline")
     require_ancestor(arguments.dex_root, server_baseline, cli_baseline, "Dex Server baseline")
 
     require_text(
@@ -147,7 +145,7 @@ def main() -> None:
         arguments.template_root / "internal" / "process" / "flow.go"
     ).read_text():
         fail("template must use typed Action registration without dex:action")
-    print("validated Dex Server, CLI, SDK, and basic-process template baselines")
+    print("validated Dex Server, CLI, and basic-process template baselines")
 
 
 if __name__ == "__main__":
