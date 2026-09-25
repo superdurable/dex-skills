@@ -6,13 +6,12 @@ Version 0 supports Go plus the Dex SDK on the backend and React TypeScript for o
 
 ## Capability model
 
-A connector may expose six capabilities:
+A connector may expose five capabilities:
 
 - **Auth**: authorize and identify a logical connection.
-- **Trigger**: translate an external event into a new Flow start.
+- **Trigger**: translate an external event into a provider-neutral typed event.
 - **Query**: read external state from a Step or agent tool.
-- **Action**: mutate external state with idempotency and recovery.
-- **Event**: correlate an external event to an existing Flow.
+- **Mutation**: change external state with idempotency and recovery.
 - **UI**: reusable integration-aware React components.
 
 Describe capabilities in a machine-readable `connector.yaml` catalog. Agents inspect the catalog before inventing integration code.
@@ -23,11 +22,13 @@ Credentials belong to Connector Runtime, never Flow state, IDs, logs, browser co
 
 Every operation-specific factory in a configurable Go Flow also declares a static `ConnectionName`. It must match the generated Connection's runtime name. Dex Web uses connector ID plus connection name as the local identity and blocks writes when one identity resolves to different module versions.
 
-Trigger processing verifies and normalizes the inbound event, resolves the connection, derives a stable start request and Flow ID, and starts one new Flow.
+Trigger processing verifies and normalizes the inbound event, preserves its stable provider event ID, and delivers it at least once. The connector does not classify a Trigger as Flow-start or RPC delivery.
 
-Query and Action run from `Execute`. Action supplies a stable idempotency key. If the mutation result is unknown, persist that outcome and query before retrying.
+The application supplies a `FlowIDResolver`. It chooses `NewDexFlowTriggerTarget` with a typed Flow and input builder to start a Flow, or `NewDexRPCTriggerTarget` with a typed RPC definition to invoke an existing Flow. Never route through a configurable RPC-name string.
 
-Event processing verifies and normalizes the event, resolves correlation to an existing Flow, and invokes a typed RPC. The RPC may publish to a Channel or ChannelMap. Do not let webhook handlers mutate Dex primitives directly.
+Flow starts reuse the provider event ID as the request ID. The resolved Flow ID owns root-event deduplication. RPC delivery uses an application-constructed `TriggerRPC`: register `Definition()` with `DefaultOptions()`, include `PersistenceAttribute()` in the Flow schema, delegate the bound Flow method to `Handle`, and pass the same definition to the target. The application owns the event handler; the helper only provides typed registration and transactional event-ID deduplication.
+
+Query and Mutation run from `Execute`. Mutation supplies a stable idempotency key. If the result is uncertain, persist that outcome and query before retrying. Do not let Trigger source handlers mutate Dex primitives directly.
 
 ## UI and live state
 
@@ -39,6 +40,8 @@ Use a durable snapshot RPC for canonical state. Streams may improve live present
 
 Dex Web v2 configures exact official Connector module releases only from loopback **dexcli dev** with local Flow definitions. It verifies release metadata and the Studio bundle before loading the bundle in an opaque-origin sandbox. When no bundle exists, the host renders the manifest form.
 
+Flow Definition Graph metadata exposes each static Trigger binding even though its runner lives outside the Flow. A binding is identified by connector ID, connection name, Trigger name, and binding name. Its provider matcher belongs to that binding, not to the reusable connection.
+
 The default store is `~/.dex/connectors/connections.json`. Use `dexcli dev --connector-config-dir DIRECTORY` to isolate a stack; Dex Web always displays the resolved absolute file path. The file contains plaintext development credentials, so never commit, upload, log, or copy it into Flow state.
 
 Start the Go application with the path shown by Dex Web:
@@ -47,18 +50,20 @@ Start the Go application with the path shown by Dex Web:
 DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-command>
 ```
 
-Load the store once with the Connector SDK `localconfig` package and create each generated connection with `NewLocalConnection(store, connectionName)`. Configuration is fixed at application startup. Credentials are reread for every provider call, so reauthorization takes effect without an application restart. Dex Web and application restarts preserve the JSON file. Restarting Dex Web clears only pending OAuth/PKCE exchanges, submitted client secrets, and UI sessions.
+Load the store once with the Connector SDK `localconfig` package and create each generated connection with `NewLocalConnection(store, connectionName)`. Generated Trigger factories decode their named binding separately and wrap the target in a binding-specific disk inbox. A matched event is persisted before provider acknowledgement, removed after Dex accepts it, and replayed after a process restart.
+
+Configuration is fixed at application startup. Credentials are reread for every provider call, so reauthorization takes effect without an application restart. Dex Web and application restarts preserve the JSON file. Restarting Dex Web clears only pending OAuth/PKCE exchanges, submitted client secrets, and UI sessions.
 
 Local OAuth stores short-lived access tokens without refresh tokens. Reauthorize after expiry. Deleting a local credential removes only the file record; it does not revoke the provider grant.
 
 ## AI agents
 
-Agents use the same typed Query and Action capabilities as deterministic Steps. Dex owns durable state, approval waits, retries, reconciliation, and cleanup. Connector code does not become a second workflow engine.
+Agents use the same typed Query and Mutation capabilities as deterministic Steps. Dex owns durable state, approval waits, retries, reconciliation, and cleanup. Connector code does not become a second workflow engine.
 
 ## Provider classification
 
 Every interaction with an external provider uses a dedicated connector. This
-includes Trigger, Query, Action, Event, and reusable integration UI. The
+includes Trigger, Query, Mutation, and reusable integration UI. The
 generic HTTP connector is permitted only for an organization-controlled
 internal system. Do not use it as an escape hatch for external SaaS APIs.
 
@@ -79,3 +84,11 @@ uncommitted `go.work` or temporary `replace`. Never commit a branch, commit
 SHA, pseudo-version, or local replacement as the production dependency. Keep
 the connector release as a production handoff blocker. After release, pin its
 exact component tag and rerun integration and E2E coverage.
+
+## Released Trigger examples
+
+Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.1.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, thread query, typed reply RPC, and thread-reply Mutation.
+
+Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.2.0/connectors/google/gmail/examples/thread-reply) for a polled root message, message query, typed reply RPC, and email-reply Mutation. Its polling transport is a local alpha path, not a production push-delivery design.
+
+Both examples derive one stable Flow ID from provider thread identity. They absorb redelivery through deterministic starts and `TriggerRPC` event-ID persistence, and move uncertain or rejected external writes into explicit recovery instead of blind resend.

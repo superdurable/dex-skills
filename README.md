@@ -93,20 +93,21 @@ the mock journey, then `make check` for real Dex durability and rendering.
 Backend implementation is Go-only, starts from
 `superdurable/dex-template-basic-process`, and must satisfy strict Dex Web v2 /
 FDG 2.0 rendering. The supported stack is basic-process release `v0.2.1`
-(template contract `1.4.1`), Dex Server `v0.12.0`, Dex CLI `v0.12.0`, and Dex
-Go SDK `v0.12.0`. Dex Web v2 is embedded in the Server and CLI artifacts.
-Connector integrations reuse released
+(template contract `1.4.1`), Dex Server `v0.13.0`, Dex CLI `v0.13.0`, and Dex
+Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files to these
+versions before verification. Dex Web v2 is embedded in the Server and CLI
+artifacts. Connector integrations reuse released
 dedicated connectors from `superdurable/dex-connectors-library`. Generic HTTP
 is reserved for controlled internal systems; a missing external-provider
 connector follows an authorized fork and upstream-PR workflow and blocks
 production handoff until released.
 
-For Go applications, Dex Web reads statically named Connector Steps from FDG
-2.0 and configures released Gmail, GitHub, or other supported connectors in the
-local **Connections** view. The default plaintext development store is
-`~/.dex/connectors/connections.json`; pass `--connector-config-dir` to isolate a
-stack. Start the application with **DEX_CONNECTOR_CONFIG_FILE** set to the
-absolute path shown by Dex Web.
+For Go applications, Dex Web reads statically named Connector Steps and Trigger
+bindings from FDG 2.0. It configures released Gmail, Slack, GitHub, or other
+supported connectors in the local **Connections** view. The default plaintext
+development store is `~/.dex/connectors/connections.json`; pass
+`--connector-config-dir` to isolate a stack. Start the application with
+**DEX_CONNECTOR_CONFIG_FILE** set to the absolute path shown by Dex Web.
 The mock validates HTTP and UI behavior only; it cannot prove Dex durability,
 Worker replacement, Timer, or RPC semantics. The workflow finishes with local
 tests and a clean handoff ready for future Dex AI Platform upload; it does not

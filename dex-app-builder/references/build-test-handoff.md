@@ -25,7 +25,7 @@ Cover:
 - retry and exhausted-recovery behavior;
 - provider idempotency and unknown-outcome reconciliation;
 - summary/display reads before, during, and after terminal completion;
-- connector Trigger/Event correlation when used.
+- connector Trigger Flow/RPC routing and correlation when used.
 
 For a No custom UI application, also assert that no approval, display, status,
 list, search, detail, retry, escalation, Action-proxy, or Attribute-proxy HTTP
@@ -44,6 +44,7 @@ Ensure:
 - secrets are absent from files, logs, generated values, and archives;
 - dependencies and released connector versions are pinned;
 - each configurable Connector Step has a static connection name matching its generated Connection;
+- each Connector Trigger binding has a static binding name, application-owned Flow ID resolver, and typed target;
 - the displayed local connection path and **DEX_CONNECTOR_CONFIG_FILE** launch command work after a Dex Web restart;
 - connector fork/PR status and any release blocker are explicit;
 - the repository has a clean, reviewable commit;

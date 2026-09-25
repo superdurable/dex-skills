@@ -52,7 +52,7 @@ Production capacity is determined by its Temporal visibility backend. Elasticsea
 
 ## Local Connector credentials
 
-Dex Web v2 can configure exact released official Connector modules for Go Flows during loopback **dexcli dev**. The Flow must use an operation-specific factory and a static connection name. Generic factories, local replacements, unreleased module versions, or version conflicts remain visible but are not configurable.
+Dex Web v2 can configure exact released official Connector modules for Go Flows during loopback **dexcli dev**. The Flow must use operation-specific factories, a static connection name, and static names for any Trigger bindings. Generic factories, local replacements, unreleased module versions, or version conflicts remain visible but are not configurable.
 
 The default plaintext development store is `~/.dex/connectors/connections.json`. Pass **--connector-config-dir** to choose an isolated directory. Use the absolute path displayed in Connections mode when starting the application:
 
@@ -63,6 +63,8 @@ DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-com
 The file survives Dex Web and application restarts. Restarting Dex Web clears pending OAuth/PKCE exchanges, OAuth client secrets, and Studio UI sessions because those remain in memory. Stored short-lived credentials remain until expiry or explicit local deletion. Deletion does not revoke the provider grant.
 
 Only the Go Connector SDK currently provides the local file loader. Never put the JSON record, access token, API key, or secret-bearing generated value into Flow state, logs, browser messages, or application responses.
+
+Connection credentials and Trigger binding matchers are separate. One connection may serve several Flows without sharing their filters. Trigger delivery is at least once: use deterministic Flow IDs for starts and the Connector SDK's typed `TriggerRPC` persistence for RPC event deduplication.
 
 ## Deploy Dex Server components
 

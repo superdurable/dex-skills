@@ -10,7 +10,7 @@ Build the smallest coherent product that solves the confirmed business process. 
 ## Fixed product boundary
 
 - Use `https://github.com/superdurable/dex-template-basic-process` as the application template.
-- Target Dex Server `v0.12.0`, Dex CLI `v0.12.0`, and Dex Go SDK `v0.12.0`. Dex Web v2 is embedded in Server and CLI.
+- Target Dex Server `v0.13.0`, Dex CLI `v0.13.0`, and Dex Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files before verification. Dex Web v2 is embedded in Server and CLI.
 - Implement Dex backend code only with the Go SDK.
 - Target strict Dex Web v2 / FDG 2.0 rendering. Never fall back to rendering v1.
 - Treat Dex Web v2 as the process-management UI for Runs, Work Queue, search, details, edits, and Actions unless the user confirms a custom UI is necessary.
@@ -36,7 +36,7 @@ Begin with discussion, not code. Identify:
 
 Produce a compact role/operation/permission matrix, lifecycle proposal, UI decision, and connector plan. Roles describe people or groups. Permissions describe individual allowed operations. Resolve material ambiguity and obtain explicit user confirmation before implementation.
 
-If the process begins from Slack, email, a webhook, or another external source, model it as a Connector Trigger that starts a new Flow. Read [connector architecture](references/connector-architecture.md) whenever an external integration is involved.
+If the process begins from Slack, email, a webhook, or another external source, model it as a Connector Trigger. The application decides whether the event starts a Flow or invokes a typed RPC. Read [connector architecture](references/connector-architecture.md) whenever an external integration is involved.
 
 ## Stage 2: implement the confirmed UI mode
 
@@ -57,7 +57,7 @@ Adapt the template to retain only its future-ready architecture:
 
 Remove every custom process-management operation and surface: approval, rejection, retry, escalation, status, display, list, search, detail, Action or Attribute proxies, dashboards, forms, queues, lifecycle mock state, and Mock Controls. Remove their handlers, services, fixtures, generated usages, and E2E tests. Do not keep speculative endpoints.
 
-When the process needs a trigger webhook, retain only that OpenAPI operation and the verification and correlation code it requires. Do not turn the webhook server into a second management backend. External-provider webhooks use a dedicated Connector Trigger/Event; the generic HTTP connector is internal-only.
+When the process needs a trigger webhook, retain only that OpenAPI operation and the verification and correlation code it requires. Do not turn the webhook server into a second management backend. External-provider webhooks use a dedicated Connector Trigger; the generic HTTP connector is internal-only.
 
 Do not run the custom-UI mock approval checkpoint in this mode. If the product later needs custom UI behavior, reuse the retained architecture and enter the custom-UI workflow before implementing it.
 
@@ -90,12 +90,16 @@ For connectors:
 3. give every operation-specific factory a static `ConnectionName` matching the generated Connection's runtime name;
 4. use the generated `NewLocalConnection` with the Connector SDK local store for local verification;
 5. use the generic HTTP connector only for organization-controlled internal systems;
-6. require dedicated Connector Trigger, Query, Action, Event, and UI capabilities for external providers;
+6. require dedicated Connector Trigger, Query, Mutation, and UI capabilities for external providers;
 7. when a connector is absent or defective, explain the gap and obtain authorization to fork the library and open an upstream pull request;
 8. implement the connector from current `origin/main`, push the fork, and open the pull request for review;
 9. continue local application verification with the fork through an uncommitted `go.work` or temporary `replace`;
 10. never commit a branch, commit SHA, pseudo-version, or local replacement as a production dependency;
 11. after release, pin the exact connector tag and rerun real integration and E2E coverage.
+
+For every Trigger binding, give the generated factory a static connection name and binding name. Keep its matcher configuration separate from workspace credentials. Supply an application-owned `FlowIDResolver`, then choose either `NewDexFlowTriggerTarget` with a typed Flow and input builder or `NewDexRPCTriggerTarget` with a typed RPC definition. Do not add manifest-level Flow/RPC Trigger kinds or a configurable RPC-name string.
+
+For an RPC target, construct `TriggerRPC` with the Flow's bound method and application handler. Register `Definition()` with `DefaultOptions()`, include `PersistenceAttribute()` in the Flow schema, and pass the same definition to the target. This keeps the RPC name and types aligned while transactionally deduplicating provider event IDs.
 
 Make connector mutations idempotent and reconcile unknown outcomes query-first. A missing connector release blocks production handoff. Never invent an unreleased connector API.
 
