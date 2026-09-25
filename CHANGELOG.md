@@ -2,6 +2,11 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.15.1 - 2026-09-24
+
+- Remove the standalone Dex Web baseline and pin its embedded hosted and local delivery through Server v0.12.0 and CLI v0.12.0.
+- Upgrade the basic-process baseline to v0.2.1 and template contract 1.4.1.
+
 ## 0.15.0 - 2026-09-24
 
 - Add the Dex Web v2 Connections workflow for exact released Connector modules and statically named connections.
