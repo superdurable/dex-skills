@@ -121,7 +121,10 @@ claim that upload is available today.
 `superdurable/dex-connectors-library`. It starts from a provider's documented
 public API or official SDK, updates `connector.yaml` and generated contracts,
 implements provider behavior, adds Trigger and configuration UI units when
-needed, and includes a runnable connector-local example.
+needed, and includes a runnable connector-local example. It first discovers and
+verifies the user's GitHub fork; when none exists, it asks permission, opens the
+official fork page, and waits for the user to click **Create fork** before
+cloning that fork locally.
 
 The workflow loads `dex-sdk` Core and Go semantics plus the shared Dex Web v2
 reference. It validates module-isolated race tests and vet, UI tests/build,

@@ -45,17 +45,23 @@ protocol, or claim support that the provider does not publish.
 
 Use this order:
 
-1. Fetch the latest `origin/main`, inspect repository instructions, and create
-   an isolated `codex/` branch without disturbing unrelated files.
-2. Identify the provider capability, public contract, auth scopes, rate limits,
+1. Resolve and verify the user's GitHub fork of
+   `superdurable/dex-connectors-library` using the discovery and user handoff
+   in [repository workflow](references/repository-workflow.md).
+2. Clone or check out that fork locally, configure it as `origin`, configure
+   the official repository as `upstream`, fetch the latest `upstream/main`, and
+   create an isolated `codex/` branch without disturbing unrelated files.
+3. Inspect repository instructions and identify the provider capability,
+   public contract, auth scopes, rate limits,
    idempotency support, pagination, event acknowledgement, and failure modes.
-3. Update `connector.yaml`, then run code generation before provider code.
-4. Implement the provider adapter and provider-facing tests.
-5. Add Trigger and UI-unit behavior when the capability needs them.
-6. Add or extend a connector-local runnable example.
-7. Run the complete verification matrix and inspect generated/catalog drift.
-8. Commit one clean module-scoped change, push it, open a ready-for-review PR,
-   and monitor required CI until it passes.
+4. Update `connector.yaml`, then run code generation before provider code.
+5. Implement the provider adapter and provider-facing tests.
+6. Add Trigger and UI-unit behavior when the capability needs them.
+7. Add or extend a connector-local runnable example.
+8. Run the complete verification matrix and inspect generated/catalog drift.
+9. Commit one clean module-scoped change, push to the user's fork, open a
+   ready-for-review PR against the official repository, and monitor required CI
+   until it passes.
 
 Do not skip the manifest-first step. Generated `Config`, `Credentials`,
 definitions, branch constants, operation-specific factories, UI constants, and

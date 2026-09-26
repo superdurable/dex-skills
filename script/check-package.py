@@ -243,6 +243,8 @@ def check_connector_contributor() -> None:
         "Start Flow",
         "GOWORK=off",
         "$opr",
+        "user's GitHub fork",
+        "upstream/main",
     )
     for text in required:
         if text not in content:
@@ -259,6 +261,15 @@ def check_connector_contributor() -> None:
             fail(f"Connector Contributor acceptance scenarios must contain: {scenario}")
 
     workflow = (references_dir / "repository-workflow.md").read_text()
+    for fork_contract in (
+        "https://github.com/superdurable/dex-connectors-library/fork",
+        "click **Create fork**",
+        "Do not click the creation button for the user",
+        "`origin` is the user's verified fork",
+        "Push only to the user's fork",
+    ):
+        if fork_contract not in workflow:
+            fail(f"Connector Contributor fork workflow must contain: {fork_contract}")
     for release in (
         "sdkgo/v0.8.0",
         "connectors/slack/v0.9.0",

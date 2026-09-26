@@ -1,8 +1,44 @@
 # Repository workflow
 
-Use the official `superdurable/dex-connectors-library` repository. Begin from
-the latest fetched `origin/main`, read its `AGENTS.md`, preserve unrelated user
-files, and use an isolated `codex/` branch or managed worktree.
+Contribute through the user's GitHub fork of the official
+`superdurable/dex-connectors-library` repository. Treat the GitHub fork and the
+local clone as separate steps.
+
+## Fork discovery and user handoff
+
+Before changing files, look for an existing user-owned fork in this order:
+
+1. reuse a fork URL already verified in the current task or conversation;
+2. inspect relevant local Git remotes for a user-owned repository whose GitHub
+   parent is `superdurable/dex-connectors-library`;
+3. inspect the authenticated GitHub account's repositories with read-only
+   GitHub tooling and verify the candidate's parent repository.
+
+Do not guess a GitHub username or treat an arbitrary repository with the same
+name as a fork. Verify its GitHub parent. Do not expose tokens or other
+authentication details while inspecting remotes.
+
+If no verified fork is found, ask whether the user has already created one. If
+yes, ask for its URL when it cannot be discovered and verify the parent. If no,
+ask whether the user authorizes creating a fork. After the user says yes, open
+`https://github.com/superdurable/dex-connectors-library/fork` in the user's
+browser and ask the user to choose the owner/name and click **Create fork**.
+Do not click the creation button for the user. Pause until the user confirms
+that GitHub finished creating the fork, then discover and verify its exact URL.
+If the user declines, stop before implementation and report that a fork is
+required for the upstream contribution workflow.
+
+After verification, reuse a suitable existing local clone or clone the user's
+fork. Configure remotes so:
+
+- `origin` is the user's verified fork;
+- `upstream` is `https://github.com/superdurable/dex-connectors-library`.
+
+Fetch the latest `upstream/main`, read its `AGENTS.md`, preserve unrelated user
+files, and create an isolated `codex/` branch or managed worktree from
+`upstream/main`. Push only to the user's fork. Open the PR from that fork branch
+to the official repository's `main`. Never replace, delete, or repoint an
+in-use local clone without confirming it is safe.
 
 ## Repository boundaries
 
