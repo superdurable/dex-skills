@@ -79,11 +79,11 @@ Inspect `https://github.com/superdurable/dex-connectors-library` and its
 released component tags first. Reuse the latest compatible released dedicated
 connector.
 
-When no suitable connector exists, explain the gap and obtain authorization
-before changing GitHub state. Fork the library from current `origin/main`,
-implement the dedicated connector with its manifest, generated surface,
-provider tests, and real Dex coverage, push the fork, and open an upstream pull
-request for review.
+When no suitable connector exists or the released connector is defective,
+explain the gap and route connector-library implementation to sibling
+`$dex-connector-contributor`. That skill owns manifest-first authoring,
+generated surfaces, provider tests, connector-local examples, real Dex
+coverage, release ordering, and the upstream pull request.
 
 The application may continue local verification against the fork through an
 uncommitted `go.work` or temporary `replace`. Never commit a branch, commit
@@ -93,8 +93,8 @@ exact component tag and rerun integration and E2E coverage.
 
 ## Released Trigger examples
 
-Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.6.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, application-owned channel/poster/text filters, thread query, typed reply RPC, and thread-reply Mutation.
+Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.9.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, application-owned channel/poster/text filters, thread query, typed reply RPC, thread-reply Mutation, and composed configuration UI units.
 
-Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.7.0/connectors/google/gmail/examples/thread-reply) for a polled root message, application-owned sender/text filters, message query, typed reply RPC, and email-reply Mutation. Its polling transport is a local alpha path, not a production push-delivery design.
+Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.10.0/connectors/google/gmail/examples/thread-reply) for a polled root message, application-owned sender/text filters, message query, typed reply RPC, email-reply Mutation, and composed configuration UI units. Its polling transport is a local alpha path, not a production push-delivery design.
 
 Both examples derive one stable Flow ID from provider thread identity. They absorb root redelivery through deterministic starts, handle reply redelivery in bounded application-owned thread state, and move uncertain or rejected external writes into explicit recovery instead of blind resend.

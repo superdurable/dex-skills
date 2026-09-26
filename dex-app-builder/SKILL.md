@@ -10,7 +10,7 @@ Build the smallest coherent product that solves the confirmed business process. 
 ## Fixed product boundary
 
 - Use `https://github.com/superdurable/dex-template-basic-process` as the application template.
-- Target Dex Server `v0.13.2`, Dex CLI `v0.13.4`, and Dex Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files before verification. Dex Web v2 is embedded in Server and CLI.
+- Target Dex Server `v0.13.2`, Dex CLI `v0.13.8`, and Dex Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files before verification. Dex Web v2 is embedded in Server and CLI.
 - Implement Dex backend code only with the Go SDK.
 - Target strict Dex Web v2 / FDG 2.0 rendering. Never fall back to rendering v1.
 - Treat Dex Web v2 as the process-management UI for Runs, Work Queue, search, details, edits, and Actions unless the user confirms a custom UI is necessary.
@@ -91,11 +91,16 @@ For connectors:
 4. use the generated `NewLocalConnection` with the Connector SDK local store for local verification;
 5. use the generic HTTP connector only for organization-controlled internal systems;
 6. require dedicated Connector Trigger, Query, Mutation, and UI capabilities for external providers;
-7. when a connector is absent or defective, explain the gap and obtain authorization to fork the library and open an upstream pull request;
-8. implement the connector from current `origin/main`, push the fork, and open the pull request for review;
-9. continue local application verification with the fork through an uncommitted `go.work` or temporary `replace`;
-10. never commit a branch, commit SHA, pseudo-version, or local replacement as a production dependency;
-11. after release, pin the exact connector tag and rerun real integration and E2E coverage.
+7. when a connector is absent or defective, explain the gap and route the
+   connector-library work to sibling `$dex-connector-contributor` by reading
+   [its skill](../dex-connector-contributor/SKILL.md);
+8. keep application work limited to consuming the connector and, while the
+   contribution is reviewed, local verification through an uncommitted
+   `go.work` or temporary `replace`;
+9. never commit a branch, commit SHA, pseudo-version, or local replacement as a
+   production dependency;
+10. after release, pin the exact connector tag and rerun real integration and
+    E2E coverage.
 
 Each Connector Step passes only its current operation result to a branch target. Use generated result aliases such as `ListThreadMessagesResult` or `PostThreadReplyResult`. Persist thread identity, customer input, recovery context, and other business state in an application Step and Attribute before entering the Connector Step. Map the provider operation input with the pure `MapToOperationInput`; never recover upstream context from a result envelope. Use `Annotations` only for graph grouping and explanation metadata. Omit `ResultAttribute` unless a display, RPC, audit, recovery operator, or another path must read the raw result outside the transition chain.
 

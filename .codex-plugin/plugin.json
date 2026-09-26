@@ -1,7 +1,7 @@
 {
   "name": "superdurable-dex",
-  "version": "0.21.0",
-  "description": "Build with the Dex SDK and create end-to-end process products for Dex AI Platform.",
+  "version": "0.22.0",
+  "description": "Build with Dex SDK, create process products, and contribute official connectors.",
   "author": {
     "name": "Super Durable",
     "url": "https://superdurable.io"
@@ -13,14 +13,15 @@
     "dex",
     "durable-execution",
     "workflow",
+    "connectors",
     "ai-platform",
     "coding-agent"
   ],
   "skills": "./",
   "interface": {
     "displayName": "Dex",
-    "shortDescription": "Build with Dex SDK and create process products",
-    "longDescription": "Use Dex SDK for implementation, debugging, testing, and operations, or Dex App Builder for business discovery, optional UI prototyping, Go backend implementation, strict Web v2 rendering, and local verification.",
+    "shortDescription": "Build Dex apps and contribute connectors",
+    "longDescription": "Use Dex SDK for implementation, Dex App Builder for end-to-end process products, or Dex Connector Contributor to build, verify, and upstream official connector operations, Triggers, and configuration UI units.",
     "developerName": "Super Durable",
     "category": "Productivity",
     "capabilities": [
@@ -30,7 +31,8 @@
     "defaultPrompt": [
       "Use $dex-sdk to design a reliable Dex Flow.",
       "Use $dex-app-builder to design a process application.",
-      "Use $dex-app-builder to prototype and build this workflow."
+      "Use $dex-app-builder to prototype and build this workflow.",
+      "Use $dex-connector-contributor to build and upstream this connector capability."
     ],
     "brandColor": "#78C51C",
     "composerIcon": "./assets/logo.png",

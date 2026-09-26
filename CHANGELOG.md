@@ -2,6 +2,14 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.22.0 - 2026-09-26
+
+- Add `dex-connector-contributor` for manifest-first official Connector operations, Triggers, configuration UI units, examples, complete validation, and upstream PR delivery.
+- Add immutable connector-library source validation pinned to Connector SDK v0.8.0, Slack v0.9.0, Gmail v0.10.0, and Google Sheets v0.7.0.
+- Expand Dex Web v2 guidance for Start Flow, Connections, local release overrides, operation configuration, Host API 0.2 composition, provider command brokering, and credential isolation.
+- Route missing or defective application connectors from Dex App Builder to the contributor workflow and upgrade the Dex CLI baseline to v0.13.8.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.22.0.
+
 ## 0.21.0 - 2026-09-25
 
 - Replace Connector mapper guidance with pure `MapToOperationInput` callbacks and document optional `ResultAttribute` use.

@@ -1,11 +1,14 @@
 # Contributing
 
-This repository publishes one plugin with two root-level skills:
+This repository publishes one plugin with three root-level skills:
 
 - `dex-sdk` owns public Dex SDK implementation guidance and its Core and
   language references.
 - `dex-app-builder` owns the business-first product workflow and platform-only
   constraints. It links to `dex-sdk` instead of copying SDK references.
+- `dex-connector-contributor` owns official connector-library authoring,
+  verification, and PR workflow. It links to `dex-sdk` Core/Go and the shared
+  Dex Web v2 reference instead of copying them.
 
 Keep every reference reachable from its skill entrypoint. Do not add a
 `plugins/` wrapper, a backend companion skill, or duplicated Core/Go handbooks.
@@ -24,6 +27,10 @@ environments.
 application template. Refresh any baseline deliberately and review all affected
 guidance.
 
+`CONNECTOR_LIBRARY_BASELINE` pins Connector Contributor source excerpts to one
+immutable released repository snapshot. Its marked Go fences must remain
+contiguous excerpts from allowed connector-library sources.
+
 ## Validate a change
 
 Run from the repository root:
@@ -31,21 +38,26 @@ Run from the repository root:
 ```bash
 python3 script/check-package.py
 python3 script/check-reference-sources.py --dex-root /path/to/dex-sdk-baseline
+python3 script/check-connector-reference-sources.py \
+  --connector-root /path/to/dex-connectors-library-baseline
 python3 script/check-upstream-baselines.py \
   --dex-root /path/to/dex-cli-baseline \
   --template-root /path/to/dex-template-basic-process
 python3 /path/to/skill-creator/scripts/quick_validate.py dex-sdk
 python3 /path/to/skill-creator/scripts/quick_validate.py dex-app-builder
+python3 /path/to/skill-creator/scripts/quick_validate.py dex-connector-contributor
 ```
 
 Also validate the Codex, Claude Code, and Cursor manifests with their current
-client tooling and smoke-test that one plugin install exposes exactly the two
-expected skills. For `dex-app-builder`, confirm the backend stage resolves the
-sibling `dex-sdk` Go handbook without copied references.
+client tooling and smoke-test that one plugin install exposes exactly the three
+expected skills. Confirm App Builder and Connector Contributor resolve the
+sibling `dex-sdk` Go handbook without copied references, and that Connector
+Contributor also resolves the shared Dex Web v2 reference.
 
 ## Version and release
 
-Every change under `dex-sdk/` or `dex-app-builder/` updates `VERSION` and
+Every change under `dex-sdk/`, `dex-app-builder/`, or
+`dex-connector-contributor/` updates `VERSION` and
 `CHANGELOG.md`. Keep every plugin and marketplace manifest on that exact
 version where the format supports a version.
 

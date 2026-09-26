@@ -1,7 +1,7 @@
 {
   "name": "superdurable-dex",
-  "version": "0.21.0",
-  "description": "Build with the Dex SDK and create end-to-end process products for Dex AI Platform.",
+  "version": "0.22.0",
+  "description": "Build with Dex SDK, create process products, and contribute official connectors.",
   "author": {
     "name": "Super Durable"
   },
@@ -12,12 +12,14 @@
     "dex",
     "durable-execution",
     "workflow",
+    "connectors",
     "ai-platform",
     "coding-agent"
   ],
   "logo": "assets/logo.png",
   "skills": [
     "./dex-sdk",
-    "./dex-app-builder"
+    "./dex-app-builder",
+    "./dex-connector-contributor"
   ]
 }
