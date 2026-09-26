@@ -50,11 +50,18 @@ Dex Web cannot provide. Record which requirement forces the custom surface.
 
 ## Connector decision
 
-List every external Trigger, Query, Mutation, and integration UI. Match
-each to a released dedicated connector before implementation. Mark an endpoint
-as internal only when the organization owns and controls it; only those
-connections may use the generic HTTP connector. Record every missing connector
-as a fork/PR work item and production release blocker.
+Create a connector capability matrix for every Trigger, Query, Mutation, and
+integration UI. For a public external product, match each need to an exact
+released connector capability—not merely a connector name. A missing connector,
+operation, or Trigger with a documented API or official SDK becomes a
+`$dex-connector-contributor` fork/PR work item and production release blocker.
+
+Mark a service internal only when the organization owns and controls it. Ask
+whether an internal connector library already exists, whether this application
+should contribute to it, and whether the user wants to establish one with the
+unified Connector SDK when none exists. Record who owns that decision. Use the
+generic HTTP connector only for a controlled internal service when the user
+does not choose a reusable internal connector capability.
 
 ## Confirmation artifact
 
@@ -64,7 +71,8 @@ Before code, provide:
 2. a numbered lifecycle with decisions and terminal outcomes;
 3. the confirmed **No custom UI** or **Custom UI** mode and its reason;
 4. proposed Flow, Step, state, message, timer, RPC, and connector boundaries;
-5. connector reuse, fork/PR, and release status;
+5. connector capability reuse, public fork/PR, internal-library decision, and
+   release status;
 6. unresolved tradeoffs.
 
 Ask for explicit confirmation. A casual discussion response is not approval to implement.

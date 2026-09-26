@@ -36,6 +36,24 @@ Flow starts reuse the provider event ID as the request ID. The resolved Flow ID 
 
 Query and Mutation run from `Execute`. Mutation supplies a stable idempotency key. If the result is uncertain, persist that outcome and query before retrying. Do not let Trigger source handlers mutate Dex primitives directly.
 
+## Application composition
+
+Prefer an existing released connector capability over application-local
+provider code at every external boundary.
+
+| Application need | Connector capability | Composition |
+| --- | --- | --- |
+| Provider read or write during a Flow | Query or Mutation | Use the operation-specific factory as a Connector Step; the provider call runs in `Execute`. |
+| External event starts work | Trigger | Bind `NewDexFlowTriggerTarget` to the typed Flow, filter, stable Flow ID resolver, and input mapper. |
+| External event updates existing work | Trigger | Bind `NewDexRPCTriggerTarget` to the registered typed RPC, filter, Flow ID resolver, and input mapper. |
+| User/API RPC requests provider work | Query or Mutation plus application RPC | The RPC validates and commits application state, then returns a movement to a Connector Step; it does not call the provider. |
+| Provider-aware setup | UI | Compose released UI units with generated constants and static connection/binding names. |
+
+Inspect the connector manifest for the exact operation or Trigger; the presence
+of the provider's connector alone does not prove that the required capability
+exists. Do not bypass a suitable connector with a direct provider SDK, custom
+webhook, generic HTTP call, or application-specific credential store.
+
 ## UI and live state
 
 Connector UI components are application components, not new Dex primitives. Browser code uses the application API or typed Flow RPCs.
@@ -71,25 +89,55 @@ Agents use the same typed Query and Mutation capabilities as deterministic Steps
 Every interaction with an external provider uses a dedicated connector. This
 includes Trigger, Query, Mutation, and reusable integration UI. The
 generic HTTP connector is permitted only for an organization-controlled
-internal system. Do not use it as an escape hatch for external SaaS APIs.
+internal system after the internal-library decision below. Do not use it as an
+escape hatch for external SaaS APIs.
 
 ## Reuse and contribution
 
 Inspect `https://github.com/superdurable/dex-connectors-library` and its
 released component tags first. Reuse the latest compatible released dedicated
-connector.
+connector and every matching operation, Trigger, and UI capability before
+writing application-local integration code.
 
-When no suitable connector exists or the released connector is defective,
-explain the gap and route connector-library implementation to sibling
-`$dex-connector-contributor`. That skill owns manifest-first authoring,
-generated surfaces, provider tests, connector-local examples, real Dex
-coverage, release ordering, and the upstream pull request.
+For a public external product with a documented API or official SDK, a missing
+connector, operation, or Trigger is a connector contribution—not permission to
+call the provider directly from the application. Explain the exact capability
+gap and load sibling `$dex-connector-contributor` completely. That skill owns
+fork discovery, manifest-first authoring, generated surfaces, provider tests,
+connector-local examples, real Dex coverage, release ordering, pushing the
+user's fork `origin`, and the upstream PR to the official repository.
 
-The application may continue local verification against the fork through an
-uncommitted `go.work` or temporary `replace`. Never commit a branch, commit
-SHA, pseudo-version, or local replacement as the production dependency. Keep
-the connector release as a production handoff blocker. After release, pin its
-exact component tag and rerun integration and E2E coverage.
+As soon as the local connector module builds, continue application verification
+against its checkout through an uncommitted `go.work` or temporary Go
+`replace`. Test both repositories together while the connector branch is pushed
+and its upstream PR is reviewed. Never commit a branch, commit SHA,
+pseudo-version, `go.work`, or local replacement as the production dependency.
+Keep the connector release as a production handoff blocker. After release,
+remove the override, pin its exact component tag, and rerun integration and E2E
+coverage.
+
+## Internal connector library decision
+
+For every organization-controlled internal service, ask the user:
+
+1. whether an internal connector library already exists and where it lives;
+2. whether this application should reuse or contribute to it;
+3. when none exists, whether the organization wants to establish one.
+
+Do not infer access to a private repository or create one without authorization.
+When an internal library exists, inspect its instructions, released modules,
+and compatibility policy before reuse. When the user chooses to establish one,
+agree on repository ownership and visibility, Go module namespace, release/tag
+policy, catalog/discovery, maintainers, and CI. Build its connectors with the
+same unified `sdkgo` Connector SDK, `connector.yaml` code generation,
+operation-specific factories, Trigger targets, credential isolation, provider
+tests, examples, and module-level releases used by the official library.
+
+If the user declines a reusable internal library, the generic HTTP connector
+may integrate that controlled internal service. Keep credentials in the
+Connector Runtime, provider calls in Connector Step `Execute`, and the same
+idempotency, uncertainty, retry, and real-Dex test requirements. Record the
+decision and the resulting reuse limitation in the handoff.
 
 ## Released Trigger examples
 

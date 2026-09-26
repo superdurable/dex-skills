@@ -104,6 +104,17 @@ is reserved for controlled internal systems; a missing or defective
 external-provider connector routes to `dex-connector-contributor` and blocks
 production handoff until released.
 
+Flow design prefers existing released connector capabilities throughout:
+Query/Mutation factories become Connector Steps, Triggers start typed Flows or
+invoke typed RPCs, and RPC-requested provider work moves to a Connector Step.
+When a public product has a documented API or official SDK but lacks the needed
+connector, operation, or Trigger, App Builder routes the gap to
+`dex-connector-contributor`. The application can test the local connector
+immediately through an uncommitted Go `replace` while its fork and upstream PR
+are reviewed, then must pin the exact release. For controlled internal services,
+App Builder asks whether an internal connector library already exists or should
+be created with the unified Connector SDK before falling back to generic HTTP.
+
 For Go applications, Dex Web reads statically named Connector Steps and Trigger
 bindings from FDG 2.0. It configures released Gmail, Slack, GitHub, or other
 supported connectors in the local **Connections** view. The default plaintext
