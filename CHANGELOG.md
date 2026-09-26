@@ -2,6 +2,13 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.23.0 - 2026-09-26
+
+- Make Dex App Builder prefer released Connector Query/Mutation Steps and typed Trigger targets for Flow starts and RPC delivery before application-local provider code.
+- Route missing public-product connectors, operations, and Triggers to `dex-connector-contributor`, with immediate local application testing through an uncommitted Go replacement while the upstream PR is reviewed.
+- Add an explicit internal-service decision for reusing or establishing an organization-owned connector library with the unified Connector SDK before generic HTTP fallback.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.23.0.
+
 ## 0.22.0 - 2026-09-26
 
 - Add `dex-connector-contributor` for manifest-first official Connector operations, Triggers, configuration UI units, examples, complete validation, and upstream PR delivery.

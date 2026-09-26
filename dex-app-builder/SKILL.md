@@ -29,12 +29,20 @@ Begin with discussion, not code. Identify:
 - managers, operators, approvers, terminal users, and participants;
 - each role's allowed operations and the stable permission required by each human Action;
 - external systems that trigger or participate in the process;
+- whether each integration is a public external product or an
+  organization-controlled internal service;
 - start triggers, inputs, outputs, deadlines, waits, approvals, retries, recovery, audit, search, and sensitive data;
 - whether Dex Web Run, Work Queue, display/edit fields, and Actions satisfy the complete process-management experience;
 - whether an existing host authenticates users and maps roles to trusted permissions;
 - whether the user needs any custom process UI beyond a non-business application shell.
 
-Produce a compact role/operation/permission matrix, lifecycle proposal, UI decision, and connector plan. Roles describe people or groups. Permissions describe individual allowed operations. Resolve material ambiguity and obtain explicit user confirmation before implementation.
+Produce a compact role/operation/permission matrix, lifecycle proposal, UI
+decision, and connector capability matrix. For every integration, record its
+classification, required Trigger/Query/Mutation/UI capabilities, matching
+released connector capability, and any contribution or internal-library gap.
+Roles describe people or groups. Permissions describe individual allowed
+operations. Resolve material ambiguity and obtain explicit user confirmation
+before implementation.
 
 If the process begins from Slack, email, a webhook, or another external source, model it as a Connector Trigger. The application decides whether the event starts a Flow or invokes a typed RPC. Read [connector architecture](references/connector-architecture.md) whenever an external integration is involved.
 
@@ -85,22 +93,39 @@ Keep external effects in `Execute`. `WaitFor` only declares durable conditions a
 
 For connectors:
 
-1. inspect the released catalog in `superdurable/dex-connectors-library` before writing integration code;
-2. reuse the latest compatible released dedicated connector for every external provider;
-3. give every operation-specific factory a static `ConnectionName` matching the generated Connection's runtime name;
-4. use the generated `NewLocalConnection` with the Connector SDK local store for local verification;
-5. use the generic HTTP connector only for organization-controlled internal systems;
-6. require dedicated Connector Trigger, Query, Mutation, and UI capabilities for external providers;
-7. when a connector is absent or defective, explain the gap and route the
-   connector-library work to sibling `$dex-connector-contributor` by reading
-   [its skill](../dex-connector-contributor/SKILL.md);
-8. keep application work limited to consuming the connector and, while the
-   contribution is reviewed, local verification through an uncommitted
-   `go.work` or temporary `replace`;
-9. never commit a branch, commit SHA, pseudo-version, or local replacement as a
-   production dependency;
-10. after release, pin the exact connector tag and rerun real integration and
-    E2E coverage.
+1. inspect the released catalog and matching connector manifests in
+   `superdurable/dex-connectors-library` before writing integration code;
+2. compose the Flow from the latest compatible released capabilities wherever
+   possible: Query/Mutation factories become Connector Steps, a Trigger target
+   starts a typed Flow or invokes a typed RPC, and an application RPC that
+   requests provider work commits its state and schedules a Connector Step
+   instead of calling the provider itself;
+3. do not add an application-local provider client, webhook adapter, or direct
+   official SDK call when the connector library already supplies the required
+   capability;
+4. give every operation-specific factory a static `ConnectionName` matching
+   the generated Connection's runtime name, and use generated
+   `NewLocalConnection` with the Connector SDK local store for local testing;
+5. for a public external product with a documented API or official SDK, require
+   dedicated Connector Trigger, Query, Mutation, and UI capabilities as needed;
+6. when that public connector or required operation/Trigger is absent or
+   defective, read sibling
+   [Connector Contributor](../dex-connector-contributor/SKILL.md) completely
+   and use `$dex-connector-contributor` to create or modify it;
+7. after the local connector change builds, immediately test the application
+   against its local module using an uncommitted `go.work` or temporary Go
+   `replace`, while the contributor workflow pushes the user's fork and opens
+   the upstream PR against the official connector library;
+8. never commit a branch, commit SHA, pseudo-version, `go.work`, or local
+   replacement as a production dependency; after release, remove the local
+   override, pin the exact connector tag, and rerun real integration and E2E
+   coverage;
+9. for an organization-controlled internal service, ask whether an internal
+   connector library already exists and whether the user wants to create one
+   when it does not; a new internal library uses the unified Connector SDK,
+   manifest/codegen contract, credential boundary, and module-level tests;
+10. use the generic HTTP connector only when the service is genuinely internal
+    and the user does not choose a reusable internal connector capability.
 
 Each Connector Step passes only its current operation result to a branch target. Use generated result aliases such as `ListThreadMessagesResult` or `PostThreadReplyResult`. Persist thread identity, customer input, recovery context, and other business state in an application Step and Attribute before entering the Connector Step. Map the provider operation input with the pure `MapToOperationInput`; never recover upstream context from a result envelope. Use `Annotations` only for graph grouping and explanation metadata. Omit `ResultAttribute` unless a display, RPC, audit, recovery operator, or another path must read the raw result outside the transition chain.
 

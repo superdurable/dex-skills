@@ -204,16 +204,38 @@ def check_app_builder() -> None:
         "### Custom UI",
         "GetApplicationInfo",
         "trusted authentication boundary",
-        "generic HTTP connector only for organization-controlled internal systems",
+        "public external product",
         "$dex-connector-contributor",
+        "schedules a Connector Step",
+        "temporary Go",
+        "connector library already exists",
+        "unified Connector SDK",
+        "generic HTTP connector only when the service is genuinely internal",
         "static `ConnectionName`",
-        "generated `NewLocalConnection`",
+        "`NewLocalConnection`",
         "external effects in `Execute`",
         "`WaitFor` free of provider or Dex mutations",
     )
     for text in required:
         if text not in content:
             fail(f"dex-app-builder/SKILL.md must contain: {text}")
+
+    connector_architecture = (references_dir / "connector-architecture.md").read_text()
+    for text in (
+        "## Application composition",
+        "User/API RPC requests provider work",
+        "connector, operation, or Trigger is a connector contribution",
+        "## Internal connector library decision",
+        "Do not infer access to a private repository",
+        "uncommitted `go.work` or temporary Go",
+    ):
+        if text not in connector_architecture:
+            fail(f"connector architecture must contain: {text}")
+
+    product_discovery = (references_dir / "product-discovery.md").read_text()
+    for text in ("connector capability matrix", "internal connector library"):
+        if text not in product_discovery:
+            fail(f"product discovery must contain: {text}")
 
 
 def check_connector_contributor() -> None:

@@ -26,6 +26,9 @@ Cover:
 - provider idempotency and unknown-outcome reconciliation;
 - summary/display reads before, during, and after terminal completion;
 - connector Trigger Flow/RPC routing and correlation when used.
+- RPC-to-Connector-Step routing when an application RPC requests provider work;
+- application integration against any uncommitted local connector `replace`,
+  plus the matching connector module's provider and real-Dex tests.
 
 For a No custom UI application, also assert that no approval, display, status,
 list, search, detail, retry, escalation, Action-proxy, or Attribute-proxy HTTP
@@ -43,12 +46,18 @@ Ensure:
 - custom UI interactions are approved against the mock server and Mock Controls;
 - secrets are absent from files, logs, generated values, and archives;
 - dependencies and released connector versions are pinned;
+- every public-provider boundary reuses an available released connector
+  capability or records the contributor PR and release blocker;
+- every internal-service boundary records the existing/new internal connector
+  library decision or the reason generic HTTP remains appropriate;
 - each configurable Connector Step has a static connection name matching its generated Connection;
 - each Connector Step branch receives only its current operation result, while application Attributes retain domain context;
 - every Connector factory uses pure `MapToOperationInput` and graph-only `Annotations`;
 - each Connector Trigger binding has a static binding name, application-owned Flow ID resolver, and typed target;
 - the displayed local connection path and **DEX_CONNECTOR_CONFIG_FILE** launch command work after a Dex Web restart;
 - connector fork/PR status and any release blocker are explicit;
+- no `go.work`, local `replace`, branch, pseudo-version, or commit SHA remains
+  in the production dependency graph;
 - the repository has a clean, reviewable commit;
 - limitations and unimplemented integrations are explicit.
 
