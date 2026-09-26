@@ -10,8 +10,8 @@
     {
       "name": "superdurable-dex",
       "source": "./",
-      "description": "Dex SDK guidance and end-to-end Dex AI Platform product development.",
-      "version": "0.21.0",
+      "description": "Dex SDK guidance, end-to-end process product development, and official connector contribution.",
+      "version": "0.22.0",
       "logo": "assets/logo.png"
     }
   ]

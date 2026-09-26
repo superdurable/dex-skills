@@ -1,13 +1,13 @@
 ---
-description: Maintain the Dex Skills monorepo and its two public skills
+description: Maintain the Dex Skills monorepo and its three public skills
 alwaysApply: true
 ---
 
 # Dex Skills Repository Instructions
 
 This repository publishes one `superdurable-dex` plugin for Codex, Claude Code,
-and Cursor. Its only public skills are `dex-sdk` and `dex-app-builder`, stored
-directly at the repository root.
+and Cursor. Its only public skills are `dex-sdk`, `dex-app-builder`, and
+`dex-connector-contributor`, stored directly at the repository root.
 
 ## Skill boundaries
 
@@ -16,8 +16,14 @@ directly at the repository root.
 - `dex-app-builder` is the end-to-end product workflow for business discovery,
   an explicit no-custom-UI or custom-UI decision, Go backend implementation,
   local testing, and Dex AI Platform handoff.
+- `dex-connector-contributor` creates or modifies official connectors,
+  operations, Triggers, and configuration UI units in
+  `superdurable/dex-connectors-library`.
 - During backend implementation, `dex-app-builder` loads `dex-sdk` and follows
   only its Core and Go guidance. Do not duplicate those references.
+- `dex-connector-contributor` also loads `dex-sdk` Core and Go guidance plus the
+  shared Dex Web v2 reference. It owns connector-library contribution workflow,
+  while `dex-app-builder` owns application use of released connectors.
 - Platform constraints are stricter: Go only, strict FDG 2.0, provider effects
   only in `Execute`, and no provider or Dex mutations in `WaitFor`.
 
@@ -25,9 +31,11 @@ directly at the repository root.
 
 Keep Codex, Claude Code, and Cursor manifests synchronized on plugin ID,
 version, repository, skill paths, and display metadata. Do not reintroduce a
-`plugins/` wrapper or a third backend skill.
+`plugins/` wrapper or an unplanned public skill.
 
 Every skill change updates `VERSION` and `CHANGELOG.md`. Validate Dex SDK source
 excerpts against `DEX_BASELINE`, and validate Server, CLI, and the basic-process
 template against `DEX_SERVER_BASELINE`, `DEX_CLI_BASELINE`, and
-`TEMPLATE_BASELINE`. Dex Web is embedded in the Server and CLI releases.
+`TEMPLATE_BASELINE`. Validate Connector Contributor excerpts against
+`CONNECTOR_LIBRARY_BASELINE`. Dex Web is embedded in the Server and CLI
+releases.

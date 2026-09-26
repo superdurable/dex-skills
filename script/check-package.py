@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SDK = ROOT / "dex-sdk"
 APP_BUILDER = ROOT / "dex-app-builder"
+CONNECTOR_CONTRIBUTOR = ROOT / "dex-connector-contributor"
 SDK_REFERENCES = SDK / "references"
 LOGO = ROOT / "assets" / "logo.png"
 MANIFESTS = {
@@ -56,12 +57,23 @@ APP_BUILDER_REFERENCES = {
     "product-discovery.md",
     "ui-workflow.md",
 }
+CONNECTOR_CONTRIBUTOR_REFERENCES = {
+    "repository-workflow.md",
+    "operations.md",
+    "triggers.md",
+    "ui-units.md",
+    "examples-testing-pr.md",
+}
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PUBLISHED_RELEASE_TAG = re.compile(
     r"^(?:[a-z0-9][a-z0-9-]*/)?v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
 )
 PUBLISHED_CLI_RELEASE_TAG = re.compile(
     r"^cli-v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
+)
+PUBLISHED_COMPONENT_TAG = re.compile(
+    r"^[a-z0-9][a-z0-9-]*(?:/[a-z0-9][a-z0-9-]*)*/v"
+    r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$"
 )
 MARKDOWN_LINK = re.compile(r"\[[^]]+\]\(([^)]+)\)")
 FENCED_BLOCK = re.compile(r"```.*?```", re.DOTALL)
@@ -193,7 +205,7 @@ def check_app_builder() -> None:
         "GetApplicationInfo",
         "trusted authentication boundary",
         "generic HTTP connector only for organization-controlled internal systems",
-        "fork the library and open an upstream pull request",
+        "$dex-connector-contributor",
         "static `ConnectionName`",
         "generated `NewLocalConnection`",
         "external effects in `Execute`",
@@ -204,18 +216,91 @@ def check_app_builder() -> None:
             fail(f"dex-app-builder/SKILL.md must contain: {text}")
 
 
+def check_connector_contributor() -> None:
+    references_dir = CONNECTOR_CONTRIBUTOR / "references"
+    references = sorted(references_dir.rglob("*.md"))
+    actual = {path.name for path in references}
+    if actual != CONNECTOR_CONTRIBUTOR_REFERENCES:
+        fail(
+            "Dex Connector Contributor references must be exactly: "
+            f"{', '.join(sorted(CONNECTOR_CONTRIBUTOR_REFERENCES))}"
+        )
+    if (references_dir / "core").exists() or (references_dir / "go").exists():
+        fail("Dex Connector Contributor must not vendor Dex SDK Core or Go references")
+    check_reachable_links(CONNECTOR_CONTRIBUTOR, references)
+
+    content = (CONNECTOR_CONTRIBUTOR / "SKILL.md").read_text()
+    required = (
+        "../dex-sdk/SKILL.md",
+        "../dex-sdk/references/go/go.md",
+        "../dex-app-builder/references/dex-web-v2.md",
+        "superdurable/dex-connectors-library",
+        "documented public API or official SDK",
+        "connector.yaml",
+        "operation-specific",
+        "optional: true",
+        "seven seconds",
+        "Start Flow",
+        "GOWORK=off",
+        "$opr",
+        "user's GitHub fork",
+        "upstream/main",
+    )
+    for text in required:
+        if text not in content:
+            fail(f"dex-connector-contributor/SKILL.md must contain: {text}")
+
+    examples = (references_dir / "examples-testing-pr.md").read_text()
+    for scenario in (
+        "Operation-only connector",
+        "real Flow start and typed RPC delivery",
+        "Host API 0.2",
+        "SDK PR/release",
+    ):
+        if scenario not in examples:
+            fail(f"Connector Contributor acceptance scenarios must contain: {scenario}")
+
+    workflow = (references_dir / "repository-workflow.md").read_text()
+    for fork_contract in (
+        "https://github.com/superdurable/dex-connectors-library/fork",
+        "click **Create fork**",
+        "Do not click the creation button for the user",
+        "`origin` is the user's verified fork",
+        "Push only to the user's fork",
+    ):
+        if fork_contract not in workflow:
+            fail(f"Connector Contributor fork workflow must contain: {fork_contract}")
+    for release in (
+        "sdkgo/v0.8.0",
+        "connectors/slack/v0.9.0",
+        "connectors/google/gmail/v0.10.0",
+        "connectors/google/spreadsheet/v0.7.0",
+    ):
+        if release not in workflow:
+            fail(f"Connector Contributor reference releases must contain: {release}")
+
+    agent = CONNECTOR_CONTRIBUTOR / "agents" / "openai.yaml"
+    if not agent.is_file():
+        fail("Dex Connector Contributor must define agents/openai.yaml")
+    agent_content = agent.read_text()
+    for text in ("Dex Connector Contributor", "$dex-connector-contributor"):
+        if text not in agent_content:
+            fail(f"dex-connector-contributor/agents/openai.yaml must contain: {text}")
+
+
 def check_skills(baseline: str) -> None:
     skills = sorted(path.parent for path in ROOT.glob("*/SKILL.md"))
-    expected = sorted((SDK, APP_BUILDER))
+    expected = sorted((SDK, APP_BUILDER, CONNECTOR_CONTRIBUTOR))
     if skills != expected:
         rendered = ", ".join(str(path.relative_to(ROOT)) for path in skills)
-        fail(f"expected only dex-sdk and dex-app-builder skills, found: {rendered}")
+        fail(f"expected the three public Dex skills, found: {rendered}")
     if (ROOT / "plugins").exists():
         fail("plugins/ wrapper must not exist")
     if any(path.name == "dex-ai-platform-backend" for path in ROOT.rglob("*")):
         fail("backend companion skill must not exist")
     check_sdk(baseline)
     check_app_builder()
+    check_connector_contributor()
 
 
 def check_manifest_common(path: Path, manifest: dict, version: str) -> None:
@@ -247,10 +332,14 @@ def check_manifests(version: str) -> None:
     for field in ("composerIcon", "logo"):
         if interface.get(field) != "./assets/logo.png":
             fail(f"Codex {field} must use ./assets/logo.png")
+    prompts = interface.get("defaultPrompt")
+    if not isinstance(prompts, list) or not any("$dex-connector-contributor" in prompt for prompt in prompts):
+        fail("Codex default prompts must expose $dex-connector-contributor")
 
     cursor = manifests["cursor"]
-    if cursor.get("skills") != ["./dex-sdk", "./dex-app-builder"]:
-        fail("Cursor manifest must expose dex-sdk and dex-app-builder")
+    expected_skills = ["./dex-sdk", "./dex-app-builder", "./dex-connector-contributor"]
+    if cursor.get("skills") != expected_skills:
+        fail("Cursor manifest must expose all three public skills")
     if cursor.get("logo") != "assets/logo.png":
         fail("Cursor manifest must use assets/logo.png")
 
@@ -283,9 +372,8 @@ def check_manifests(version: str) -> None:
     claude_entry = marketplaces["claude"]["plugins"][0]
     if claude_entry.get("source") != "./" or claude_entry.get("version") != version:
         fail("Claude marketplace must point to the versioned repository root")
-    expected_skills = ["./dex-sdk", "./dex-app-builder"]
     if claude_entry.get("skills") != expected_skills:
-        fail("Claude marketplace must expose both renamed skills")
+        fail("Claude marketplace must expose all three public skills")
 
     cursor_entry = marketplaces["cursor"]["plugins"][0]
     if cursor_entry.get("source") != "./" or cursor_entry.get("version") != version:
@@ -321,7 +409,7 @@ def git_output(*arguments: str) -> str:
 
 def check_release_change(base_ref: str, current_version: str) -> None:
     changed = set(git_output("diff", "--name-only", f"{base_ref}...HEAD").splitlines())
-    skill_prefixes = ("dex-sdk/", "dex-app-builder/")
+    skill_prefixes = ("dex-sdk/", "dex-app-builder/", "dex-connector-contributor/")
     if not any(path.startswith(skill_prefixes) for path in changed):
         return
     required = {"CHANGELOG.md", "VERSION"}
@@ -355,13 +443,16 @@ def main() -> None:
     template_baseline = (ROOT / "TEMPLATE_BASELINE").read_text().strip()
     if PUBLISHED_RELEASE_TAG.fullmatch(template_baseline) is None:
         fail("TEMPLATE_BASELINE must contain a published template release tag")
+    connector_baseline = (ROOT / "CONNECTOR_LIBRARY_BASELINE").read_text().strip()
+    if PUBLISHED_COMPONENT_TAG.fullmatch(connector_baseline) is None:
+        fail("CONNECTOR_LIBRARY_BASELINE must contain a published component tag")
 
     check_skills(baseline)
     check_manifests(current_version)
     check_agent_rules()
     if arguments.base_ref:
         check_release_change(arguments.base_ref, current_version)
-    print(f"validated superdurable-dex {current_version} with two root skills")
+    print(f"validated superdurable-dex {current_version} with three root skills")
 
 
 if __name__ == "__main__":

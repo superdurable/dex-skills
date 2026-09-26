@@ -105,6 +105,7 @@ def main() -> None:
     require_text(
         arguments.dex_root / "cli" / "internal" / "dev" / "config.go",
         "connector-config-dir",
+        "connector-release-override",
     )
     require_text(
         arguments.dex_root / "web" / "connector_connection_store.go",
@@ -121,16 +122,37 @@ def main() -> None:
         "credentialSecrets",
     )
     require_text(
-        arguments.dex_root / "web" / "connector_slack.go",
-        "validateConnectorTriggerBindingConfiguration",
-        "handleListSlackChannels",
-        "handleListSlackUsers",
+        arguments.dex_root / "cli" / "internal" / "flowviz" / "go_connector_configuration_ui.go",
+        "ConnectorConfigurationUI",
+        "ConnectorUIUnit",
+        "ConnectorUIBinding",
+        "compile-time literals",
+    )
+    require_text(
+        arguments.dex_root / "web" / "connector_studio_command.go",
+        "connectorStudioCommandRequest",
+        "CONNECTOR_STUDIO_COMMAND_NOT_FOUND",
+        "containsConnectorSecret",
+        "https",
+    )
+    require_text(
+        arguments.dex_root / "web" / "connector_use_configuration.go",
+        "validateConnectorUseConfiguration",
+        "allowedPointers",
+        "Connector configuration path",
     )
     require_text(
         arguments.dex_root / "web" / "app" / "v2" / "connections" / "ConnectionsPage.tsx",
-        "slack.channels-list",
-        "slack.users-list",
-        "trigger.configuration.write",
+        "provider.command.execute",
+        "use.configuration.save",
+        "connector.frame.resize",
+        "Local override",
+    )
+    require_text(
+        arguments.dex_root / "web" / "api" / "v2_start.go",
+        "START_FLOW_DISABLED",
+        "WORKER_UNHEALTHY",
+        "v2StartStepInput",
     )
 
     template_manifest = json.loads(

@@ -1,6 +1,6 @@
 # Dex Web v2 and FDG 2.0
 
-Baselines: Dex Server `v0.13.2`, Dex CLI `v0.13.4`, and Dex Go SDK `v0.12.1`. Both Server and CLI embed Web v2, including permission-based Work Queue, cumulative permission history, trusted-header enforcement, dynamic definition sources, embedded reverse-proxy mounts, and local setup for Connector operations and Trigger bindings.
+Baselines: Dex Server `v0.13.2`, Dex CLI `v0.13.8`, and Dex Go SDK `v0.12.1`. Both Server and CLI embed Web v2, including permission-based Work Queue, cumulative permission history, trusted-header enforcement, dynamic definition sources, embedded reverse-proxy mounts, local Flow starts, and local setup for Connector operations, Trigger bindings, and configuration UI units.
 
 Web v2 is Go-only. Validate every Flow with the v2 analyzer and never fall back to v1.
 
@@ -19,15 +19,64 @@ In development `local-selector` mode, **Working as** selects one declared Action
 
 Production uses `trusted-header` behind an authenticated host or reverse proxy. The boundary strips browser-supplied permission headers, maps authenticated roles to permissions, and injects exactly one **X-Dex-Work-Queue-Permissions** header. Dex Web hides the selector, ignores request-body permissions, and authorizes Search and Actions against that trusted set. Port 8802 must not be reachable around the proxy.
 
+## Start Flow
+
+The v2 Run workspace shows **Start Flow** only in `local-selector` mode and only
+when the selected local definition includes a supported typed Start input
+schema. Use it for local development and operation-only connector examples. It
+is not available in `trusted-header` mode and is not a production ingress
+mechanism.
+
+Choose a current Worker target, enter schema-valid JSON, and submit the start.
+Dex Web validates the input before encoding it. The Server rejects disabled
+starts with `START_FLOW_DISABLED`, unhealthy or unreachable Workers with
+`WORKER_UNHEALTHY`, duplicate/conflicting identity, and invalid typed input with
+a coded error. Do not work around those errors by removing types or bypassing
+the Worker health check. A connector with a real provider Trigger uses that
+Trigger instead of Start Flow for its Trigger acceptance path.
+
 ## Connections mode
 
 In loopback **dexcli dev**, `/v2/connections` groups Connector Steps and Trigger bindings by connector ID and static connection name. It shows the exact module version, dependent Flows, Steps, operations, and bindings, plus **Missing**, **Ready**, **Expired**, **Conflict**, or **Unsupported** status. The Step drawer links the same identity to its setup page.
 
 Automatic setup requires an operation-specific factory from an exact official released module, a static `ConnectionName`, and no local module replacement. Different module versions for one connector/name key are a blocking conflict. Generic factories and unsupported dependencies still render the Flow but cannot write credentials.
 
+For connector development only, `dexcli dev` accepts
+`--connector-release-override connector-id=artifact-directory`. Use an artifact
+built from the same local connector source and display the visible **Local
+override** status. Do not treat an override as a published release or commit it
+as an application dependency.
+
 Dex Web verifies release metadata and the Studio artifact. A supported Studio bundle runs in an opaque-origin sandbox; otherwise the host renders the manifest form. Neither surface receives stored credential values. OAuth client credentials, PKCE state, and UI sessions are memory-only.
 
+Connections presents authorization first, then nested operation and Trigger
+configuration tabs. A Flow's static `ConnectorConfigurationUI` composes ordered
+release-owned units. Each binding maps one generated unit port to one declared
+RFC 6901 JSON Pointer; the host rejects undeclared paths. Dex Web writes only
+non-secret operation configuration to sibling `use-configurations.json`, keyed
+by connector, connection, operation, Flow type, and Step type. The application
+loads it once through `localconfig`, so a configuration edit requires an
+application restart.
+
+Studio Host API 0.2 keeps the iframe at an opaque origin and accepts only
+nonce-bound protocol messages. `use.configuration.save` writes the scoped
+non-secret object. `connector.frame.resize` reports bounded content height.
+The generic `provider.command.execute` broker can execute only a command
+declared by that exact connector release: HTTPS destination, credential field,
+fixed/request parameters, redirect bound, response-size bound, and backend
+capability are host-enforced. The host injects credentials and rejects any
+response that reflects a secret. Tokens, app secrets, authorization headers,
+connection files, and stored credential values never enter the iframe.
+
 Connection credentials and Trigger matcher configuration are separate records. Changing one binding does not change another Flow that reuses the same connection. Slack Studio writes stable channel and member IDs while displaying names, raw IDs, copy controls, and manual-ID fallback. Provider tokens and app secrets remain host-owned and are never sent to the Studio iframe.
+
+Use `--connector-config-dir DIRECTORY` to isolate a local stack. Dex Web shows
+the resolved connection and operation-configuration paths. The plaintext
+development credential file must never be committed or uploaded. Restarting
+Dex Web preserves stored connection, binding, and use configuration but clears
+pending OAuth/PKCE exchanges and UI sessions. Credential replacement is read
+for each provider call; non-secret connection, binding, and operation
+configuration remains startup-bound in the application.
 
 **POST /api/v2/search** accepts several permissions; a run matches any requested permission, then Flow type and other filters apply with AND. A historical permission match discovers work that is or was available. Dex Web rechecks current Action eligibility when the run opens.
 

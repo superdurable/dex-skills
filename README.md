@@ -2,7 +2,7 @@
 
 Dex Skills is the official agent-skill monorepo for building with
 [Superdurable Dex](https://docs.superdurable.io). One `superdurable-dex` plugin
-ships two skills for Codex, Claude Code, and Cursor:
+ships three skills for Codex, Claude Code, and Cursor:
 
 The plugin is displayed as **Dex**. `Super Durable` remains the marketplace
 publisher, while the stable plugin ID remains `superdurable-dex`.
@@ -11,10 +11,11 @@ publisher, while the stable plugin ID remains `superdurable-dex`.
 | --- | --- |
 | `dex-sdk` | Implement, debug, test, and operate Dex applications in Python, Go, Java, TypeScript, or Rust. |
 | `dex-app-builder` | Discover, prototype, implement, and locally verify an end-to-end Dex AI Platform product with a Go backend. |
+| `dex-connector-contributor` | Create, verify, and upstream official connector operations, Triggers, and configuration UI units. |
 
-`dex-app-builder` loads the sibling `dex-sdk` guidance when backend work begins
-and follows only its Core and Go references. Install the complete plugin so both
-skills are present.
+`dex-app-builder` and `dex-connector-contributor` load the sibling `dex-sdk`
+guidance when backend work begins and follow only its Core and Go references.
+Install the complete plugin so all three skills are present.
 
 ## Install
 
@@ -25,8 +26,9 @@ codex plugin marketplace add superdurable/dex-skills
 codex plugin add superdurable-dex@superdurable
 ```
 
-Start a new task after installation. Invoke `$dex-sdk` for SDK work or
-`$dex-app-builder` for the product workflow.
+Start a new task after installation. Invoke `$dex-sdk` for SDK work,
+`$dex-app-builder` for the product workflow, or
+`$dex-connector-contributor` to contribute to the official connector library.
 
 ### Claude Code
 
@@ -38,14 +40,14 @@ Run inside Claude Code:
 /reload-plugins
 ```
 
-Invoke `/superdurable-dex:dex-sdk` or
-`/superdurable-dex:dex-app-builder`.
+Invoke `/superdurable-dex:dex-sdk`, `/superdurable-dex:dex-app-builder`, or
+`/superdurable-dex:dex-connector-contributor`.
 
 ### Cursor
 
 Import `https://github.com/superdurable/dex-skills` from **Customize → From
-GitHub Repository**, then install `superdurable-dex`. The two skills appear as
-`/dex-sdk` and `/dex-app-builder`.
+GitHub Repository**, then install `superdurable-dex`. The three skills appear
+as `/dex-sdk`, `/dex-app-builder`, and `/dex-connector-contributor`.
 
 Agent Skills clients can install the same bundle directly:
 
@@ -93,13 +95,13 @@ the mock journey, then `make check` for real Dex durability and rendering.
 Backend implementation is Go-only, starts from
 `superdurable/dex-template-basic-process`, and must satisfy strict Dex Web v2 /
 FDG 2.0 rendering. The supported stack is basic-process release `v0.2.1`
-(template contract `1.4.1`), Dex Server `v0.13.2`, Dex CLI `v0.13.5`, and Dex
+(template contract `1.4.1`), Dex Server `v0.13.2`, Dex CLI `v0.13.8`, and Dex
 Go SDK `v0.12.1`. Advance the scaffold's Server and CLI baseline files to these
 versions before verification. Dex Web v2 is embedded in the Server and CLI
 artifacts. Connector integrations reuse released
 dedicated connectors from `superdurable/dex-connectors-library`. Generic HTTP
-is reserved for controlled internal systems; a missing external-provider
-connector follows an authorized fork and upstream-PR workflow and blocks
+is reserved for controlled internal systems; a missing or defective
+external-provider connector routes to `dex-connector-contributor` and blocks
 production handoff until released.
 
 For Go applications, Dex Web reads statically named Connector Steps and Trigger
@@ -113,9 +115,33 @@ Worker replacement, Timer, or RPC semantics. The workflow finishes with local
 tests and a clean handoff ready for future Dex AI Platform upload; it does not
 claim that upload is available today.
 
+## Dex Connector Contributor
+
+`dex-connector-contributor` is limited to official work in
+`superdurable/dex-connectors-library`. It starts from a provider's documented
+public API or official SDK, updates `connector.yaml` and generated contracts,
+implements provider behavior, adds Trigger and configuration UI units when
+needed, and includes a runnable connector-local example. It first discovers and
+verifies the user's GitHub fork; when none exists, it asks permission, opens the
+official fork page, and waits for the user to click **Create fork** before
+cloning that fork locally.
+
+The workflow loads `dex-sdk` Core and Go semantics plus the shared Dex Web v2
+reference. It validates module-isolated race tests and vet, UI tests/build,
+codegen and catalog drift, real Dex integration, strict FDG 2.0, current Dex
+compatibility, and repository checks. Trigger examples exercise typed Flow/RPC
+routing and replay. Operation-only examples run through Dex Web v2 **Start
+Flow**. It finishes with a clean, ready-for-review PR and monitored CI.
+
+Connector source excerpts are pinned to the repository snapshot in
+`CONNECTOR_LIBRARY_BASELINE`. The reference releases are Connector SDK
+`sdkgo/v0.8.0`, Slack `connectors/slack/v0.9.0`, Gmail
+`connectors/google/gmail/v0.10.0`, and Google Sheets
+`connectors/google/spreadsheet/v0.7.0`.
+
 ## Releases
 
-The two skills and all client manifests share the version in `VERSION`. A merge
+The three skills and all client manifests share the version in `VERSION`. A merge
 to `main` creates GitHub Release `v<version>` when that tag does not already
 exist. See [CONTRIBUTING.md](CONTRIBUTING.md) for validation and release rules.
 
