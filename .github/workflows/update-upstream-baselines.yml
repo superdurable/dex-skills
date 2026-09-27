@@ -1,0 +1,181 @@
+name: Update upstream baselines
+
+on:
+  schedule:
+    - cron: "57 16 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-upstream-baselines
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPDATE_BRANCH: automation/update-upstream-baselines
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Resolve latest stable upstream releases
+        id: releases
+        shell: bash
+        run: |
+          sdk_version="$(go list -m -f '{{.Version}}' github.com/superdurable/dex/sdk-go@latest)"
+          dex_releases="$RUNNER_TEMP/dex-releases.txt"
+          gh api --paginate repos/superdurable/dex/releases \
+            --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+            > "$dex_releases"
+          server_tag="$(grep -E '^server/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' "$dex_releases" | sort -V | tail -1)"
+          cli_tag="$(grep -E '^cli-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' "$dex_releases" | sort -V | tail -1)"
+          template_tag="$(gh release view --repo superdurable/dex-template-basic-process --json tagName --jq .tagName)"
+          connector_tag="$(gh release view --repo superdurable/dex-connectors-library --json tagName --jq .tagName)"
+
+          template_manifest="$RUNNER_TEMP/template.json"
+          template_go_mod="$RUNNER_TEMP/template-go.mod"
+          gh api \
+            -H "Accept: application/vnd.github.raw+json" \
+            "repos/superdurable/dex-template-basic-process/contents/.superverse/template.json?ref=$template_tag" \
+            > "$template_manifest"
+          gh api \
+            -H "Accept: application/vnd.github.raw+json" \
+            "repos/superdurable/dex-template-basic-process/contents/go.mod?ref=$template_tag" \
+            > "$template_go_mod"
+          template_contract_version="$(jq -r '.templateVersion' "$template_manifest")"
+          template_sdk_version="$(awk '$1 == "github.com/superdurable/dex/sdk-go" { print $2; exit }' "$template_go_mod")"
+
+          if [[ ! "$sdk_version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Dex Go SDK did not return a stable version: $sdk_version" >&2
+            exit 1
+          fi
+          if [[ ! "$server_tag" =~ ^server/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Dex Server did not return a stable release tag: $server_tag" >&2
+            exit 1
+          fi
+          if [[ ! "$cli_tag" =~ ^cli-v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Dex CLI did not return a stable release tag: $cli_tag" >&2
+            exit 1
+          fi
+          if [[ ! "$template_tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "basic-process did not return a stable release tag: $template_tag" >&2
+            exit 1
+          fi
+          if [[ ! "$template_contract_version" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "basic-process has an invalid template contract version: $template_contract_version" >&2
+            exit 1
+          fi
+          if [[ ! "$template_sdk_version" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "basic-process has an invalid Dex Go SDK version: $template_sdk_version" >&2
+            exit 1
+          fi
+          if [[ ! "$connector_tag" =~ ^(sdkgo|connectors/[a-z0-9][a-z0-9_/-]*)/v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Connector Library did not return a stable component tag: $connector_tag" >&2
+            exit 1
+          fi
+          {
+            echo "sdk_tag=sdk-go/$sdk_version"
+            echo "server_tag=$server_tag"
+            echo "cli_tag=$cli_tag"
+            echo "template_tag=$template_tag"
+            echo "template_contract_version=$template_contract_version"
+            echo "template_sdk_version=$template_sdk_version"
+            echo "connector_tag=$connector_tag"
+          } >> "$GITHUB_OUTPUT"
+      - name: Update upstream baselines
+        id: update
+        run: |
+          python3 script/update_upstream_baselines.py \
+            --dex-tag "${{ steps.releases.outputs.sdk_tag }}" \
+            --server-tag "${{ steps.releases.outputs.server_tag }}" \
+            --cli-tag "${{ steps.releases.outputs.cli_tag }}" \
+            --template-tag "${{ steps.releases.outputs.template_tag }}" \
+            --template-contract-version "${{ steps.releases.outputs.template_contract_version }}" \
+            --template-sdk-version "${{ steps.releases.outputs.template_sdk_version }}" \
+            --connector-tag "${{ steps.releases.outputs.connector_tag }}"
+      - name: Validate updated package
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          python3 -m unittest script/update_upstream_baselines_test.py
+          python3 script/check-package.py
+          git diff --check
+      - name: Create or update baseline pull request
+        if: steps.update.outputs.changed == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          remote_sha="$(git ls-remote --heads origin "$UPDATE_BRANCH" | awk '{print $1}')"
+          if [[ -n "$remote_sha" ]]; then
+            git fetch origin "$UPDATE_BRANCH:refs/remotes/origin/$UPDATE_BRANCH"
+          fi
+          git switch -C "$UPDATE_BRANCH"
+          git add \
+            .claude-plugin/marketplace.json \
+            .claude-plugin/plugin.json \
+            .codex-plugin/plugin.json \
+            .cursor-plugin/marketplace.json \
+            .cursor-plugin/plugin.json \
+            CHANGELOG.md \
+            CONNECTOR_LIBRARY_BASELINE \
+            DEX_BASELINE \
+            DEX_CLI_BASELINE \
+            DEX_SERVER_BASELINE \
+            README.md \
+            TEMPLATE_BASELINE \
+            VERSION \
+            dex-connector-contributor \
+            dex-sdk \
+            script/check-upstream-baselines.py
+          git diff --cached --check
+          git commit -m "chore: update Dex Skills upstream baselines"
+          python3 script/check-package.py --base-ref origin/main
+          if [[ -n "$remote_sha" ]]; then
+            git push \
+              --force-with-lease="refs/heads/$UPDATE_BRANCH:$remote_sha" \
+              origin "HEAD:refs/heads/$UPDATE_BRANCH"
+          else
+            git push --set-upstream origin "$UPDATE_BRANCH"
+          fi
+
+          body_file="$RUNNER_TEMP/upstream-baseline-update.md"
+          {
+            echo "## Summary"
+            echo
+            echo "- Dex Go SDK: ${{ steps.update.outputs.dex_previous }} → ${{ steps.update.outputs.dex_latest }}"
+            echo "- Dex Server: ${{ steps.update.outputs.server_previous }} → ${{ steps.update.outputs.server_latest }}"
+            echo "- Dex CLI with embedded Web: ${{ steps.update.outputs.cli_previous }} → ${{ steps.update.outputs.cli_latest }}"
+            echo "- basic-process template: ${{ steps.update.outputs.template_previous }} → ${{ steps.update.outputs.template_latest }}"
+            echo "- Connector Library snapshot: ${{ steps.update.outputs.connector_previous }} → ${{ steps.update.outputs.connector_latest }}"
+            echo "- Dex Skills: ${{ steps.update.outputs.plugin_previous }} → ${{ steps.update.outputs.plugin_latest }}"
+            echo
+            echo "This PR was generated by the scheduled upstream-baseline updater."
+            echo "It never approves or merges its pull request."
+          } > "$body_file"
+          pr_number="$(gh pr list --state open --head "$UPDATE_BRANCH" --json number --jq '.[0].number // empty')"
+          if [[ -n "$pr_number" ]]; then
+            gh pr edit "$pr_number" \
+              --title "Update Dex Skills upstream baselines" \
+              --body-file "$body_file"
+          else
+            gh pr create \
+              --base main \
+              --head "$UPDATE_BRANCH" \
+              --title "Update Dex Skills upstream baselines" \
+              --body-file "$body_file"
+          fi
+          gh workflow run validate.yml --ref "$UPDATE_BRANCH"

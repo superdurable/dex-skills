@@ -273,6 +273,20 @@ Connector source excerpts are pinned to the repository snapshot in
 `connectors/google/gmail/v0.10.0`, and Google Sheets
 `connectors/google/spreadsheet/v0.7.0`.
 
+## Automated upstream maintenance
+
+The **Update upstream baselines** workflow runs daily and can also be dispatched
+manually. It compares the repository with the latest stable Dex Go SDK, Server,
+CLI, basic-process template, and Connector Library releases. Dex Web is covered
+by the Server and CLI releases that embed it.
+
+When an upstream is newer, the workflow refreshes immutable source links and
+baseline checks, bumps the shared Dex Skills patch version and synchronized
+client manifests, and creates or refreshes one pull request on the fixed
+`automation/update-upstream-baselines` branch. It ignores prereleases, runs the
+package and updater tests, and dispatches the complete validation workflow. It
+never approves, merges, or publishes the resulting release.
+
 ## Releases
 
 The three skills and all client manifests share the version in `VERSION`. A merge
