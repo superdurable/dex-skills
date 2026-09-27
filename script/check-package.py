@@ -225,6 +225,10 @@ def check_app_builder() -> None:
         "GetApplicationInfo",
         "trusted authentication boundary",
         "public external product",
+        "https://superdurable.github.io/dex-connectors-library/catalog.yaml",
+        "match every required Trigger, Query, Mutation, and UI capability",
+        "stop connector-dependent",
+        "do not infer support from memory",
         "$dex-connector-contributor",
         "schedules a Connector Step",
         "temporary Go",
@@ -245,6 +249,10 @@ def check_app_builder() -> None:
         "application integration only from a Go backend",
         "it is not a Connector SDK backend",
         "## Application composition",
+        "## Released capability discovery",
+        "connectors.dex.dev/catalog/v1alpha1",
+        "<directory>/<version>",
+        "verification blocker",
         "User/API RPC requests provider work",
         "connector, operation, or Trigger is a connector contribution",
         "## Internal connector library decision",
@@ -260,6 +268,8 @@ def check_app_builder() -> None:
         "defaults to the exact stack",
         "without Connector SDK support",
         "connector capability matrix",
+        "canonical published catalog",
+        "immutable `connector.yaml`",
         "internal connector library",
     ):
         if text not in product_discovery:
@@ -425,6 +435,8 @@ def check_manifests(version: str) -> None:
     prompts = interface.get("defaultPrompt")
     if not isinstance(prompts, list) or not prompts or "$dex-app-builder" not in prompts[0]:
         fail("Codex default prompts must put $dex-app-builder first")
+    if len(prompts) < 2 or "$dex-connector-contributor" not in prompts[1]:
+        fail("Codex default prompts must put $dex-connector-contributor second")
     if not any("$dex-sdk" in prompt for prompt in prompts):
         fail("Codex default prompts must expose $dex-sdk")
     if not any("$dex-connector-contributor" in prompt for prompt in prompts):

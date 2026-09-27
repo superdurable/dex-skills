@@ -66,10 +66,20 @@ Dex Web cannot provide. Record which requirement forces the custom surface.
 ## Connector decision
 
 Create a connector capability matrix for every Trigger, Query, Mutation, and
-integration UI. For a public external product, match each need to an exact
-released connector capability—not merely a connector name. A missing connector,
-operation, or Trigger with a documented API or official SDK becomes a
-`$dex-connector-contributor` fork/PR work item and production release blocker.
+integration UI. Start from the canonical published catalog at
+`https://superdurable.github.io/dex-connectors-library/catalog.yaml`. For a
+public external product, match each need to an exact released connector
+capability—not merely a connector name—then verify the complete contract in the
+component tag's immutable `connector.yaml`. Record the catalog URL, connector
+ID, capability kind and name, version/tag, immutable manifest URL, and reuse or
+gap decision.
+
+If the published catalog or immutable release manifest cannot be verified,
+stop connector-dependent implementation and report the blocker. A missing
+connector, operation, Trigger, or UI unit with a documented API or official SDK
+becomes a `$dex-connector-contributor` work item and production release blocker;
+it is not permission to install the provider SDK or write local integration
+code.
 
 Mark a service internal only when the organization owns and controls it. Ask
 whether an internal connector library already exists, whether this application

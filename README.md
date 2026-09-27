@@ -240,6 +240,14 @@ is reserved for controlled internal systems; a missing or defective
 external-provider connector routes to `dex-connector-contributor` and blocks
 production handoff until released.
 
+Connector selection starts from the canonical published
+[`catalog.yaml`](https://superdurable.github.io/dex-connectors-library/catalog.yaml),
+then verifies every exact Trigger, Query, Mutation, or UI capability against the
+selected component tag's immutable `connector.yaml`. If the catalog or release
+manifest cannot be verified, App Builder stops connector-dependent
+implementation instead of guessing from memory or falling back to a provider
+SDK.
+
 Flow design prefers existing released connector capabilities throughout:
 Query/Mutation factories become Connector Steps, Triggers start typed Flows or
 invoke typed RPCs, and RPC-requested provider work moves to a Connector Step.
