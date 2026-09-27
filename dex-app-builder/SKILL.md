@@ -122,16 +122,19 @@ Begin with discussion, not code. Identify:
 - whether each integration is a public external product or an
   organization-controlled internal service;
 - start triggers, inputs, outputs, deadlines, waits, approvals, retries, recovery, audit, search, and sensitive data;
-- durable facts, their owning business identity, expected read/write paths,
-  cross-Flow reuse, volume, contention, search, and retention requirements;
+- facts and policy, whether each is identity-provider data, a secret,
+  deployment-time static configuration, or runtime business state, plus its
+  owning identity, expected read/write paths, cross-Flow reuse, volume,
+  contention, search, and retention requirements;
 - whether Dex Web Run, Work Queue, display/edit fields, and Actions satisfy the complete process-management experience;
 - whether an existing host authenticates users and maps roles to trusted permissions;
 - whether the user needs any custom process UI beyond a non-business application shell.
 
 Produce a compact role/operation/permission matrix, lifecycle proposal, storage
-decision matrix, UI decision, and connector capability matrix. For every
-durable fact, record its owner, access pattern, scale/contention expectation,
-Dex primitive, and any proven reason an external store is required. For every
+decision matrix, UI decision, and connector capability matrix. For every fact
+or policy, record its classification and authority. For runtime state, also
+record its owner, access pattern, scale/contention expectation, Dex primitive,
+and any proven reason an external store is required. For every
 integration, record its classification, required Trigger/Query/Mutation/UI capabilities, matching
 released connector capability, and any contribution or internal-library gap.
 Roles describe people or groups. Permissions describe individual allowed
@@ -191,10 +194,28 @@ Dex SDK supplies the public SDK guidance. The platform constraints in this skill
 
 Read [Dex Web v2](references/dex-web-v2.md) before editing a Flow. State the Flow identity, input/output, Steps, transitions, Attributes, Channels, RPCs, timers, retries, recovery, and connector boundaries before code.
 
-### Dex-first backend storage
+### Classify configuration first, then use Dex-first runtime storage
 
-Use Dex Flow state as the default durable application store. Read the shared
-[data-handling guidance](../dex-sdk/references/core/data-handling.md) and the Go
+Do not assume every fact needs runtime storage. Keep existing identity
+membership in its identity provider, such as OIDC/SSO, credentials in the
+runtime's secret facility, and bounded,
+read-mostly policy in version-controlled application configuration when changes
+through review and deployment are acceptable. Examples include a role-to-
+permission map, tenant-independent thresholds, and stable feature policy. Do
+not create a Flow, database, admin CRUD surface, or synchronization path merely
+to store or evaluate such configuration.
+
+If an operation is only a deterministic check of authenticated claims against
+static configuration and has no durable business state, wait, retry, recovery,
+or execution audit requirement, implement it as ordinary application code; it
+does not need a Flow. When a business Flow already exists, keep stable Action
+permission names in the Flow definition, resolve identity-group-to-permission
+mapping outside the Flow, and record the actor, time, and outcome in the
+business Flow rather than creating a separate authorization Flow.
+
+Use Dex Flow state as the default durable store for runtime application facts.
+Read the shared [data-handling guidance](../dex-sdk/references/core/data-handling.md)
+and the Go
 [data-handling](../dex-sdk/references/go/data-handling.md) and
 [entity-state patterns](../dex-sdk/references/go/patterns.md) before choosing a
 database, cache, or ORM.
@@ -226,7 +247,10 @@ a separate query shape—Dex Attribute Store synchronization. If an external
 store is still required, document the exact unsupported operation and expected
 scale/SLO, assign one authoritative owner for every fact, define projection or
 synchronization and recovery semantics, and test failure and reconciliation.
-“Future flexibility” is not a sufficient reason.
+“Future flexibility” is not a sufficient reason. If static configuration stops
+being sufficient because users must edit it at runtime, changes require an
+independent audit lifecycle, or replicas must coordinate concurrent mutations,
+reclassify it as runtime state and apply this Dex-first decision again.
 
 For Custom UI, design the application OpenAPI contract in the same pass as the
 Flow and Connector boundaries. Map each approved wireframe action to an

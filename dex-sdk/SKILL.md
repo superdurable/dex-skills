@@ -80,7 +80,17 @@ For a product mutation that entails multiple actions, cross-service calls, durab
 
 ### Dex-first state ownership
 
-Default durable application state to typed Flow Attributes and AttributeMaps,
+First separate static configuration from runtime state. Existing identity
+membership remains in its identity provider, such as OIDC/SSO, secrets belong
+to the runtime secret facility, and bounded read-mostly policy belongs in
+version-controlled application configuration when review-and-deploy changes
+are acceptable. A
+deterministic check over authenticated claims and static rules needs no runtime
+store when it has no durable wait, retry, recovery, or execution-audit
+requirement. That check needs neither a Flow nor a database. Do not create a
+configuration Flow solely to hold or evaluate those rules.
+
+Default runtime durable application state to typed Flow Attributes and AttributeMaps,
 not to a new database dependency. Prefer a stable domain/entity Flow when Dex
 can own facts shared by multiple processes; cross-Flow reuse is an
 ownership-design question, not by itself a storage gap. Use indexed Attributes
@@ -96,6 +106,11 @@ scans. First consider a Dex Attribute Store projection when Dex can remain the
 authority and only the query shape is missing. Never create ambiguous dual
 authority: identify the source of truth per fact and define synchronization,
 failure, and reconciliation behavior.
+
+When static configuration requires runtime user editing, its own audit and
+approval lifecycle, or coordinated concurrent mutation, reclassify it as
+runtime state and apply the same Dex-first decision rather than adding a
+database by reflex.
 
 Deduplicate root Flow starts with Dex start identity, not an application-owned database mechanism. Derive a stable Flow ID for the logical operation, derive the start Request ID from the complete logical request, choose the explicit ID reuse policy, and handle the SDK's typed already-started result. Never add a table, row, outbox, lease, lock, cache, or generic admission projection solely to deduplicate or serialize `startFlow`. If the API must confirm durable admission, wait for the admission Step or Flow result and read accepted business state from its owning domain record.
 

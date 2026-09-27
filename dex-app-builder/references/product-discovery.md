@@ -45,16 +45,36 @@ Confirm:
 - searchable/indexed fields and detailed display fields;
 - sensitive data that must not enter IDs, logs, Streams, or generated artifacts.
 
-## Storage decision
+## State and storage decision
 
-Default each durable fact to Dex before proposing an external dependency.
+Classify each fact before selecting any runtime store:
+
+- existing identity and group membership remain in their identity provider,
+  such as OIDC/SSO;
+- credentials and signing material belong to the runtime's secret facility;
+- bounded, read-mostly policy whose change cadence can follow review and
+  deployment belongs in version-controlled application configuration;
+- mutable business facts and process history are runtime state.
+
+A deterministic operation over authenticated claims and static configuration
+does not need a Flow or database when it has no durable wait, retry, recovery,
+or execution-audit requirement. Do not build a configuration Flow, admin CRUD
+surface, or database solely to hold mappings such as OIDC group to application
+role and role to stable permission. When a business Flow exists, keep its
+permission names stable and record actual Action execution in that Flow.
+
+For every runtime durable fact, default to Dex before proposing an external
+dependency.
 Capture a storage decision matrix:
 
-| Fact or collection | Owning Flow/business identity | Reads and writes | Volume/contention | Dex primitive and access path | Proven external-store gap |
+| Fact, policy, or collection | Classification and authority | Reads and writes | Volume/contention | Runtime primitive and access path | Proven external-store gap |
 | --- | --- | --- | --- | --- | --- |
+| Identity membership | OIDC/SSO provider | verified claims on request | provider-managed | no Flow or application database | normally none |
+| Role-to-permission mapping | version-controlled application config | read on authorization; review/deploy to change | bounded and read-mostly | static YAML/JSON or equivalent | only when runtime editing or independent policy lifecycle is required |
+| Secret or signing key | runtime secret facility | read by the owning boundary | bounded | secret/environment reference | never store the value in a Flow or repository |
 | Process state | Process Flow ID | Step and Action updates, status/detail reads | product-specific | typed Attribute plus RPC/index when needed | normally none |
-| Keyed or growing records | Stable domain/entity owner | exact lookup, bounded page, independent mutation | product-specific | partitioned or chunked AttributeMap with exact loads and locks | only a confirmed query or contention limit |
-| Shared domain facts | Stable domain/entity Flow | reused by several process/API paths | product-specific | one owner with typed application operations | cross-Flow reuse alone is not a gap |
+| Keyed or growing records | stable domain/entity Flow | exact lookup, bounded page, independent mutation | product-specific | partitioned or chunked AttributeMap with exact loads and locks | only a confirmed query or contention limit |
+| Shared domain facts | stable domain/entity Flow | reused by several process/API paths | product-specific | one owner with typed application operations | cross-Flow reuse alone is not a gap |
 
 Do not select PostgreSQL, another database, a cache, an ORM, or a shadow read
 model merely because data must persist. Dex already provides durable
@@ -124,7 +144,8 @@ Before code, provide:
 2. a numbered lifecycle with decisions and terminal outcomes;
 3. the confirmed **No custom UI** or **Custom UI** mode and its reason;
 4. proposed Flow, Step, state, message, timer, RPC, and connector boundaries;
-5. the storage decision matrix and any evidence-backed external-store gap;
+5. the state/storage decision matrix, including every static authority and any
+   evidence-backed external-store gap;
 6. connector capability reuse, public fork/PR, internal-library decision, and
    release status;
 7. unresolved tradeoffs.

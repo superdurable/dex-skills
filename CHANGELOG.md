@@ -4,6 +4,7 @@ All notable changes to Dex Skills are documented here.
 
 ## 0.25.7 - 2026-09-26
 
+- Classify identity, secrets, and deployment-time policy as configuration before modeling runtime state, so bounded static rules can avoid both a Flow and a database.
 - Make Dex Flow Attributes and AttributeMaps the default durable application storage instead of introducing a database, cache, ORM, outbox, or shadow read model by default.
 - Add a storage decision matrix covering ownership, access paths, scale, contention, Dex primitives, and evidence for any external-store gap.
 - Prefer a stable domain/entity Flow and typed operations for Dex-owned shared domain data before treating cross-Flow reuse as a database requirement.
