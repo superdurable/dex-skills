@@ -190,7 +190,9 @@ def check_sdk(baseline: str) -> None:
     skill_content = (SDK / "SKILL.md").read_text()
     for text in (
         "### Dex-first state ownership",
-        "Default durable application state to typed Flow Attributes",
+        "First separate static configuration from runtime state",
+        "needs neither a Flow nor a database",
+        "Default runtime durable application state to typed Flow Attributes",
         "ownership-design question",
         "complex/ad-hoc indexes",
         "sustained high-contention",
@@ -202,7 +204,9 @@ def check_sdk(baseline: str) -> None:
     core_data_handling = (SDK_REFERENCES / "core" / "data-handling.md").read_text()
     for text in (
         "## Dex-first storage decision",
-        "begin with Dex as the durable system of record",
+        "Before selecting a runtime store",
+        "needs no Flow or database",
+        "use Dex as the durable system of record",
         "Data shared by several processes does not automatically need a database",
         "Do not add a database, cache, ORM, outbox, or shadow read model",
         "One fact must never have two ambiguous authorities",
@@ -276,8 +280,10 @@ def check_app_builder() -> None:
         "`NewLocalConnection`",
         "external effects in `Execute`",
         "`WaitFor` free of provider or Dex mutations",
-        "### Dex-first backend storage",
-        "Use Dex Flow state as the default durable application store",
+        "### Classify configuration first, then use Dex-first runtime storage",
+        "Do not assume every fact needs runtime storage",
+        "does not need a Flow",
+        "Use Dex Flow state as the default durable store for runtime application facts",
         "Cross-Flow reuse alone is not a reason",
         "Do not add an external database, cache, ORM, outbox, or shadow read model",
         "high-concurrency reads and writes",
@@ -340,6 +346,8 @@ def check_app_builder() -> None:
         "generated server interfaces",
         "storage decision matrix",
         "Remove an unneeded dependency when Dex meets the requirement",
+        "remove an unnecessary Flow",
+        "fail-closed behavior",
     ):
         if text not in build_handoff:
             fail(f"build and handoff must contain: {text}")
@@ -371,8 +379,10 @@ def check_app_builder() -> None:
         "canonical published catalog",
         "immutable `connector.yaml`",
         "internal connector library",
-        "## Storage decision",
-        "Default each durable fact to Dex",
+        "## State and storage decision",
+        "Classify each fact before selecting any runtime store",
+        "does not need a Flow or database",
+        "default to Dex before proposing an external",
         "cross-Flow reuse alone is not a gap",
         "projection still introduces an external database",
         "“We may need it later” is not evidence",

@@ -1,10 +1,19 @@
-# Dex-first data storage and Worker locality
+# Static configuration, Dex-first data storage, and Worker locality
 
 Read this guide when a Flow stores large documents, conversation history, model context, or API/MCP results, especially with replicated Workers.
 
 ## Dex-first storage decision
 
-For a Dex application, begin with Dex as the durable system of record for every
+Before selecting a runtime store, distinguish configuration from business
+state. Keep existing identity and group membership in its identity provider,
+such as OIDC/SSO, secret values in the runtime's secret facility, and bounded
+read-mostly policy in version-controlled application configuration when
+review-and-deploy changes are acceptable. A deterministic operation over
+authenticated claims and those static rules needs no Flow or database unless
+it has durable execution or audit semantics. Do not create a Flow merely to
+hold configuration.
+
+For a Dex application, then use Dex as the durable system of record for every
 fact its Flow model can own. A cohesive process snapshot belongs in typed
 Attributes. Dynamically keyed or independently loaded records belong in
 AttributeMaps using stable instances, bounded chunks, or fixed partitions.
@@ -31,6 +40,10 @@ reconcilable Attribute Store projection over application-managed dual writes.
 When the external store must instead own a fact, define that boundary
 explicitly and keep the Flow's Attributes to process state, durable references,
 and recovery facts. One fact must never have two ambiguous authorities.
+
+If configuration later needs runtime edits, an independent approval/audit
+lifecycle, or coordinated concurrent mutation, it has become runtime state;
+apply this Dex-first decision instead of automatically introducing a database.
 
 ## Use the built-in large-value path
 

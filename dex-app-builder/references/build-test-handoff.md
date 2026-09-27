@@ -36,6 +36,15 @@ When external storage is justified, test its declared authority boundary,
 projection/synchronization lag, retry behavior, outage handling, and
 reconciliation instead of treating a successful happy-path write as proof.
 
+Before implementing a Flow for policy or configuration, verify that the data
+cannot remain in its natural static authority: the existing identity provider
+such as OIDC/SSO for membership, the runtime secret facility for credentials,
+or version-controlled application
+configuration for bounded read-mostly rules. When a deterministic request only
+checks authenticated claims against static rules, remove an unnecessary Flow
+as well as an unnecessary database. Test invalid and missing configuration,
+unknown groups and permissions, and fail-closed behavior.
+
 Treat mock results as HTTP/UI evidence only. They cannot establish Dex durability, Worker replacement, Timer, RPC, retry, or provider semantics.
 
 Show Dex Web early. Once the first Flow graph renders, keep one user-facing `dexcli dev` stack running with a persistent `--flow-rendering-dir`, stable ports, and persistent state, and give the user its URL before continuing. Then keep implementing and testing against isolated test stacks. Do not wait until verification passes to start it, and do not let test scripts reuse or stop it. Report its URL again at handoff.
