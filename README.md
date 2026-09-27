@@ -115,6 +115,12 @@ An active chat keeps the plugin version it loaded when the chat started. After
 an upgrade, restart the client when applicable and begin a new chat in the
 repository.
 
+At the beginning of a new chat, each Dex skill makes a short, best-effort check
+against the repository's current stable version. When a newer version exists,
+the first substantive response includes a brief BTW notice with this upgrade
+guide. The check is silent when the plugin is current or the network is
+unavailable, and it never upgrades the plugin automatically.
+
 ### Codex desktop app
 
 Open the plugin browser's marketplace management view, find **Super Durable**,
