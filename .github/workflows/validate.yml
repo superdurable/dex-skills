@@ -52,6 +52,8 @@ jobs:
           fetch-depth: 0
       - name: Validate package and manifests
         run: python3 script/check-package.py
+      - name: Test upstream baseline updater
+        run: python3 -m unittest script/update_upstream_baselines_test.py
       - name: Validate Dex SDK reference sources
         run: python3 script/check-reference-sources.py --dex-root upstream-dex-sdk
       - name: Validate Connector reference sources
