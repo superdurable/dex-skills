@@ -133,6 +133,13 @@ The project dependency and lockfile remain authoritative when versions differ.
 terminal users, permissions, triggers, actions, waits, approvals, recovery, and
 audit requirements. It then confirms **No custom UI** or **Custom UI**.
 
+When the target repository is empty or contains only placeholders such as a
+README, App Builder first initializes it from the pinned
+`superdurable/dex-template-basic-process` release. It preserves the repository's
+Git history and intentional files, then uses the template's `make bootstrap`
+path. It does not invent a TypeScript backend, create an ad hoc npm scaffold, or
+borrow SDK setup from a neighboring project.
+
 No custom UI uses Dex Web v2 for every management interaction. The application
 keeps only a non-business Hello World page, one `GetApplicationInfo` OpenAPI
 operation, and the Go/OpenAPI/React generation skeleton for future evolution.
