@@ -205,9 +205,20 @@ def check_app_builder() -> None:
         "project workspace",
         "effectively empty",
         "../TEMPLATE_BASELINE",
+        "`TEMPLATE_BASELINE` is the",
+        "application stack authority",
+        "In the first implementation update for an effectively empty repository",
+        "do not fall back to a self-selected stack",
+        "authorize upgrading an application's template-pinned dependencies",
+        "TypeScript is limited to the",
+        "template's optional React frontend",
+        "SDK integration are Go-only",
+        "cannot use the current Connector SDK",
         "preserving its `.git` directory",
         "`make bootstrap` as the first dependency/bootstrap command",
         "do not start a TypeScript Dex backend",
+        "Do not advance the scaffold independently",
+        "Connector SDK supports application integration only from Go",
         "infer SDK versions from a neighboring workspace",
         "### No custom UI",
         "### Custom UI",
@@ -231,6 +242,8 @@ def check_app_builder() -> None:
 
     connector_architecture = (references_dir / "connector-architecture.md").read_text()
     for text in (
+        "application integration only from a Go backend",
+        "it is not a Connector SDK backend",
         "## Application composition",
         "User/API RPC requests provider work",
         "connector, operation, or Trigger is a connector contribution",
@@ -242,7 +255,13 @@ def check_app_builder() -> None:
             fail(f"connector architecture must contain: {text}")
 
     product_discovery = (references_dir / "product-discovery.md").read_text()
-    for text in ("connector capability matrix", "internal connector library"):
+    for text in (
+        "## Stack checkpoint",
+        "defaults to the exact stack",
+        "without Connector SDK support",
+        "connector capability matrix",
+        "internal connector library",
+    ):
         if text not in product_discovery:
             fail(f"product discovery must contain: {text}")
 
@@ -268,6 +287,8 @@ def check_connector_contributor() -> None:
         "superdurable/dex-connectors-library",
         "documented public API or official SDK",
         "connector.yaml",
+        "Connector SDK and official connector modules are Go-only",
+        "ask the user to open",
         "operation-specific",
         "optional: true",
         "seven seconds",

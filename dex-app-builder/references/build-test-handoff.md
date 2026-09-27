@@ -4,6 +4,12 @@
 
 Use the basic-process template's stable commands. Change `openapi/openapi.yaml`, then regenerate; never hand-edit generated Go or TypeScript clients.
 
+Keep the template release's `go.mod`, `go.sum`, npm lockfile, Go toolchain,
+Dex Server/CLI baselines, generators, and Make targets unchanged unless the
+user explicitly requested the corresponding stack or dependency change. A
+newer `DEX_BASELINE` in the skill repository is not an application upgrade
+instruction.
+
 For **No custom UI**, reduce OpenAPI to `GetApplicationInfo` plus confirmed integration ingress, regenerate both clients, and remove process-management routes and mock lifecycle code. Verify the Hello World page through the generated client. Do not run a mock approval checkpoint for an inert shell.
 
 For **Custom UI**, use `make mock` as the interaction-approval loop and run `make test-mock-e2e` after UI behavior changes. Run the narrowest relevant unit or frontend check after each edit batch. Before handoff run the repository's full `make check`, including mock E2E, real Dex integration and E2E, Worker replacement, FDG 2.0 validation, and the production build.
@@ -56,6 +62,9 @@ Use deadline-based polling and report Flow IDs and status on failure. Do not hid
 Ensure:
 
 - `superverse.yaml` and `.superverse/template.json` remain valid;
+- application dependencies, runtime baselines, lockfiles, and commands still
+  match the pinned template unless an explicit user-approved deviation is
+  recorded;
 - the confirmed UI mode is recorded;
 - a No custom UI shell contains no business controls or management routes;
 - custom UI interactions are approved against the mock server and Mock Controls;

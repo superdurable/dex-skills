@@ -2,6 +2,21 @@
 
 Do not start implementation until the product owner confirms the business model.
 
+## Stack checkpoint
+
+Classify the repository before proposing a language or installing anything. A
+repository containing only a README, license, or editor files is effectively
+empty and defaults to the exact stack in the release named by
+`TEMPLATE_BASELINE`. Record the template release as the stack decision; do not
+offer TypeScript, Node, another SDK language, or a freshly selected dependency
+set as equivalent defaults.
+
+Only an explicit user request can replace the template stack for a new
+application. Before accepting that request, explain that Dex App Builder, Dex AI
+Platform, strict FDG 2.0, and the current Connector SDK use the template's Go
+backend. A requested non-Go backend becomes a standalone `$dex-sdk` project
+without Connector SDK support, not a modified App Builder default.
+
 ## Role, operation, and permission matrix
 
 Capture at least:

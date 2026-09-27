@@ -2,7 +2,11 @@
 
 Dex Connector is an open-source full-stack integration layer for Dex ecosystem process applications and durable agents. It is not a generic API wrapper or a node-based automation library.
 
-Version 0 supports Go plus the Dex SDK on the backend and React TypeScript for optional UI.
+Version 0 supports application integration only from a Go backend using the
+Dex Go SDK and Connector Go SDK. React TypeScript is supported only for optional
+connector UI and application frontend code; it is not a Connector SDK backend.
+Use the Dex Go SDK version pinned by the application's basic-process template
+unless the user explicitly requests and approves a compatible upgrade.
 
 ## Capability model
 

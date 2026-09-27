@@ -1,6 +1,6 @@
 ---
 name: dex-app-builder
-description: Primary entry point for designing and building Dex applications and process products. Use by default for Dex product, application, or workflow requests unless the user explicitly invokes $dex-sdk for standalone SDK work or $dex-connector-contributor for official connector-library work. Orchestrates business discovery, the UI decision, Go backend implementation, connector integration, local verification, and platform-ready handoff.
+description: Primary entry point for designing and building Dex applications and process products with the pinned basic-process template stack. Use by default for Dex product, application, or workflow requests unless the user explicitly invokes $dex-sdk for standalone SDK work or $dex-connector-contributor for official connector-library work. Orchestrates business discovery, the UI decision, Go backend implementation, connector integration, local verification, and platform-ready handoff.
 ---
 
 # Dex App Builder
@@ -39,7 +39,7 @@ claim to create files, run tests, build artifacts, or deploy the application.
 Recommend continuing the confirmed plan in Codex or another coding-agent host
 connected to the target repository.
 
-## Repository bootstrap
+## Template stack authority and repository bootstrap
 
 Inspect the repository before selecting a language, creating manifests, or
 installing dependencies. Treat a repository as effectively empty when it has no
@@ -54,22 +54,53 @@ intentional user files. Review collisions before writing, initialize the
 template's pinned submodules, inspect `.superverse/template.json`, and use
 `make bootstrap` as the first dependency/bootstrap command.
 
+For a new or effectively empty application, `TEMPLATE_BASELINE` is the
+application stack authority. Before proposing implementation, inspect that
+immutable template release's `go.mod`, `go.sum`, `web/package.json`,
+`web/package-lock.json`, `DEX_SERVER_BASELINE`, `DEX_CLI_BASELINE`, Makefile,
+and `.superverse/template.json`. Preserve their exact languages, module and
+package versions, lockfiles, generated-code tools, directory layout, and
+bootstrap/test commands unless the user explicitly requests a stack or version
+change.
+
+In the first implementation update for an effectively empty repository, name
+the pinned template release and state that its Go backend and exact dependency
+pins will be used. If the template release cannot be inspected or materialized,
+report that blocker; do not fall back to a self-selected stack or install any
+dependencies.
+
+`DEX_BASELINE`, `DEX_SERVER_BASELINE`, and `DEX_CLI_BASELINE` in this skill
+repository pin reference documentation and capability validation. They do not
+authorize upgrading an application's template-pinned dependencies or runtime
+baselines. Do not select a newer Dex Go SDK independently, run an upgrade
+because a registry has a newer version, or copy versions from another project.
+
 Do not invent a new application stack for an empty repository. In particular,
-do not start a TypeScript Dex backend, create an ad hoc npm application, or
-infer SDK versions from a neighboring workspace. Do not copy bootstrap code
-from another project. Dex App Builder starts from the template's Go backend and
-its optional React TypeScript UI skeleton.
+do not start a TypeScript Dex backend. Do not start a Node Dex backend, create
+an ad hoc npm application, infer SDK versions from a neighboring workspace, or
+copy bootstrap code from another project. TypeScript is limited to the
+template's optional React frontend and generated client. The Dex backend and
+application-side Connector SDK integration are Go-only.
+
+If the user explicitly requests a non-template stack or dependency upgrade,
+explain the compatibility and verification consequences before editing. A
+non-Go backend is outside the Dex App Builder and Dex AI Platform path and
+cannot use the current Connector SDK. Route an explicitly requested standalone
+non-Go Dex application through `$dex-sdk`; do not imply that Go-only Connector
+capabilities remain available.
 
 When the repository already contains an application and build manifests,
-preserve its intentional structure. Compare it with the pinned template and
-adapt the required architecture without replacing existing work unless the user
-explicitly approves that replacement.
+preserve its intentional structure rather than silently replacing it. Compare
+it with the pinned template. If it is not compatible with the Go-only platform
+and Connector boundary, stop before implementation and ask whether to adopt the
+template stack or continue as an explicitly requested standalone SDK project.
 
 ## Fixed product boundary
 
 - Use `https://github.com/superdurable/dex-template-basic-process` as the application template.
-- Target Dex Server `v0.13.2`, Dex CLI `v0.13.8`, and Dex Go SDK `v0.13.1`. Before verification, advance the scaffold's pins together as described in [build, test, and handoff](references/build-test-handoff.md#baselines-and-local-cli), and confirm `dexcli version` is at least `v0.13.8`. Dex Web v2 is embedded in Server and CLI.
+- Use the exact Dex Go SDK, Dex Server, Dex CLI, Go toolchain, Node packages, generators, and commands pinned by the `TEMPLATE_BASELINE` release. Do not advance the scaffold independently. Dex Web v2 is embedded in the template-pinned Server and CLI.
 - Implement Dex backend code only with the Go SDK.
+- The current Connector SDK supports application integration only from Go. Never replace a Connector with direct provider code merely to support another backend language.
 - Target strict Dex Web v2 / FDG 2.0 rendering. Never fall back to rendering v1.
 - Treat Dex Web v2 as the process-management UI for Runs, Work Queue, search, details, edits, and Actions unless the user confirms a custom UI is necessary.
 - A retained Hello World page and OpenAPI generation skeleton do not count as a custom process UI.
