@@ -1,6 +1,6 @@
 ---
 name: dex-app-builder
-description: Primary entry point for designing and building Dex applications and process products with the pinned basic-process template stack. Use by default for Dex product, application, or workflow requests unless the user explicitly chooses dex-sdk for standalone SDK work or dex-connector-contributor for official connector-library work. Orchestrates business discovery, the UI decision, Go backend implementation, connector integration, local verification, and platform-ready handoff.
+description: Primary and only implicit entry point for Dex requests. Designs and builds applications and process products with the pinned basic-process template stack, routes standalone SDK work to dex-sdk, and routes official connector-library creation or modification to dex-connector-contributor. Orchestrates business discovery, the UI decision, Go backend implementation, connector integration, local verification, and platform-ready handoff.
 ---
 
 # Dex App Builder
@@ -16,16 +16,32 @@ lifecycle hook status; run the Skill fallback only when that status is
 
 ## Routing priority
 
-Treat this skill as the default coordinator for Dex application, product, and
-workflow requests. Keep end-to-end ownership while loading the specialist
-skills only where their capability is required:
+This is the only implicitly invoked Dex skill. Classify the initial request
+before product discovery, repository bootstrap, or any other App Builder work:
 
-- load the sibling `dex-sdk` skill during backend design and implementation;
-- load the sibling `dex-connector-contributor` skill only when an official connector,
-  operation, Trigger, or configuration UI unit must be created or changed.
+- For standalone official connector-library creation or modification—including
+  a connector, operation, Trigger, or configuration UI unit—read the sibling
+  [Connector Contributor](../dex-connector-contributor/SKILL.md) completely and
+  make it the owning workflow. The user's request already authorizes this
+  routing decision; do not ask them to invoke the specialist again, and do not
+  enter product discovery.
+- For standalone Dex SDK implementation, debugging, testing, or operations,
+  read the sibling [Dex SDK](../dex-sdk/SKILL.md) completely and make it the
+  owning workflow. Do not expand it into a product workflow.
+- For a Dex product, application, or business process—including application use
+  of a published connector—continue with App Builder. Load Dex SDK during
+  backend design and implementation. If this workflow later confirms a missing
+  or defective official connector capability, load Connector Contributor for
+  that contribution while retaining end-to-end application ownership here.
 
-If the user explicitly invokes either specialist for a standalone task, honor
-that choice and do not expand the work into this product workflow.
+If either sibling entrypoint cannot be read from the installed three-skill
+bundle, report that the installed bundle is incomplete and direct the user to
+update or reinstall it. Do not search arbitrary plugin-cache paths, substitute
+the superseded `dex-developer` skill, or infer that a specialist is unavailable
+from the current repository's instructions.
+
+If the user explicitly invokes either specialist, honor that choice without
+running this routing gate or expanding the task into this product workflow.
 
 ## Development workspace gate
 

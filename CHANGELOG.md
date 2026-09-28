@@ -6,8 +6,9 @@ All notable changes to Dex Skills are documented here.
 
 - Document Plugin and standalone Skills as mutually exclusive installation paths with host-specific invocation syntax.
 - Make copied standalone installations self-contained by moving shared version guidance and bundle baselines under `dex-sdk`.
-- Allow all three Codex skills to route implicitly after the user selects the Dex plugin.
-- Replace Codex plugin starter prompts with natural-language requests, including the official connector-library contribution template.
+- Make App Builder the only implicitly invoked skill and keep Dex SDK and Connector Contributor explicit or App Builder-loaded specialists.
+- Route standalone SDK and official connector-library requests before product discovery, including connector work that starts from another project checkout.
+- Make Codex Plugin starter prompts explicitly invoke the owning Dex skill.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.25.11.
 
 ## 0.25.10 - 2026-09-27

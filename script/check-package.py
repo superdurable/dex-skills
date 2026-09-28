@@ -240,6 +240,14 @@ def check_app_builder() -> None:
     content = (APP_BUILDER / "SKILL.md").read_text()
     required = (
         "../dex-sdk/SKILL.md",
+        "only implicitly invoked Dex skill",
+        "Classify the initial request",
+        "before product discovery",
+        "standalone official connector-library creation or modification",
+        "make it the owning workflow",
+        "published connector—continue with App Builder",
+        "installed bundle is incomplete",
+        "Do not search arbitrary plugin-cache paths",
         "../dex-sdk/references/go/go.md",
         "Go SDK",
         "strict FDG 2.0",
@@ -442,6 +450,20 @@ def check_connector_contributor() -> None:
             fail(f"Connector Contributor acceptance scenarios must contain: {scenario}")
 
     workflow = (references_dir / "repository-workflow.md").read_text()
+    normalized_workflow = " ".join(workflow.split())
+    for checkout_contract in (
+        "current working directory does not determine the target repository",
+        "Git remote identity",
+        "accessible project or workspace roots",
+        "secondary project folders",
+        "isolated managed worktree",
+        "report the exact target checkout path",
+        "read the target checkout's `AGENTS.md`",
+        "Do not repoint `origin` on an in-use clone",
+        "A Git worktree shares remotes",
+    ):
+        if checkout_contract not in normalized_workflow:
+            fail(f"Connector Contributor checkout workflow must contain: {checkout_contract}")
     for fork_contract in (
         "https://github.com/superdurable/dex-connectors-library/fork",
         "click **Create fork**",
@@ -471,16 +493,25 @@ def check_connector_contributor() -> None:
 
 def check_invocation_policy() -> None:
     expected = {
-        APP_BUILDER: "true",
-        SDK: "true",
-        CONNECTOR_CONTRIBUTOR: "true",
+        APP_BUILDER: ("true", False),
+        SDK: ("false", True),
+        CONNECTOR_CONTRIBUTOR: ("false", True),
     }
-    for skill, allow_implicit in expected.items():
+    for skill, (allow_implicit, disable_model_invocation) in expected.items():
         agent = skill / "agents" / "openai.yaml"
         content = agent.read_text()
         policy = f"allow_implicit_invocation: {allow_implicit}"
         if policy not in content:
             fail(f"{agent.relative_to(ROOT)} must contain: {policy}")
+        skill_content = (skill / "SKILL.md").read_text()
+        frontmatter = skill_content.split("---", 2)[1]
+        is_disabled = "disable-model-invocation: true" in frontmatter
+        if is_disabled != disable_model_invocation:
+            expected_value = "true" if disable_model_invocation else "absent"
+            fail(
+                f"{(skill / 'SKILL.md').relative_to(ROOT)} "
+                f"disable-model-invocation must be {expected_value}"
+            )
 
 
 def check_plugin_version_check() -> None:
@@ -703,6 +734,8 @@ def check_manifests(version: str) -> None:
     codex = manifests["codex"]
     if codex.get("skills") != "./":
         fail("Codex manifest must discover root skills with ./")
+    if "mainSkill" in codex:
+        fail("Codex manifest must not invent a mainSkill field")
     interface = codex.get("interface")
     if not isinstance(interface, dict):
         fail("Codex manifest must define interface metadata")
@@ -710,16 +743,28 @@ def check_manifests(version: str) -> None:
         fail("Codex display name must be Dex")
     if interface.get("developerName") != "Super Durable":
         fail("Codex developer name must remain Super Durable")
+    long_description = interface.get("longDescription", "")
+    for routing_text in (
+        "Dex App Builder is the implicit entry point",
+        "Dex SDK",
+        "Dex Connector Contributor",
+    ):
+        if routing_text not in long_description:
+            fail(f"Codex long description must contain: {routing_text}")
     for field in ("composerIcon", "logo"):
         if interface.get(field) != "./assets/logo.png":
             fail(f"Codex {field} must use ./assets/logo.png")
     prompts = interface.get("defaultPrompt")
-    if not isinstance(prompts, list) or len(prompts) < 4:
+    if not isinstance(prompts, list) or len(prompts) != 4:
         fail("Codex default prompts must expose all three Dex workflows")
-    if any("$dex-" in prompt for prompt in prompts):
-        fail("Codex Plugin default prompts must use natural language")
-    if "Add <XYZ> to Dex official connector library." not in prompts:
-        fail("Codex default prompts must include the connector contribution template")
+    required_prompts = {
+        "Use $dex-app-builder to discover, design, and build this Dex process application.",
+        "Use $dex-connector-contributor to add <XYZ> to Dex official connector library.",
+        "Use $dex-sdk to design a reliable standalone Dex Flow for this application.",
+        "Use $dex-app-builder to prototype and build this Dex workflow.",
+    }
+    if set(prompts) != required_prompts:
+        fail("Codex default prompts must explicitly invoke their owning Dex skills")
 
     cursor = manifests["cursor"]
     expected_skills = ["./dex-app-builder", "./dex-sdk", "./dex-connector-contributor"]

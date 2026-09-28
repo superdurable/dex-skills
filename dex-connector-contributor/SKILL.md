@@ -1,6 +1,7 @@
 ---
 name: dex-connector-contributor
 description: Specialist sub-skill for creating or modifying official Superdurable Dex connectors, operations, Triggers, and configuration UI units in superdurable/dex-connectors-library. Use when the user explicitly chooses dex-connector-contributor for standalone connector-library work or when dex-app-builder routes a confirmed connector gap to it. Do not select it as the primary workflow for an application that merely consumes connectors.
+disable-model-invocation: true
 ---
 
 # Dex Connector Contributor
@@ -62,16 +63,15 @@ protocol, or claim support that the provider does not publish.
 
 Use this order:
 
-1. Resolve and verify the user's GitHub fork of
-   `superdurable/dex-connectors-library` using the discovery and user handoff
-   in [repository workflow](references/repository-workflow.md). Use the
-   verified maintainer branch path there only when the user explicitly
-   chooses it.
-2. Clone or check out that fork locally, configure it as `origin`, configure
-   the official repository as `upstream` (the maintainer path pushes to the
-   official remote instead), fetch the latest `upstream/main`, and create an
-   isolated topic branch that follows the repository's branch convention (for
-   example `<user>/<topic>`) without disturbing unrelated files.
+1. Resolve the connector-library checkout by verified Git remote identity—not
+   by the chat's initial working directory or a directory name—using the target
+   checkout discovery in [repository workflow](references/repository-workflow.md).
+   Report the exact target checkout path before changing it.
+2. Resolve and verify the user's GitHub fork using the discovery and user
+   handoff in the repository workflow. Use its verified maintainer branch path
+   only when the user explicitly chooses it. Reuse a safe checkout or create an
+   isolated topic worktree from the latest `upstream/main` without disturbing
+   unrelated files.
 3. Inspect repository instructions and identify the provider capability,
    public contract, auth scopes, rate limits,
    idempotency support, pagination, event acknowledgement, and failure modes.
