@@ -1,6 +1,6 @@
 ---
 name: dex-connector-contributor
-description: Specialist sub-skill for creating or modifying official Superdurable Dex connectors, operations, Triggers, and configuration UI units in superdurable/dex-connectors-library. Use when the user explicitly invokes $dex-connector-contributor for standalone connector-library work or when $dex-app-builder routes a confirmed connector gap to it. Do not select it as the primary workflow for an application that merely consumes connectors.
+description: Specialist sub-skill for creating or modifying official Superdurable Dex connectors, operations, Triggers, and configuration UI units in superdurable/dex-connectors-library. Use when the user explicitly chooses dex-connector-contributor for standalone connector-library work or when dex-app-builder routes a confirmed connector gap to it. Do not select it as the primary workflow for an application that merely consumes connectors.
 ---
 
 # Dex Connector Contributor
@@ -9,10 +9,16 @@ Contribute one reviewable connector capability to the official
 `superdurable/dex-connectors-library`. Preserve Dex durability, provider
 correctness, credential isolation, generated contracts, and release order.
 
+The host-neutral request template is:
+
+```text
+Add <XYZ> to Dex official connector library
+```
+
 ## Session start
 
 Before the first substantive Dex-related response, follow the shared
-[plugin version check](../references/plugin-version-check.md). Prefer the
+[Dex Skills version check](../dex-sdk/references/core/plugin-version-check.md). Prefer the
 lifecycle hook status; run the Skill fallback only when that status is
 `unavailable` or absent. Run it only once and never delay or block the task.
 
@@ -35,16 +41,15 @@ Dex SDK owns Flow, Step, retry, Attribute, Stream, RPC, and versioning
 semantics. Do not restate or weaken them. The connector-library rules in this
 skill are additional constraints.
 
-The connector repository's instructions name the `dex-developer` skill
-(`$dex-developer`, `/dex:dex-developer`). That is the former name of `dex-sdk`;
-the sibling `dex-sdk` satisfies the requirement. Do not load or install a
-separate `dex-developer` copy, which pins older releases.
+Use this repository's sibling `dex-sdk` skill for Dex application semantics.
+Do not load or install the superseded `dex-developer` skill, which pins older
+releases.
 
 ## Scope gate
 
 Use this skill only for the official connector library. If the task only uses a
-published connector in an application, route to `$dex-sdk` or
-`$dex-app-builder`. If a missing or defective connector blocks an application,
+published connector in an application, route to `dex-sdk` or
+`dex-app-builder`. If a missing or defective connector blocks an application,
 separate the connector contribution into this workflow; keep any temporary
 application `go.work` or `replace` uncommitted until an exact connector release
 exists.

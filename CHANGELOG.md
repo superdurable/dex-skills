@@ -2,6 +2,14 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.25.11 - 2026-09-27
+
+- Document Plugin and standalone Skills as mutually exclusive installation paths with host-specific invocation syntax.
+- Make copied standalone installations self-contained by moving shared version guidance and bundle baselines under `dex-sdk`.
+- Allow all three Codex skills to route implicitly after the user selects the Dex plugin.
+- Replace Codex plugin starter prompts with natural-language requests, including the official connector-library contribution template.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.25.11.
+
 ## 0.25.10 - 2026-09-27
 
 - Advance the basic-process template baseline from `v1.6.0` to `v1.6.1`.

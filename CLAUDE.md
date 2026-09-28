@@ -31,6 +31,11 @@ Keep Codex, Claude Code, and Cursor manifests synchronized on plugin ID,
 version, repository, skill paths, and display metadata. Do not reintroduce a
 `plugins/` wrapper or an unplanned public skill.
 
+The Plugin and standalone Skills are mutually exclusive installation paths.
+Standalone installation always copies all three Skills together. Every local
+Markdown link must resolve using only those three copied directories; never
+depend on a repository-root file that an Agent Skills installer omits.
+
 The template and this plugin publish independently. The scheduled template
 baseline workflow may advance `TEMPLATE_BASELINE` only to an immutable stable
 template release; that pull request also bumps `VERSION`, changelog, and plugin
