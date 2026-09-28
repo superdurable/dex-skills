@@ -113,32 +113,6 @@ The 200-Step value is an architecture-review threshold, not a claimed Dex
 Server limit. Crossing it permits a SubFlow proposal; it never selects one
 automatically.
 
-### Newsletter regression example
-
-Use the newsletter case as a modeling regression, not a rule that every
-application needs two Flows:
-
-- `MainNewsletterFlow` authoritatively owns verified subscribers in an
-  email-keyed `AttributeMap`, campaign state, and delivery results. It performs
-  repository research with parallel Steps and runs the model and delivery
-  Connector Steps for draft, review, and send directly in this Flow.
-- `SubscriberRegistrationFlow` starts independently rather than as a SubFlow.
-  It owns only the pending email, verification token, attempt count, Timer, and
-  temporary status needed to reach its own `verified`, `expired`, or other
-  terminal outcome. On verification it sends only the normalized subscriber
-  through a typed `MainNewsletterFlow` RPC. Expiry, failure, and cleanup remain
-  in the registration lifecycle and never enter the authoritative subscriber
-  store.
-- Unsubscribe calls a typed `MainNewsletterFlow` RPC to delete or deactivate
-  the subscriber. It is neither a third Flow nor a dependency on registration.
-- Authorization has one `admin` role. Approval, edit, and recovery permissions
-  remain granular and initially map to that role.
-
-Do not split repository research, individual model stages, provider-neutral
-interfaces, draft, review, send, or ordinary parallel work into separate Flows
-or SubFlows. This example demonstrates the boundary questions; the number of
-Flows remains an outcome of owner and lifecycle analysis.
-
 ## Storage decision
 
 Default each durable fact to Dex before proposing an external dependency.

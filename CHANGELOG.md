@@ -7,7 +7,7 @@ All notable changes to Dex Skills are documented here.
 - Default new Flow designs to parallel Steps and require an evidence-backed, explicitly confirmed evolution gate before introducing SubFlows.
 - Separate independent top-level Flows by authoritative owner, retention and cleanup, waits, Timers, terminal outcomes, and state-pollution risk.
 - Start App Builder authorization design with one `admin` role while retaining granular Action permissions and requiring evidence for every additional role.
-- Add a newsletter regression case covering authoritative subscriber state, temporary registration state, typed cross-Flow RPCs, and the distinction between top-level Flows and SubFlows.
+- Add generic regression assertions for authoritative versus temporary lifecycle state, typed cross-Flow coordination, and the distinction between top-level Flows and SubFlows.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.28.2.
 
 ## 0.28.1 - 2026-09-28
