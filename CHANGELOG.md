@@ -2,6 +2,15 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.26.0 - 2026-09-27
+
+- Advance the basic-process template baseline from `v1.6.1` to `v1.7.0`.
+- Advance the Dex Server and CLI baselines to `v0.14.0` to match the released template runtime.
+- Treat generated Go and TypeScript OpenAPI clients as ignored local build outputs that never enter application commits or pull requests.
+- Replace the default application-level mock backend with component-level generated-client mocks and narrowly scoped Playwright request interception for browser-only edge cases.
+- Require real Dex, Connector, and application E2E evidence while removing `make check-generated`, `make mock`, and `make test-mock-e2e` from App Builder guidance.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.26.0.
+
 ## 0.25.12 - 2026-09-27
 
 - Allow all three Dex Skills to route from precise natural-language descriptions while keeping App Builder the product-workflow default.
