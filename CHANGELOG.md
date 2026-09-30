@@ -2,6 +2,13 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.29.12 - 2026-09-30
+
+- Advance the immutable SDK source baseline and all SDK source links to the published sdk-go/v1.2.1 release, which contains the five-SDK missing/inactive error rename.
+- Use FlowNotActiveOrNotFoundError, Java FlowNotActiveOrNotFoundException, and Rust SdkError::FlowNotActiveOrNotFound; preserve query-only missing translation, active-required mutation interpretation, and distinct service failures.
+- Distinguish the released SDK API baseline from older dependency pins retained in the tagged example manifests; require installed-version evidence before changing existing applications.
+- Add exact cross-language error/source references and public-type/metadata verification; synchronize plugin manifests while retaining Server, CLI, and template baselines.
+
 ## 0.29.11 - 2026-09-30
 
 - Keep Go SDK-derived Flow/Step type names; allow custom GetFlowType/GetStepType only for unavoidable renames of production definitions while preserving their existing durable identities.

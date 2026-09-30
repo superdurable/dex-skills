@@ -60,3 +60,5 @@ For version changes, run an open Flow on the old Worker, deploy the new registry
 Assert the user-visible SDK failure type, final Flow status, recovery Step, and durable state. Do not merely assert that an exception occurred. When an external effect has an unknown outcome, record and test that state rather than assuming success or failure.
 
 Read the selected language's **testing.md** for its harness, commands, and runnable sources.
+
+At the v1.2.1 SDK baseline, assert the combined missing/inactive type from the [public error table](error-handling.md#missing-or-inactive-target-errors) for a missing query target and for closed active-required operations. Keep separate Flow-not-found mappings distinct. Verify the selected language's metadata and cause/service extraction remain available; include sync and async surfaces where that SDK exposes both. These assertions do not permit lifecycle probes in the application query-only Get path.
