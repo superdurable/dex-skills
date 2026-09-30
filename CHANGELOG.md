@@ -2,6 +2,12 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.29.11 - 2026-09-30
+
+- Keep Go SDK-derived Flow/Step type names; allow custom GetFlowType/GetStepType only for unavoidable renames of production definitions while preserving their existing durable identities.
+- Remove the blanket Dex Web type-name override workaround and route metadata mismatches to analyzer/SDK diagnosis.
+- Add old-execution rollout verification for that exception and synchronize plugin manifests without changing dependency baselines.
+
 ## 0.29.10 - 2026-09-30
 
 - Map typed missing/not-active failures directly to the business Get contract's not-found result only for confirmed query-only RPCs; retained closed executions remain readable.

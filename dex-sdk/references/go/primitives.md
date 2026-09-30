@@ -4,7 +4,7 @@ Read core primitive semantics first. This page supplies Go API shapes at the pin
 
 ## Flow, Step, and decisions
 
-A Flow implements `dex.Flow`; embedding `dex.FlowDefaults` supplies optional behavior. Register the start Step with `dex.DefineStartStep` and every reachable Step with `dex.DefineStep`. Embed `dex.StepDefaultsNoWaitFor[T]` when there is no WaitFor; otherwise implement both methods.
+A Flow implements `dex.Flow`; embedding `dex.FlowDefaults` supplies optional behavior. Register the start Step with `dex.DefineStartStep` and every reachable Step with `dex.DefineStep`. Embed `dex.StepDefaultsNoWaitFor[T]` when there is no WaitFor; otherwise implement both methods. Use the inherited type-name defaults; follow the [production-rename exception](versioning.md#default-flow-and-step-type-names) before adding `GetFlowType` or `GetStepType`.
 
 [Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.13.1/examples/go/primitives/flow/workflow.go)
 <!-- dex-source: examples/go/primitives/flow/workflow.go -->

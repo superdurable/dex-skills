@@ -48,7 +48,7 @@ for Java, Python, TypeScript, or Rust Flow definitions.
 
 ## Minimal Flow
 
-Declare schema at package scope, embed defaults, register Step types, and return a decision from every Execute method.
+Declare schema at package scope, embed defaults, register Step types, and return a decision from every Execute method. Keep SDK-derived Flow and Step type names; do not implement `GetFlowType` or `GetStepType` except for the [required production-rename case](versioning.md#default-flow-and-step-type-names).
 
 [Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v0.13.1/examples/go/primitives/flow/workflow.go)
 <!-- dex-source: examples/go/primitives/flow/workflow.go -->

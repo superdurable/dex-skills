@@ -22,6 +22,10 @@ cd examples/go
 make e2eTests
 ```
 
+## Production type renames
+
+For the [type-name override exception](versioning.md#default-flow-and-step-type-names), start a real Flow on the deployed type names, stop at a durable boundary, and replace the Worker with the renamed Go definitions. Verify the registered Flow/Step strings are unchanged and the old execution resumes through its reachable Steps. A new execution alone cannot prove rename safety. New or not-yet-production definitions keep their inherited type-name defaults.
+
 ## Required scenarios
 
 1. Start, wait, and assert output plus terminal status.
