@@ -31,5 +31,6 @@ make e2eTests
 5. Restart across a Timer and prove it fires without sleeps in the test.
 6. Write/read Stream frames using resume tokens.
 7. Test graceful completion, force completion, failure, cancellation, timeout-handler, and uncompleted/dead-end behavior separately.
+8. For each terminal-readable entity, follow the shared [terminal entity read scenario](../core/testing.md#terminal-entity-reads): close the real Flow, invoke its typed `Get*` RPC through the application boundary, assert the final snapshot, and guard against lifecycle/history calls inside that read.
 
 Use `require.Eventually` or Client long polls, never fixed sleeps for convergence. On deadline, report Flow/run IDs, summary, and relevant history. Do not assert scheduler ordering between parallel Steps; assert business invariants. Generate unique entity/map instances when sharing an Attribute Store.

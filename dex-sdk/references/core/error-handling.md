@@ -32,6 +32,24 @@ Do not assume every RPC targets only an active Flow. A query-only RPC without lo
 
 A completed child may satisfy an idempotent cleanup only when successful completion guarantees the requested condition. An unsuccessful terminal or missing child should become an explicit domain failure or unknown outcome; do not retry a terminal fact indefinitely. A bounded wait that returns a running snapshot is still nonterminal.
 
+### Terminal read RPC rule
+
+Before handling a typed not-active error from an RPC, inspect its registered options, any invocation-time AttributeMap locks, the handler result, and Server routing policy. A business snapshot RPC with no Attribute locks, no transactional execution, no durable effects, and no Server policy requiring an active execution must read the retained terminal execution directly. Closure alone is not a reason for this query to fail. If it does fail, diagnose the actual routing, handler, retention, or service failure; do not mask it with a history fallback.
+
+Do not add a `FlowNotActiveError → WaitForFlow → Step-output decoding` fallback to a business read. Read the snapshot from its typed read-only RPC and retained Attributes/AttributeMaps. Do not reconstruct it by matching historical Step names: execution history is not the entity's read contract, and an intermediate Step output may omit later committed state.
+
+Use `WaitForFlow` when the caller explicitly needs engine terminal status or completion output, or to reconcile an inactive mutation/idempotent cleanup whose outcome cannot be established through authoritative domain state or a typed read-only RPC. Keep its completion-output contract distinct from an entity snapshot. History remains appropriate for explicit diagnosis or execution recovery, not routine business reads. Retention expiry or a missing execution must retain an explicit unavailable/missing outcome.
+
+Anti-pattern and replacement:
+
+```text
+Wrong: typed snapshot RPC fails as not-active
+       → WaitForFlow → find an earlier Step output in history → return snapshot
+Right: register a typed snapshot RPC as query-only over retained Attributes
+       → invoke that typed RPC directly before and after closure
+       → surface genuine read failures; request engine status separately only if needed
+```
+
 ## Ambiguous mutations
 
 After an ambiguous provider or Client mutation, query the authoritative remote or domain state before repeating it. Bound retries and keep the repeated mutation idempotent. Preserve the stable request identity across every retry of the same logical mutation.
@@ -40,7 +58,7 @@ After an ambiguous provider or Client mutation, query the authoritative remote o
 
 When a Stream or progress write is explicitly best effort, select only service-backed failures using the language SDK's public model because the side channel deliberately treats those failures as lossy. This means the remote-only base in Python, Java, or TypeScript, `errors.As` to Go's `*ServiceError`, or Rust's service-backed variant for that operation. Log sanitized identity and phase metadata and continue the business Flow. Let local definition, validation, serialization, and programming failures surface. Retained Stream data is never the authoritative record of business completion.
 
-If an API must return the first admission decision after a Flow can close quickly, wait for the named admission Step or Flow result and read any accepted business state from its owning domain record. Do not make a late RPC to a possibly closed Flow the only source of correctness, and do not create a generic admission projection solely for start deduplication.
+If an API must return the first admission decision after a Flow can close quickly, wait for the named admission Step or Flow result and read any accepted business state from its owning domain record. A typed read-only RPC over retained Flow state can serve that business read; an active-only admission or mutation RPC cannot be the sole source of correctness after closure. Do not create a generic admission projection solely for start deduplication.
 
 ## Design review
 
@@ -50,5 +68,7 @@ If an API must return the first admission decision after a Flow can close quickl
 - Does Flow start idempotency rely only on Dex identity rather than an extra database mechanism?
 - Are retries bounded, idempotent, and tied to one stable Request ID?
 - Can a closed or missing Flow converge without an unnecessary status call?
+- Do terminal snapshot reads use typed query-only RPCs with the required collection loads, without locks, transactions, durable effects, or active-only Server routing?
+- Is every terminal-readable entity covered by a real-server post-closure RPC test, including an assertion that the business read uses no lifecycle/history fallback?
 - Does best-effort observation remain separate from authoritative business state?
 - Do local definition, mapping, serialization, and programming defects remain visible?

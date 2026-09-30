@@ -2,6 +2,13 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.29.5 - 2026-09-30
+
+- Promote terminal read-only RPC semantics to an explicit SDK error-handling rule and design-review gate, including registration/invocation locks, transactions, handler effects, Server policy, and retention boundaries.
+- Prohibit business snapshot fallbacks through `FlowNotActiveError`, `WaitForFlow`, and historical Step-output decoding; preserve explicit engine-status, completion-output, and mutation-reconciliation uses.
+- Require real Dex/Temporal post-closure typed snapshot reads with assertions that the application read uses no lifecycle/history fallback, and link App Builder verification to the shared SDK guidance.
+- Synchronize the Codex, Claude Code, and Cursor manifests; dependency baselines are unchanged.
+
 ## 0.29.4 - 2026-09-29
 
 - Require application run searches to constrain FlowType and exclude ContinuedAsNew runs, matching Dex Web's visibility filter.

@@ -23,6 +23,12 @@ Use deadline-based polling or the SDK's long-poll result API. Do not use a fixed
 - Make start acceptance ambiguous, retry with the same identities, and verify correctness without an application-owned start-deduplication table.
 - Interact after terminal completion and assert the not-active or terminal behavior.
 
+### Terminal entity reads
+
+For every Flow-owned business entity whose contract permits reads after closure, run a real Dex/Temporal integration test with the application's registry, Worker, and Server routing policy. Persist the final business snapshot, close the Flow, establish terminal status in the test harness, then call its typed `Get*` read-only RPC directly through the application read boundary. Cover each readable terminal outcome supported by the entity contract and assert the returned snapshot includes the final committed Attributes/AttributeMaps.
+
+Also assert that the business read performs no `WaitForFlow`, history lookup, or historical Step-output decoding. A test-side spy/counter or a guard that fails on those calls may observe the real Client boundary; keep the snapshot RPC on the real Server/Worker path. A harness wait used to establish closure is allowed and must be counted separately. A mock-only test or a handler invoked directly cannot prove terminal query support. If production policy forces active-only RPC execution, resolve that conflict explicitly before claiming the entity remains terminal-readable; do not make a history fallback pass the test.
+
 ## Data and deployment scenarios
 
 For large Attributes, replace the serving Worker and verify cold BlobCache hydration. For AttributeMap concurrency, race writers on the same instance and verify the lock-protected invariant. For Attribute Store synchronization, verify the Flow remains authoritative and the projection can reconcile after a transient failure.

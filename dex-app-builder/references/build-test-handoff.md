@@ -98,6 +98,7 @@ Cover:
 - retry and exhausted-recovery behavior;
 - provider idempotency and unknown-outcome reconciliation;
 - summary/display reads before, during, and after terminal completion;
+- terminal-readable entity snapshots through typed `Get*` RPCs after closure, following the SDK's [terminal entity read scenario](../../dex-sdk/references/core/testing.md#terminal-entity-reads) and [terminal read RPC rule](../../dex-sdk/references/core/error-handling.md#terminal-read-rpc-rule);
 - connector Trigger Flow/RPC routing and correlation when used.
 - RPC-to-Connector-Step routing when an application RPC requests provider work;
 - application integration against any uncommitted local connector `replace`,
