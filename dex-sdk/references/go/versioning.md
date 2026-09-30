@@ -9,6 +9,15 @@ go list -m -json github.com/superdurable/dex/sdk-go
 
 The selected SDK source is authoritative. Baseline snippets are evidence only for the pinned Dex commit.
 
+## Business continuity
+
+Apply the shared [RunID boundary](../core/versioning.md#business-identity-and-continue-as-new).
+Ordinary API/RPC DTOs and effect keys use stable business IDs/FlowID and domain
+revisions. Continue-As-New preserves that lifecycle; it does not reset message
+sequences, pending work, cursors or UI state. Keep SDK run selectors/return values
+truthful but internal; exact RunID selection is for diagnosis/history or explicit
+execution recovery. Test continuity without adding a current-run lookup.
+
 ## Server protocol compatibility
 
 The Go Worker obtains its diagnostic artifact version from Go build information. On startup it calls `GetServerInfo`, negotiates the highest common protocol, synchronizes Attribute indexes, and then binds WorkerService. A missing RPC, invalid interval, or disjoint interval fails startup before the listener opens. Upgrade a legacy Server first; stop running Workers before a breaking Server upgrade because they do not renegotiate.

@@ -76,6 +76,12 @@ final StreamMessagesPage<String> page = client.listStreamMessages(
         beforePageToken);
 ```
 
+Read/list calls address a stable FlowID and registered Stream. Their opaque tokens
+belong to FlowType + FlowID + StreamName, not RunID. Keep them across
+Continue-As-New; recover missing/duplicate progress from the durable business
+snapshot. Never insert a RunID argument into these Stream signatures or wrap
+ordinary browser cursors with a current-run fence.
+
 The before-page token is exclusive and scope-bound. The first page uses an empty token. Listing is a best-effort retained snapshot: concurrent newer writes stay outside the older-page chain, while trimming may remove messages. A trimmed anchor returns an empty page. The server requires a positive page size and caps it at 1000 by default.
 
 ## Decisions and commit boundary

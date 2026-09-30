@@ -2,7 +2,9 @@
 
 ## Correlation
 
-Include `context.getFlowId()`, `getRunId()`, and `getStepExecutionId()` in structured logs from handlers. Add `getAttempt()` and method name for retries. A Flow ID follows the logical application instance; a Run ID identifies one execution attempt. Keep both.
+Include `context.getFlowId()`, `getRunId()`, and `getStepExecutionId()` in structured logs from handlers. Add `getAttempt()` and method name for retries. A Flow ID follows the logical application instance; a Run ID identifies one
+engine run, not a Step retry attempt. Keep both in diagnostic logs; normal
+business DTOs, UI state and effect keys use the stable Flow ID/business ID.
 
 Record business milestones with `context.recordEvent(name, value, ValueClass.class)` when they belong in Flow history. Use logs for diagnostics and events for durable application milestones. Never log secrets or whole large payloads.
 

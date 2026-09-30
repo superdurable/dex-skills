@@ -256,7 +256,12 @@ application-level operation backed by a Flow start, typed RPC, query, or
 confirmed integration ingress. Define authentication and permission checks,
 idempotency, asynchronous status, request and response types, validation,
 errors, retry behavior, and terminal outcomes. Keep Dex Steps, Channels,
-Attributes, and other execution internals out of the public HTTP contract.
+Attributes, RunID, and other execution internals out of the public HTTP contract.
+Use stable business IDs/FlowID, domain revisions and durable operation IDs for
+UI state, cursors, concurrency checks and provider effects. Continue-As-New is
+transparent to the user and does not create a new business process. Follow the
+shared [identity guidance](../dex-sdk/references/core/versioning.md#business-identity-and-continue-as-new);
+do not add RunID lookup or validation RPCs to make ordinary requests work.
 
 Before implementing backend handlers, update `openapi/openapi.yaml` as the
 contract source and run the template generation command. Implement the Go HTTP

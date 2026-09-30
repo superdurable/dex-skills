@@ -4,7 +4,9 @@ Observe a Dex application through durable identities and public Client APIs. Log
 
 ## Correlation fields
 
-Carry the Flow ID through controller logs and responses. Add Run ID, Step execution ID, Step type, RPC name, Channel name, and retry attempt when available. Do not log only a Rust thread ID or in-memory object address; those disappear on Worker replacement.
+Carry the Flow ID through controller logs and business responses. Add Run ID,
+Step execution ID, Step type, RPC name, Channel name, and retry attempt to
+structured diagnostic logs when available, not normal response DTOs. Do not log only a Rust thread ID or in-memory object address; those disappear on Worker replacement.
 
 Use stable application error types from `HandlerError`, and preserve the underlying `SdkError` when mapping errors at the HTTP boundary. Avoid payload logging by default when values may contain credentials, personal data, or large blobs.
 

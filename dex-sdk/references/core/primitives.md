@@ -4,7 +4,10 @@ Read only the sections relevant to the task.
 
 ## Flow
 
-Use a Flow as the top-level durable business execution. It owns the Step list, persistence schema, and RPC handlers. Give the Flow type and execution ID stable business meanings.
+Use a Flow as the top-level durable business execution. It owns the Step list, persistence schema, and RPC handlers. Give the Flow type and FlowID stable business meanings. The engine's RunID
+identifies one execution run, not the business entity or its revision. Ordinary
+application contracts use the stable FlowID/business ID; Continue-As-New keeps
+that business identity and must not reset its state, queue or UI.
 
 Docs: https://docs.superdurable.io/primitives/flow
 
@@ -84,7 +87,14 @@ An RPC without Attribute locks or transactional execution starts from a backend 
 
 Use a lifecycle API when a response needs current execution status. A read-only RPC returns its application-state snapshot; it does not add terminal status that the application did not persist.
 
-Do not search for a Run ID before an ordinary read-only RPC. Omit an optional Run ID so the Server resolves and pins the current execution for that invocation. Supply one only when the application must target an exact execution across Flow ID reuse.
+Do not search for a RunID before an ordinary read or mutation RPC, and do not
+replace that lookup with GetFlowSummary or a custom current-run query. Address
+the stable FlowID; use the installed SDK's omitted/empty run selector so the
+Server selects the execution. An SDK positional run parameter must still keep
+its correct argument position and empty value. Explicit run selection belongs
+to an authorized diagnostic/history or execution-recovery operation. For a new
+business incarnation, model a business ID/generation and reuse policy explicitly;
+do not expose RunID as the application identity or stale-write fence.
 
 Keep application read models cohesive. When one page needs conversation Attributes, a description, and pending queues, prefer one read-only snapshot RPC that explicitly loads those collections over several independently timed requests.
 
@@ -111,6 +121,19 @@ Use the text-specific API for the installed SDK version: **NewBufferedTextStream
 Continue using direct Stream writes for semantically complete, independent messages. Do not buffer events merely because they arrive quickly; batching changes the message boundaries observed by readers.
 
 Step messages use **#StepExecutionID** as source metadata. The source is not an idempotency key: attempts and messages may share it, and every write appends. Client Stream writes require a nonempty source, which may repeat or contain **#**.
+
+A Stream instance is scoped by **FlowType + FlowID + StreamName**, not RunID.
+At verified Dex commit `eccc88783e9254a6fe8c45ecdb66eb12e080afaa`
+(`server/service/common/streamstore/store.go`), its resume/page token contains
+the token version, those three identity fields and MessageID; it contains no RunID. Treat
+tokens as opaque positions and recheck application authorization independently.
+Continue-As-New does not create another Stream instance or invalidate a cursor
+by itself. Reusing a FlowID can expose retained messages for that same Stream;
+use a deliberate business-incarnation identity when isolation is required.
+Do not add run polling, a RunID wrapper cursor, or a run-change reset to a normal
+Stream reader. Recover from trimming, duplicates and loss using durable business
+sequence/revision state. There is no atomic snapshot-plus-Stream boundary, and
+source metadata does not prove that a durable message was committed.
 
 Stream clients have two distinct read paths. **ReadStream** consumes forward one message at a time, resumes from a message token, and can long-poll for the next write. **ListStreamMessages** immediately returns a retained-message page in newest-first order. Its empty before-page token starts at the retained tail; each nonempty next-page token is an exclusive, scope-bound anchor for older messages. An empty next-page token marks the end.
 

@@ -2,6 +2,13 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.25.13 - 2026-09-30
+
+- Keep RunID transparent to ordinary business APIs, RPC payloads, DTOs, cursors, UI state and external-effect identities; retain stable FlowID and explicit business revisions.
+- Clarify Continue-As-New continuity, Stream instance/token scope and durable Agent message reconciliation without current-run polling.
+- Preserve actual SDK positional parameters and run return values, with diagnostic/history and explicit recovery exceptions.
+- Synchronize the Codex, Claude Code and Cursor manifests; dependency baselines are unchanged.
+
 ## 0.25.11 - 2026-09-27
 
 - Document Plugin and standalone Skills as mutually exclusive installation paths with host-specific invocation syntax.

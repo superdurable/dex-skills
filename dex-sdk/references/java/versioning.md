@@ -2,6 +2,15 @@
 
 An open Flow can execute code after a deployment. Treat Flow type names, Step type classes, persistence definition names, RPC names, input shapes, and decision behavior as durable compatibility surface.
 
+## Business continuity
+
+Apply the shared [RunID boundary](../core/versioning.md#business-identity-and-continue-as-new).
+Ordinary API/RPC DTOs and effect keys use stable business IDs/FlowID and domain
+revisions. Continue-As-New preserves that lifecycle; it does not reset message
+sequences, pending work, cursors or UI state. Keep SDK run selectors/return values
+truthful but internal; exact RunID selection is for diagnosis/history or explicit
+execution recovery. Test continuity without adding a current-run lookup.
+
 ## Server protocol compatibility
 
 Published Java SDK JARs expose a diagnostic implementation version. Worker startup calls `GetServerInfo`, negotiates the highest common protocol, synchronizes Attribute indexes, and then binds WorkerService. A missing RPC, invalid interval, or disjoint interval fails before binding. Upgrade a legacy Server first, and stop running Workers before a breaking Server release because they do not renegotiate.

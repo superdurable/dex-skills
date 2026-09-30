@@ -150,7 +150,8 @@ Successful ASYNC local Step input snapshots are disabled by default. Enable `blo
 
 Diagnosis is read-only by default. Stop, time travel, publish, invoke, skip a Timer, or mutate Attributes only when the user asks to change the Flow.
 
-Before a mutation:
+For an operator recovery mutation targeting one exact execution (not an ordinary
+business request addressed by stable FlowID):
 
 - resolve the current exact run
 - explain the expected state change

@@ -18,6 +18,7 @@ lifecycle hook status; run the Skill fallback only when that status is
 ## Stay at the application boundary
 
 - Model behavior with Flows, Steps, Waits, Attributes, Channels, Streams, RPCs, Timers, SubFlows, Workers, and the Client.
+- Keep RunID transparent to ordinary business behavior. Use stable FlowID/business IDs in application APIs, typed RPC payloads, DTOs, cursors, UI state and external-effect identities. Continue-As-New must not reset the business lifecycle. RunID belongs to SDK execution internals and explicit diagnosis/history, not an application generation or authorization fence; see [identity and continuity](references/core/versioning.md#business-identity-and-continue-as-new).
 - Use Dex Web, dexcli, SDK errors, and application logs for inspection and recovery.
 - Use typed Flow RPCs as the application boundary for reading and writing Attributes, AttributeMaps, Channels, and ChannelMaps. Do not use removed Client state APIs. Attribute match remains the blocking observation API.
 - Do not expose Dex Server internals as application requirements. Discuss them only when the user explicitly asks to develop Dex itself.

@@ -28,6 +28,11 @@ reload the durable Attribute after loss or refresh.
 ## Separate durable and live output
 
 Commit the completed assistant message and tool result to Attributes. Use a Stream for token deltas, tool progress, and UI status. A retry may repeat Stream messages, so the UI must recover from durable message state.
+Correlate provisional text with a durable business message/operation identity and
+suppress it once the snapshot includes that sequence. A lost correlation may
+omit provisional text until the canonical snapshot arrives; it must not create a
+duplicate committed message. Keep existing cursors and committed history across
+Continue-As-New; a RunID change is not a new conversation or a reconnect policy.
 
 For streaming LLM output, use separate buffered text writers for provider-authored reasoning summaries and visible assistant text. Keep structured tool and lifecycle events on a third Stream.
 
@@ -65,7 +70,11 @@ Apply steered messages at safe Step boundaries. Do not cancel an in-flight model
 
 Only steered messages should interrupt a pending approval or durable Timer. A queued message remains editable and does not alter active work until the Agent becomes idle or the user chooses Steer.
 
-Expose one read-only application snapshot RPC for the browser. Explicitly load the conversation AttributeMap and both pending-message Channels, then return application history, Agent description, queued messages, and steered messages from that invocation. Include a Run ID only when a consumer must pin or correlate one exact execution across Flow ID reuse. This history is the application's durable message history, not Dex execution history. A retained terminal run can serve the query, so RPC success does not prove the Agent is active. Use a lifecycle API when the response must include current execution status. Reconcile after mutations and live events, on focus or reconnect, and with a low-frequency fallback poll.
+Expose one read-only application snapshot RPC for the browser. Explicitly load the conversation AttributeMap and both pending-message Channels, then return application history, Agent description, queued messages, and steered messages from that invocation. Keep RunID out of this business snapshot, its request DTOs, normal RPC results,
+browser state and resume cursors. Key the conversation by stable business ID/
+FlowID; preserve message sequence, tool-call IDs, pending approvals and plan
+revision across Continue-As-New. Use a deliberate business incarnation when the
+product starts another conversation, not the engine's current RunID. This history is the application's durable message history, not Dex execution history. A retained terminal run can serve the query, so RPC success does not prove the Agent is active. Use a lifecycle API when the response must include current execution status. Reconcile after mutations and live events, on focus or reconnect, and with a low-frequency fallback poll.
 
 ## Model long waits as Timer tools
 

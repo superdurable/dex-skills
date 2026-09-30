@@ -2,6 +2,32 @@
 
 An open Flow is a durable contract between its recorded state and future Worker code. Treat stable Flow, Step, RPC, Attribute, Channel, Stream, and map names as data, not local refactoring details.
 
+## Business identity and Continue-As-New
+
+RunID is engine execution metadata. Normal APIs, typed application RPC payloads,
+DTOs, browser routes/state, resume cursors, authorization checks and external-effect
+idempotency keys use stable FlowID/business IDs and durable domain revisions or
+operation IDs. Do not add GetCurrentRun-style RPCs or poll GetFlowSummary as a
+substitute run-identity fence. Existing lifecycle APIs remain valid when an
+operation actually needs execution status; do not project that diagnostic run
+identity into the business contract.
+
+Continue-As-New changes the execution run without starting the business again.
+Preserve the state required by the SDK's continuation mechanism: business status,
+message sequence, pending commands/approvals, effect identities and cleanup
+responsibility. Do not reset UI history, renew an effect key, discard a valid
+Stream cursor, or reauthorize a stale command merely because the RunID changed.
+A fresh business incarnation or rerun needs an explicit product decision and a
+stable business ID/generation, not an inferred engine event. Continue-As-New and
+retry do not automatically migrate application payload schemas.
+
+Keep RunID in structured diagnostics, incident evidence, engine execution history
+and explicitly authorized operations targeting one historical/exact execution.
+Do not remove real SDK return values or positional parameters to hide this fact:
+consume them internally, retain the installed signature, and use omitted/empty
+run selectors for normal FlowID-addressed calls. Likewise, raw engine history
+cursors and Dex Web diagnostic Run pages are not ordinary application cursors/UI.
+
 ## Source authority
 
 Read the package manifest and lockfile first. Preserve the installed SDK version unless the user requests an upgrade. Validate exact signatures against installed source or a tag/commit matching that version, and identify that path or immutable revision when presenting exact code. The examples in this bundle are pinned by the repository's `DEX_BASELINE`; do not mix them into a different SDK without verification. When matching source is unavailable, stop at the version-independent Flow model and request access to the installed package or tag before emitting exact API code.
@@ -39,5 +65,8 @@ Changing a language SDK and changing the Flow model are separate decisions. Upgr
 - start on the old version, wait, replace the Worker, then complete on the new version
 - verify payload and error compatibility through the actual codec
 - verify timeout handlers, failure targets, and SubFlow options survive retry or continue-as-new paths
+- continue the same business through Continue-As-New and verify stable API identity,
+  message sequence, pending operations, effect deduplication and Stream recovery
+  without exposing or polling RunID
 
 Official operations guidance: https://docs.superdurable.io/production/application-operations#versioning-flow-code

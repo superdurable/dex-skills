@@ -9,6 +9,15 @@ uv tree | grep -i dex
 
 Use the package name recorded by the project's lockfile if distribution metadata differs. Installed source/declared dependency is authoritative; this handbook is pinned evidence.
 
+## Business continuity
+
+Apply the shared [RunID boundary](../core/versioning.md#business-identity-and-continue-as-new).
+Ordinary API/RPC DTOs and effect keys use stable business IDs/FlowID and domain
+revisions. Continue-As-New preserves that lifecycle; it does not reset message
+sequences, pending work, cursors or UI state. Keep SDK run selectors/return values
+truthful but internal; exact RunID selection is for diagnosis/history or explicit
+execution recovery. Test continuity without adding a current-run lookup.
+
 ## Server protocol compatibility
 
 Python Workers read their diagnostic version from distribution metadata. Both sync and async Worker startup call `GetServerInfo`, negotiate the highest common protocol, synchronize Attribute indexes, and then bind WorkerService. A missing RPC, invalid interval, or disjoint interval fails before binding. Upgrade a legacy Server first, and stop running Workers before a breaking Server release because they do not renegotiate.
