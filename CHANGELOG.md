@@ -2,6 +2,12 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.29.10 - 2026-09-30
+
+- Map typed missing/not-active failures directly to the business Get contract's not-found result only for confirmed query-only RPCs; retained closed executions remain readable.
+- Prohibit lifecycle probes, short-timeout waits, retries, and history lookups solely to distinguish missing from closed on that read path, while preserving active-only mutation semantics and genuine service failures.
+- Add real-server missing-target verification and synchronize core, all five language error references, and plugin manifests without changing dependency baselines.
+
 ## 0.29.9 - 2026-09-30
 
 - Document Signal acceptance, strong Temporal RPC direct-state readback, eventual search/projection visibility, and asynchronous business completion as separate contracts.

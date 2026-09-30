@@ -78,6 +78,10 @@ For an idempotent start, set one stable `StartFlowOptions::request_id(...)` and 
 
 For an explicitly best-effort external `Client::write_stream`, suppress only `SdkError::Service { .. }`, the remote fallback produced by that operation. Propagate local argument and value-mapping variants. Context Stream writes inside a handler remain `HandlerResult` work and must participate in the Step's retry or recovery policy.
 
+## Query-only Get failures
+
+Follow the shared [missing query target rule](../core/error-handling.md#missing-query-targets). For a business Get confirmed to have no registration or invocation locks, no transaction, no returned durable effects, and no Server-forced Update routing, catch `SdkError::FlowNotActive` or `SdkError::FlowNotFound` and return the contract's not-found result directly. Retained closed executions remain readable, so do not call WaitForFlow, describe/search/history APIs, or add a timeout probe or retry to distinguish missing from closed. Preserve other errors and any explicit retention/unavailable contract. Do not apply this translation to mutations or active-only RPC paths.
+
 ## Terminal decisions
 
 `graceful_complete` waits for the Flow's branch semantics; `force_complete` terminates immediately; `force_fail` fails immediately. Assert the intended Flow status in integration tests. A successful method return is not evidence that buffered Stream output or unrelated sibling work has finished.

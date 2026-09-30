@@ -34,6 +34,10 @@ Apply the shared [terminal read RPC rule](../core/error-handling.md#terminal-rea
 
 Call `Client.InvokeRPC` (or `InvokeRPCWithOptions` for selective instance loads) directly on the typed `Get*` method. Do not catch not-active and decode historical Step outputs into the snapshot. Reserve `WaitForFlow` for its explicit lifecycle/completion or mutation-reconciliation contract. Prove the read through the real-server [terminal entity test](../core/testing.md#terminal-entity-reads).
 
+## Query-only Get failures
+
+Follow the shared [missing query target rule](../core/error-handling.md#missing-query-targets). For a business Get confirmed to have no registration or invocation locks, no transaction, no returned durable effects, and no Server-forced Update routing, catch `*dex.FlowNotActiveError` or `*dex.FlowNotFoundError` with `errors.As` and return the contract's not-found result directly. Retained closed executions remain readable, so do not call WaitForFlow, describe/search/history APIs, or add a timeout probe or retry to distinguish missing from closed. Preserve other errors and any explicit retention/unavailable contract. Do not apply this translation to mutations or active-only RPC paths.
+
 ## Retry ownership
 
 Return an error when Step options should decide retry. Use `dex.RetryAfter` only when the application knows a meaningful delay. Never add an in-memory retry loop around Step work; it disappears with the Worker and hides attempts.

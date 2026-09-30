@@ -21,3 +21,7 @@ External side effects require idempotency keys derived from durable identity. Pe
 Async APIs must be awaited. In a sync generator, yield every heartbeat/Stream `StepOutput`; swallowing one means the runtime never receives it. Do not catch `CancelledError` just to continue unsafe work.
 
 Use automatic failure policies for deterministic recovery, operator Channels for manual choice, and the Flow timeout handler for Flow-deadline semantics. Neither an internal transport reattachment nor a caller-visible request timeout means the Flow failed.
+
+## Query-only Get failures
+
+Follow the shared [missing query target rule](../core/error-handling.md#missing-query-targets). For a business Get confirmed to have no registration or invocation locks, no transaction, no returned durable effects, and no Server-forced Update routing, catch `FlowNotActiveError` or `FlowNotFoundError` and return the contract's not-found result directly. Retained closed executions remain readable, so do not call WaitForFlow, describe/search/history APIs, or add a timeout probe or retry to distinguish missing from closed. Preserve other errors and any explicit retention/unavailable contract. Do not apply this translation to mutations or active-only RPC paths.
