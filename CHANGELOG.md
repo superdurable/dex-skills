@@ -2,8 +2,10 @@
 
 All notable changes to Dex Skills are documented here.
 
-## 0.29.5 - 2026-09-30
+## 0.29.6 - 2026-09-30
 
+- Require StartFlow before any retry-protection read RPC, search, or status lookup; reconcile only after a relevant failure and preserve reads independently required by the business response contract.
+- Clarify the Request ID/ignore-already-started result matrix, SDK-generated IDs, bounded replay after unknown acceptance, and real-server call-order verification.
 - Promote terminal read-only RPC semantics to an explicit SDK error-handling rule and design-review gate, including registration/invocation locks, transactions, handler effects, Server policy, and retention boundaries.
 - Prohibit business snapshot fallbacks through `FlowNotActiveError`, `WaitForFlow`, and historical Step-output decoding; preserve explicit engine-status, completion-output, and mutation-reconciliation uses.
 - Require real Dex/Temporal post-closure typed snapshot reads with assertions that the application read uses no lifecycle/history fallback, and link App Builder verification to the shared SDK guidance.

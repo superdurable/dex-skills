@@ -23,6 +23,14 @@ Use deadline-based polling or the SDK's long-poll result API. Do not use a fixed
 - Make start acceptance ambiguous, retry with the same identities, and verify correctness without an application-owned start-deduplication table.
 - Interact after terminal completion and assert the not-active or terminal behavior.
 
+### StartFlow ordering and retry identity
+
+Exercise the application's start boundary against a real Dex Server with its production registry and reuse policy. Observe calls without replacing the real start/RPC behavior. For a normal accepted start with no independently required business read, assert StartFlow is the first Dex operation and no read RPC, search, or status lookup occurs solely for duplicate/retry protection. Reads or waits required by the response contract occur after StartFlow.
+
+When the reuse policy disallows another execution, verify the [start result matrix](error-handling.md#start-first-reconcile-only-after-an-error): the same Request ID with ignore-already-started enabled returns the existing execution without duplicate effects, both while active and after closure; the same ID with the option disabled still errors; a different ID still conflicts with the option enabled. Where the SDK generates Request IDs, omit the ID on separate calls and assert the conflict is not silently ignored.
+
+Inject a lost start response after Server acceptance, then retry with identical Flow ID, Request ID, and options and verify convergence without a mandatory preflight read. For an AlreadyStarted branch whose business contract permits reconciliation, assert that the typed snapshot RPC follows the failed start and that the returned facts actually establish the requested condition; test an existing snapshot that does not satisfy that condition as a conflict or unknown outcome. A spy/counter can verify ordering, but mock-only success cannot establish Server deduplication.
+
 ### Terminal entity reads
 
 For every Flow-owned business entity whose contract permits reads after closure, run a real Dex/Temporal integration test with the application's registry, Worker, and Server routing policy. Persist the final business snapshot, close the Flow, establish terminal status in the test harness, then call its typed `Get*` read-only RPC directly through the application read boundary. Cover each readable terminal outcome supported by the entity contract and assert the returned snapshot includes the final committed Attributes/AttributeMaps.

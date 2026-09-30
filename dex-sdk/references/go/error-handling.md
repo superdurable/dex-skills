@@ -8,9 +8,17 @@ Use `errors.As` for `*dex.FlowNotFoundError`, `*dex.FlowNotActiveError`, `*dex.F
 
 Every concrete remote Client error unwraps to `*dex.ServiceError`; local definition, value-mapping, argument, and programming errors do not. Use `errors.As(err, &serviceError)` only at a narrow boundary whose policy intentionally treats every remote Dex outcome the same. Ordinary domain logic should continue matching the concrete error type it can decide.
 
-For an idempotent start, set one stable `StartFlowOptions.RequestID` and configure `AlreadyStarted: &dex.AlreadyStartedOptions{IgnoreError: true}` only when a retry of that same logical request may attach to the existing run. A remaining `*dex.FlowAlreadyStartedError` means a different Request ID owns the Flow ID. Treat it as a domain conflict unless the coordinator contract deliberately redirects the command to that existing Flow. Another service error can leave acceptance unknown; retry with the same identities or read owning domain state, never a dedicated start-deduplication table.
-
 For an explicitly best-effort external `Client.WriteStream`, an `errors.As` match on `*dex.ServiceError` may be logged with sanitized identity and discarded. Otherwise return the error. Context operations inside a handler, including Stream writes, must still return or wrap their error so Dex owns retry and recovery.
+
+## StartFlow error handling
+
+Follow the shared [start-first rule and result matrix](../core/error-handling.md#start-first-reconcile-only-after-an-error). Call `Client.StartFlow` directly; do not preflight with `InvokeRPC`, `GetFlowSummary`, or search merely to avoid AlreadyStarted or retry uncertainty.
+
+For a retry that may attach to the same logical start, pass a pointer to the stable request identity in `StartFlowOptions.RequestID` and set `AlreadyStarted: &dex.AlreadyStartedOptions{IgnoreError: true}`. Preserve both across retries; use `IDReusePolicy: dex.IDReuseDisallow` when this logical start must not create another execution after closure. An intentional new lifecycle needs its own explicit identity/reuse contract. Setting RequestID alone still permits `*dex.FlowAlreadyStartedError`; setting IgnoreError alone does not suppress a conflict with a different Request ID. A nil RequestID makes the SDK generate a fresh UUID for each separate StartFlow call, and a pointer to an empty string is invalid.
+
+Handle `*dex.FlowAlreadyStartedError` with `errors.As`. Inspect the start options before interpreting it: with IgnoreError disabled, even the same request can produce the error. With IgnoreError enabled, the Server could not confirm a matching start request. Return a domain conflict unless the contract explicitly allows the existing Flow to serve this operation. If that decision needs existing state, call the typed read-only `Get*` RPC only in this error branch, and verify the relevant request identity or domain condition before treating the operation as successful. Do not add a lifecycle/history fallback to the read.
+
+For a failure that leaves acceptance unknown, a bounded retry can call StartFlow again with the same stable identities and options, without an intervening read. Alternatively read owning domain state after the error if it can establish acceptance. Preserve local/validation errors; do not turn every `*dex.ServiceError` into a replay. See the shared [start verification scenarios](../core/testing.md#startflow-ordering-and-retry-identity).
 
 ## Terminal business reads
 

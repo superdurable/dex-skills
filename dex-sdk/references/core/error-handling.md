@@ -10,19 +10,41 @@ Classify a failure at the narrowest boundary with enough context to decide its m
 - **Dex or provider failure**: a typed service, transport, authentication, or availability error that policy may retry or translate.
 - **Local defect**: invalid input handling, incompatible definitions, serialization, or programming errors that must remain visible.
 
-Normal application logic catches only concrete SDK errors whose outcomes it can decide. Do not enumerate every Client failure merely to turn them all into the same retryable response; leave an unclassified failure to ordinary server-error handling unless the boundary can prove it is retryable. A narrow query-first reconciliation boundary may handle documented remote failures only when each one leaves the same mutation outcome uncertain. Use a named status or sub-status only when the SDK intentionally has no more specific error; never branch on human-readable detail or raw numeric codes. Never catch a language's broad runtime or exception base for service-error translation.
+Normal application logic catches only concrete SDK errors whose outcomes it can decide. Do not enumerate every Client failure merely to turn them all into the same retryable response; leave an unclassified failure to ordinary server-error handling unless the boundary can prove it is retryable. A narrow reconciliation boundary after a failed mutation may handle documented remote failures only when each one leaves the same mutation outcome uncertain. Use a named status or sub-status only when the SDK intentionally has no more specific error; never branch on human-readable detail or raw numeric codes. Never catch a language's broad runtime or exception base for service-error translation.
 
 The public error shape is language-specific. Python, Java, and TypeScript expose a remote-only service-error base; Go concrete remote errors unwrap to `*ServiceError`; Rust uses one `SdkError` enum for both service-backed and local failures. Never copy a catch pattern between SDKs without checking the selected language page and installed version.
 
 ## Start identity and duplicate starts
 
-Treat the Flow ID and start Request ID as separate identities. Reuse one stable Request ID only for retries of the same logical start request.
+### Start first; reconcile only after an error
 
-Use Dex itself as the start deduplication boundary. Derive the Flow ID from the logical operation or resource, derive the Request ID from the complete logical start request, and choose the SDK's explicit ID reuse policy. Do not add an application-owned table, row, outbox, lease, lock, cache, or generic admission projection solely to deduplicate or serialize Flow starts.
+For an operation that starts a Flow, call `StartFlow` first with a stable Flow ID and the intended ID reuse policy. Do not call a read-only RPC, search, or lifecycle/status API first merely to check existence or avoid a possible retry/AlreadyStarted edge case. That adds a round trip to every normal start and still races with another caller. A read required independently by the business contract is different from a start-deduplication preflight; do not introduce one just for defensive retry handling.
 
-The start option that ignores an already-started error returns the existing run only when the existing execution carries the same Request ID. If the SDK still returns its typed already-started error, the Flow ID belongs to a different logical start request. Handle that as a domain conflict unless the resource-scoped Flow contract deliberately routes the new command to the existing coordinator. Do not translate it into generic service unavailability or assume the requested work already happened.
+Use Dex itself as the start deduplication boundary. Treat the Flow ID and start Request ID as separate identities: derive the Flow ID from the logical operation or resource, and preserve one stable Request ID across retries of the same complete logical start request. Choose an explicit ID reuse policy consistent with that lifecycle. Do not add an application-owned table, row, outbox, lease, lock, cache, or generic admission projection solely to deduplicate or serialize starts.
 
-A different remote failure from `startFlow` can leave acceptance unknown. Retry with the same Flow ID and Request ID, or reconcile business state already stored in the owning domain record. If neither establishes acceptance, return an explicit retryable or unknown outcome. Do not shadow Dex start identity in a dedicated database record.
+A stable Request ID alone does not suppress AlreadyStarted. For a retry that may attach to the existing execution, also enable the SDK's ignore-already-started option. That option suppresses the error only when the retained execution's start Request ID matches; it does not accept any existing Flow indiscriminately. The Server compares Request IDs, not business-input equality, so never reuse one ID for different logical requests. For replay of one logical request, use an ID reuse policy that prevents another execution even after the original closes. A policy permitting a new execution can bypass the AlreadyStarted/matching-Request-ID path; the Request ID alone does not prevent that new start.
+
+When the Flow ID already exists and the reuse policy rejects creating another execution:
+
+| Start Request ID | Ignore-already-started option | Result |
+| --- | --- | --- |
+| Same as the existing start | Disabled or omitted | Typed AlreadyStarted error |
+| Same as the existing start | Enabled | Success with the existing execution |
+| Different from the existing start | Enabled or disabled | Typed AlreadyStarted error |
+| Omitted from the SDK call | Enabled | SDK-generated IDs do not provide stable identity across separate calls; a retry can still return AlreadyStarted |
+
+Handle the result at the application boundary:
+
+- **Success:** continue the normal accepted-start path. Do not add a defensive snapshot/status read solely to prove that start deduplication worked. If the API explicitly requires admission, business state, or completion output, obtain that response after the start through its intended contract.
+- **Typed AlreadyStarted:** without the ignore option, this can still be the same Request ID. With the option enabled, the existing start was not confirmed as the same request. Preserve a domain conflict unless the resource/coordinator contract explicitly permits reuse. When the outcome requires existing business state, invoke its typed read-only RPC in this error branch and verify the relevant request identity or business invariant before declaring success. A successful read alone does not prove the attempted request ran; do not retry a proven conflict indefinitely or report it as service unavailability.
+- **Failure leaving acceptance unknown:** retry within a bounded policy using the same Flow ID, stable Request ID, and start options, or reconcile authoritative domain state after that failure when it can establish the outcome. A replay-safe start does not need a mandatory read before retrying. If no stable Request ID is available, do not claim cross-call request deduplication; use the explicit AlreadyStarted/domain reconciliation path or report an unknown outcome when the contract cannot prove acceptance. Do not shadow Dex start identity in a dedicated database record.
+
+```text
+Wrong: read snapshot/check existence → choose whether to StartFlow
+Right: StartFlow with stable identity → accepted result
+       → only on a relevant error, reconcile through the typed snapshot RPC
+         or return a domain conflict/unknown outcome
+```
 
 ## Closed-Flow races
 
@@ -52,7 +74,7 @@ Right: register a typed snapshot RPC as query-only over retained Attributes
 
 ## Ambiguous mutations
 
-After an ambiguous provider or Client mutation, query the authoritative remote or domain state before repeating it. Bound retries and keep the repeated mutation idempotent. Preserve the stable request identity across every retry of the same logical mutation.
+After an ambiguous provider or Client mutation, reconcile authoritative remote or domain state before repeating an effect whose safe replay is not established. A StartFlow retry with stable Flow ID/Request ID and matching start options follows the [start-first rule](#start-first-reconcile-only-after-an-error) and can replay without a preflight read. Bound retries and keep the repeated mutation idempotent. Preserve the stable request identity across every retry of the same logical mutation.
 
 ## Best-effort output and fast closure
 
@@ -66,6 +88,8 @@ If an API must return the first admission decision after a Flow can close quickl
 - Are typed conflicts handled before a remote-error fallback?
 - Can an accepted mutation lose its response, and if so, what authoritative fact reconciles it?
 - Does Flow start idempotency rely only on Dex identity rather than an extra database mechanism?
+- Does the normal start path call StartFlow first, with no existence/snapshot/status preflight added solely for retry handling?
+- Do start retries preserve Request ID and the ignore-already-started option together, while conflicts and unknown acceptance reconcile only in their error branches?
 - Are retries bounded, idempotent, and tied to one stable Request ID?
 - Can a closed or missing Flow converge without an unnecessary status call?
 - Do terminal snapshot reads use typed query-only RPCs with the required collection loads, without locks, transactions, durable effects, or active-only Server routing?

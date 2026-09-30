@@ -90,7 +90,7 @@ Use a real Dex Server when behavior crosses a Client, Worker, wait, RPC, Channel
 Cover:
 
 - start and typed terminal output;
-- duplicate start/request behavior;
+- duplicate start/request behavior and [StartFlow-first ordering](../../dex-sdk/references/core/testing.md#startflow-ordering-and-retry-identity), with reconciliation reads confined to relevant error branches;
 - durable wait and Worker replacement;
 - Action eligibility, valid action, duplicate/late action, and terminal rejection;
 - role-to-permission mapping, unauthorized Action rejection, and multi-permission work discovery at the application boundary;

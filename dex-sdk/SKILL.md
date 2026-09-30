@@ -121,6 +121,8 @@ authority and only the query shape is missing. Never create ambiguous dual
 authority: identify the source of truth per fact and define synchronization,
 failure, and reconciliation behavior.
 
+Call StartFlow first; never add a preflight read RPC, search, or status lookup solely to avoid retry/AlreadyStarted edge cases. Follow the [start identity and error-handling rule](references/core/error-handling.md#start-first-reconcile-only-after-an-error), including a stable Request ID plus the ignore-already-started option for attachable retries.
+
 Deduplicate root Flow starts with Dex start identity, not an application-owned database mechanism. Derive a stable Flow ID for the logical operation, derive the start Request ID from the complete logical request, choose the explicit ID reuse policy, and handle the SDK's typed already-started result. Never add a table, row, outbox, lease, lock, cache, or generic admission projection solely to deduplicate or serialize `startFlow`. If the API must confirm durable admission, wait for the admission Step or Flow result and read accepted business state from its owning domain record.
 
 At application boundaries, preserve typed Dex failures until domain policy can distinguish business rejection, a closed-Flow race, a retryable service failure, and a local defect. Reconcile a not-active result from existing authoritative state; inspect the Flow only when an otherwise unknown terminal distinction changes the outcome. Use retained Streams only for best-effort observation, never as authoritative business state.
