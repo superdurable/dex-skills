@@ -35,13 +35,14 @@ When the Flow ID already exists and the reuse policy rejects creating another ex
 
 Handle the result at the application boundary:
 
-- **Success:** continue the normal accepted-start path. Do not add a defensive snapshot/status read solely to prove that start deduplication worked. If the API explicitly requires admission, business state, or completion output, obtain that response after the start through its intended contract.
+- **Success:** return the accepted-start response from validated/normalized input and the known initial-state fields that the response contract guarantees. Do not immediately read a snapshot to recheck identity, fingerprint, ownership, or Attributes supplied to StartFlow, or to decide whether to launch the next Flow. With correctly bound request identity, a replay attaches to the same logical start; success does not mean asynchronous work has completed or its current state is still the initial state. Only an explicitly required admission/result contract justifies waiting for its named durable boundary or obtaining its result; do not invent a current-snapshot requirement for a start acknowledgement.
 - **Typed AlreadyStarted:** without the ignore option, this can still be the same Request ID. With the option enabled, the existing start was not confirmed as the same request. Preserve a domain conflict unless the resource/coordinator contract explicitly permits reuse. When the outcome requires existing business state, invoke its typed read-only RPC in this error branch and verify the relevant request identity or business invariant before declaring success. A successful read alone does not prove the attempted request ran; do not retry a proven conflict indefinitely or report it as service unavailability.
 - **Failure leaving acceptance unknown:** retry within a bounded policy using the same Flow ID, stable Request ID, and start options, or reconcile authoritative domain state after that failure when it can establish the outcome. A replay-safe start does not need a mandatory read before retrying. If no stable Request ID is available, do not claim cross-call request deduplication; use the explicit AlreadyStarted/domain reconciliation path or report an unknown outcome when the contract cannot prove acceptance. Do not shadow Dex start identity in a dedicated database record.
 
 ```text
 Wrong: read snapshot/check existence → choose whether to StartFlow
-Right: StartFlow with stable identity → accepted result
+Wrong: successful StartFlow → reread identity/status → launch another Flow in the API
+Right: StartFlow with stable identity → accepted response from known request fields
        → only on a relevant error, reconcile through the typed snapshot RPC
          or return a domain conflict/unknown outcome
 ```
@@ -88,7 +89,8 @@ If an API must return the first admission decision after a Flow can close quickl
 - Are typed conflicts handled before a remote-error fallback?
 - Can an accepted mutation lose its response, and if so, what authoritative fact reconciles it?
 - Does Flow start idempotency rely only on Dex identity rather than an extra database mechanism?
-- Does the normal start path call StartFlow first, with no existence/snapshot/status preflight added solely for retry handling?
+- Does the normal start path call StartFlow first and return its accepted response without preflight or post-success identity/Attribute verification reads?
+- Does the owning Flow durably coordinate downstream work instead of chaining dependent StartFlow calls in the API handler?
 - Do start retries preserve Request ID and the ignore-already-started option together, while conflicts and unknown acceptance reconcile only in their error branches?
 - Are retries bounded, idempotent, and tied to one stable Request ID?
 - Can a closed or missing Flow converge without an unnecessary status call?

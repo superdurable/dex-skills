@@ -25,11 +25,15 @@ Use deadline-based polling or the SDK's long-poll result API. Do not use a fixed
 
 ### StartFlow ordering and retry identity
 
-Exercise the application's start boundary against a real Dex Server with its production registry and reuse policy. Observe calls without replacing the real start/RPC behavior. For a normal accepted start with no independently required business read, assert StartFlow is the first Dex operation and no read RPC, search, or status lookup occurs solely for duplicate/retry protection. Reads or waits required by the response contract occur after StartFlow.
+Exercise the application's start boundary against a real Dex Server with its production registry and reuse policy. Observe calls without replacing the real start/RPC behavior. For a normal accepted start with no independently required business read, assert StartFlow is the first Dex operation and no read RPC, search, or status lookup occurs solely for duplicate/retry protection. Assert a successful accepted-start response performs no defensive follow-up RPC/status read to verify supplied identity or initial Attributes and launches no dependent Flow from the API handler. Check the DTO against validated input/known initial fields. Only an explicit admission/completion-result contract may add a subsequent wait or result call.
 
 When the reuse policy disallows another execution, verify the [start result matrix](error-handling.md#start-first-reconcile-only-after-an-error): the same Request ID with ignore-already-started enabled returns the existing execution without duplicate effects, both while active and after closure; the same ID with the option disabled still errors; a different ID still conflicts with the option enabled. Where the SDK generates Request IDs, omit the ID on separate calls and assert the conflict is not silently ignored.
 
 Inject a lost start response after Server acceptance, then retry with identical Flow ID, Request ID, and options and verify convergence without a mandatory preflight read. For an AlreadyStarted branch whose business contract permits reconciliation, assert that the typed snapshot RPC follows the failed start and that the returned facts actually establish the requested condition; test an existing snapshot that does not satisfy that condition as a conflict or unknown outcome. A spy/counter can verify ordering, but mock-only success cannot establish Server deduplication.
+
+### Downstream start recovery
+
+For an operation that launches separately owned work, run a real-server application test that accepts the owning Flow, ends the API request, and then replaces the Worker before the downstream start executes; the owning Flow must still launch the work. Also inject a Worker crash after downstream acceptance but before the launching Step commits, replace it, and verify that the retried start uses the same identities/options and creates no duplicate execution or business effects. Assert downstream retry exhaustion reaches the declared recovery outcome and that the API never issues the dependent start. Use the selected language's crash harness guidance; a graceful Worker drain alone does not simulate this commit gap.
 
 ### Terminal entity reads
 

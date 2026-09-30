@@ -2,8 +2,10 @@
 
 All notable changes to Dex Skills are documented here.
 
-## 0.29.6 - 2026-09-30
+## 0.29.7 - 2026-09-30
 
+- Return accepted-start responses from validated request/known initial fields without defensive post-success identity or Attribute rereads; distinguish acknowledgement from explicit admission/completion results.
+- Require the owning Flow to durably sequence dependent work, with downstream starts in Execute and crash recovery across acceptance/Step commit instead of API-side start/read/start orchestration.
 - Require StartFlow before any retry-protection read RPC, search, or status lookup; reconcile only after a relevant failure and preserve reads independently required by the business response contract.
 - Clarify the Request ID/ignore-already-started result matrix, SDK-generated IDs, bounded replay after unknown acceptance, and real-server call-order verification.
 - Promote terminal read-only RPC semantics to an explicit SDK error-handling rule and design-review gate, including registration/invocation locks, transactions, handler effects, Server policy, and retention boundaries.

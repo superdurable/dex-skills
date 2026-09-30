@@ -92,6 +92,7 @@ Cover:
 - start and typed terminal output;
 - duplicate start/request behavior and [StartFlow-first ordering](../../dex-sdk/references/core/testing.md#startflow-ordering-and-retry-identity), with reconciliation reads confined to relevant error branches;
 - durable wait and Worker replacement;
+- accepted-start responses without defensive identity/Attribute rereads, and [durable downstream start recovery](../../dex-sdk/references/core/testing.md#downstream-start-recovery) with no dependent API-side second start;
 - Action eligibility, valid action, duplicate/late action, and terminal rejection;
 - role-to-permission mapping, unauthorized Action rejection, and multi-permission work discovery at the application boundary;
 - concurrent Action-source writes without projection-only locks and cumulative permission history after state changes and completion;
