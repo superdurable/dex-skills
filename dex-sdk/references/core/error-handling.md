@@ -35,7 +35,7 @@ When the Flow ID already exists and the reuse policy rejects creating another ex
 
 Handle the result at the application boundary:
 
-- **Success:** return the accepted-start response from validated/normalized input and the known initial-state fields that the response contract guarantees. Do not immediately read a snapshot to recheck identity, fingerprint, ownership, or Attributes supplied to StartFlow, or to decide whether to launch the next Flow. With correctly bound request identity, a replay attaches to the same logical start; success does not mean asynchronous work has completed or its current state is still the initial state. Only an explicitly required admission/result contract justifies waiting for its named durable boundary or obtaining its result; do not invent a current-snapshot requirement for a start acknowledgement.
+- **Success:** when the contract only acknowledges acceptance, return the accepted-start response from validated/normalized input and the known initial-state fields that the response contract guarantees. Do not immediately read a snapshot to recheck identity, fingerprint, ownership, or Attributes supplied to StartFlow, or to decide whether to launch the next Flow. With correctly bound request identity, a replay attaches to the same logical start; success does not mean asynchronous work has completed or its current state is still the initial state. Only an explicitly required admission/result contract justifies waiting for its named durable boundary or obtaining its result; do not invent a current-snapshot requirement for a start acknowledgement.
 - **Typed AlreadyStarted:** without the ignore option, this can still be the same Request ID. With the option enabled, the existing start was not confirmed as the same request. Preserve a domain conflict unless the resource/coordinator contract explicitly permits reuse. When the outcome requires existing business state, invoke its typed read-only RPC in this error branch and verify the relevant request identity or business invariant before declaring success. A successful read alone does not prove the attempted request ran; do not retry a proven conflict indefinitely or report it as service unavailability.
 - **Failure leaving acceptance unknown:** retry within a bounded policy using the same Flow ID, stable Request ID, and start options, or reconcile authoritative domain state after that failure when it can establish the outcome. A replay-safe start does not need a mandatory read before retrying. If no stable Request ID is available, do not claim cross-call request deduplication; use the explicit AlreadyStarted/domain reconciliation path or report an unknown outcome when the contract cannot prove acceptance. Do not shadow Dex start identity in a dedicated database record.
 
@@ -45,6 +45,21 @@ Wrong: successful StartFlow → reread identity/status → launch another Flow i
 Right: StartFlow with stable identity → accepted response from known request fields
        → only on a relevant error, reconcile through the typed snapshot RPC
          or return a domain conflict/unknown outcome
+```
+
+### Wait for a required business milestone
+
+When the response contract requires an important operation to finish, call the selected SDK's Attribute-match wait or Step-completion wait immediately after StartFlow succeeds, including matching-request deduplication. A deduplicated start does not bypass that completion requirement. Do not add a preflight read or an identity-verification RPC between the start and the wait.
+
+For example, an API may promise that a business row is committed to a database table used as the source of truth before it returns success. The owning Flow performs that write in Execute. Publish a committed Attribute only after the database commit, or complete the selected persistence Step only after the commit succeeds. Wait for that committed value or the specific Step execution, then return the promised milestone outcome. Step completion does not return Step output or prove the whole Flow finished; an Attribute set before the database commit cannot prove persistence.
+
+Choose the smallest durable condition that establishes the promised outcome. If the contract only acknowledges accepted background work, return after StartFlow without a wait. Bound required waits by the caller's deadline/request budget. A wait timeout or caller cancellation does not undo the accepted start or prove the write failed; preserve its identity and explicit pending/unknown completion outcome rather than starting a replacement. For a Flow that can close before an Attribute wait attaches, handle the actual wait error through authoritative business state or the supported terminal-read contract; do not assume Attribute waits read closed executions.
+
+```text
+Acceptance-only API: StartFlow succeeds or deduplicates → return accepted
+Commit-confirming API: StartFlow succeeds or deduplicates
+                      → wait for committed Attribute or persistence Step completion
+                      → return confirmed database commit
 ```
 
 ## Closed-Flow races
@@ -90,6 +105,7 @@ If an API must return the first admission decision after a Flow can close quickl
 - Can an accepted mutation lose its response, and if so, what authoritative fact reconciles it?
 - Does Flow start idempotency rely only on Dex identity rather than an extra database mechanism?
 - Does the normal start path call StartFlow first and return its accepted response without preflight or post-success identity/Attribute verification reads?
+- If success promises a critical business operation, does the success/dedup path wait for a condition published after that operation commits, with a bounded wait and no acceptance-only waits?
 - Does the owning Flow durably coordinate downstream work instead of chaining dependent StartFlow calls in the API handler?
 - Do start retries preserve Request ID and the ignore-already-started option together, while conflicts and unknown acceptance reconcile only in their error branches?
 - Are retries bounded, idempotent, and tied to one stable Request ID?

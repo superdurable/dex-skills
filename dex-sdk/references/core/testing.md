@@ -31,6 +31,10 @@ When the reuse policy disallows another execution, verify the [start result matr
 
 Inject a lost start response after Server acceptance, then retry with identical Flow ID, Request ID, and options and verify convergence without a mandatory preflight read. For an AlreadyStarted branch whose business contract permits reconciliation, assert that the typed snapshot RPC follows the failed start and that the returned facts actually establish the requested condition; test an existing snapshot that does not satisfy that condition as a conflict or unknown outcome. A spy/counter can verify ordering, but mock-only success cannot establish Server deduplication.
 
+### Required post-start milestones
+
+For an API that promises a database source-of-truth write, exercise both a new start and matching-request deduplication against the real Server. Delay the commit and assert the response cannot claim that milestone before the committed Attribute or selected persistence Step completes. Once the wait succeeds, verify the actual business row. Cover wait-budget expiry while the Flow continues and retry with the same start identity; expiry must not create a replacement execution or report an unproven failed write. For the acceptance-only contract, assert no Attribute or Step-completion wait is issued.
+
 ### Downstream start recovery
 
 For an operation that launches separately owned work, run a real-server application test that accepts the owning Flow, ends the API request, and then replaces the Worker before the downstream start executes; the owning Flow must still launch the work. Also inject a Worker crash after downstream acceptance but before the launching Step commits, replace it, and verify that the retried start uses the same identities/options and creates no duplicate execution or business effects. Assert downstream retry exhaustion reaches the declared recovery outcome and that the API never issues the dependent start. Use the selected language's crash harness guidance; a graceful Worker drain alone does not simulate this commit gap.

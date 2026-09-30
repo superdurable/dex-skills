@@ -2,6 +2,12 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.29.8 - 2026-09-30
+
+- Require an Attribute-match or Step-completion wait after a successful or deduplicated start only when the response promises a critical business milestone, such as a committed database source-of-truth write.
+- Keep acceptance-only starts free of waits; define post-commit markers, bounded wait outcomes, and real-server verification for both new and deduplicated starts.
+- Synchronize core and all five language error-handling references and plugin manifests without changing dependency baselines.
+
 ## 0.29.7 - 2026-09-30
 
 - Return accepted-start responses from validated request/known initial fields without defensive post-success identity or Attribute rereads; distinguish acknowledgement from explicit admission/completion results.
