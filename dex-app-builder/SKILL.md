@@ -127,12 +127,12 @@ template stack or continue as an explicitly requested standalone SDK project.
 - Implement Dex backend code only with the Go SDK.
 - The current Connector SDK supports application integration only from Go. Never replace a Connector with direct provider code merely to support another backend language.
 - Target strict Dex Web v2 / FDG 2.0 rendering. Never fall back to rendering v1.
-- Treat Dex Web v2 as the process-management UI for Runs, Work Queue, search, details, edits, and Actions unless the user confirms a custom UI is necessary.
+- Use the host-supplied strict FDG 2.0 management experience for Runs, Work Queue, search, details, edits and Actions. Standalone development uses Dex Web v2; a platform may provide native Studio management with its existing authenticated Go server. This does not require custom application management UI.
 - A retained Hello World page and OpenAPI generation skeleton do not count as a custom process UI.
 - Keep production Work Queue authorization behind a trusted authentication boundary. Dex Web's local permission selector is development-only.
 - Keep credentials in a connector/runtime boundary. A Flow stores only a logical connection ID.
-- Use the template's connector bootstrap. Local development reads `DEX_CONNECTOR_CONFIG_FILE`; hosted deployments read the mounted `SUPERVERSE_CONNECTOR_CONFIG_FILE` and resolve operation credentials through the internal broker.
-- Application code never reads, persists, logs, or refreshes provider refresh tokens and never reads the hosted credential S3 prefix directly.
+- Use the template's connector bootstrap. Standalone local development reads `DEX_CONNECTOR_CONFIG_FILE`; project-scoped deployments use the official SDK `projectconfig.LoadFromEnvironment` with trusted `DEX_PROJECT_*` scope and exact configuration key/version/digest. See the [hosted boundary](references/connector-architecture.md#hosted-configuration-and-credential-boundary); do not add a mounted configuration file or credential broker.
+- Business code never reads, persists, logs or refreshes provider tokens. The official Connector SDK resolves scoped private credential objects and performs supported actual-use refresh. Its storage and provider privileges are distinct from browser or Flow access.
 - Do not mutate another repository, fork, publish, deploy, upload, or open a pull request without authorization for that action.
 
 Read [product discovery](references/product-discovery.md) before proposing architecture.
@@ -197,7 +197,8 @@ capability mapping records a specific interaction Dex Web v2 cannot provide.
 
 ### No custom UI
 
-Use Dex Web v2 as the only process-management experience. Define indexed
+Use the host-supplied management experience as the only process-management UI
+(standalone Dex Web v2 or platform-native Studio). Define indexed
 Attributes, `GetDexSummary`, `GetDexDisplay`, editable fields, human-action
 Steps, and Action RPCs with conditions and permissions so Run and Work Queue
 modes cover the confirmed process.
@@ -314,7 +315,11 @@ workspace when needed, but never add them to Git or a pull request.
 Do not resume dynamic frontend work while the Go Flow, Connector, and
 application boundary are being implemented.
 
-Start Dex Web as soon as the first Flow graph exists. The moment a Flow source first renders with `dexcli visualize --schema-version 2.0 --json` (even with warnings), and before finishing implementation or tests:
+When the hosting platform already provides native Studio management, use that
+existing surface and its authenticated backend; do not start another management
+server or require Dex Web on its engine Pods. For standalone development, start
+Dex Web as soon as the first Flow graph exists. In that standalone path, the moment
+a Flow source first renders with `dexcli visualize --schema-version 2.0 --json` (even with warnings), and before finishing implementation or tests:
 
 1. render every Flow file into one persistent `--flow-rendering-dir` directory;
 2. start one long-lived `dexcli dev` for the user in the background on stable ports with persistent state, passing that directory and any `--connector-release-override` a local connector needs;
@@ -391,10 +396,11 @@ Use the manifest-selected authorization method. The user chooses among the
 methods declared by the exact connector release; application code must not
 hard-code OAuth, API-key, or service-account fields outside that contract.
 Local calls resolve the newest credential from the local store and let the
-Connector SDK perform supported on-demand refresh. Hosted calls use only the
-platform broker and a release-bound workload credential. A rotated access or
-refresh token takes effect on the next Connector call without changing Flow
-state or rebuilding the app.
+Connector SDK perform supported on-demand refresh. Project-scoped calls use
+the official SDK storage/credential provider with the deployment's scoped AWS
+identity. It reads the accepted ordinary snapshot and resolves current connection
+credentials separately; business code never handles tokens. Rotation takes effect
+on the next Connector call without changing Flow state or rebuilding the app.
 
 ## Stage 4: integrate the Custom UI, verify, polish, and hand off
 
@@ -434,22 +440,25 @@ as valid FDG 2.0 and emit the Flow Definition bundle, connector contract,
 environment contract, and exact application manifest. Treat missing, duplicate,
 or diagnostic-bearing Flow Definitions as release failures.
 
-Publishing is project-scoped, not coding-session-scoped. The user selects any
-eligible default-branch commit, prepares one immutable Release for the whole
-application, configures the target environment, and deploys that Release. Do
+Live Publishing is project-scoped. Select an eligible main-branch commit,
+prepare its exact FDG/manifest, configure that source, build the whole application
+with its frozen configuration reference, and select a successful Release to deploy.
+Preview uses the current clean, pushed Sandbox commit in Build Configuration and
+Preview controls, without choosing or creating a Live Release. Do
 not filter commits by author or by whether an agent created them. A selected
 Flow Type changes only Build or Runs inspection; Publishing has no Flow Type
 deployment selector and deploys every Flow Definition in the Release.
 
-For hosted connector configuration, wait for the environment to report a
-READY configuration revision bound to the selected Release connector contract.
-Deployment must pin that exact revision, object version, and digest. The
-platform mounts the verified non-secret snapshot and supplies the broker URL
-and workload credential file. A non-secret configuration change requires a new
-revision and redeploy; broker-managed credential refresh or rotation takes
-effect on the next call without restart. Missing or mismatched configuration,
-snapshot digest, broker support, or workload identity is a deployment blocker,
-not a warning to bypass.
+For hosted Connector configuration, require validation against the selected
+source's exact manifest/FDG and freeze the accepted revision, object version and
+digest. The platform supplies trusted `DEX_PROJECT_*` references and scoped AWS
+credentials; the official SDK loads and verifies the snapshot before Workers or
+application goroutines start. Ordinary settings need a new build/deployment or
+Preview start. Shared environment credentials take effect on the next connection
+use; the SDK alone performs supported expired-credential refresh. Missing or
+mismatched configuration, snapshot digest, capability or workload identity blocks
+deployment. This platform management boundary does not upgrade the application
+template's Go/SDK pins or require a new Dex release.
 
 Finish with:
 
@@ -463,6 +472,6 @@ Finish with:
   when deployment was requested.
 
 When the user requests deployment, use the project's canonical Publishing page
-to prepare the selected commit, configure its target environment, and deploy
-the immutable Release. Report only observed Release, configuration revision,
+to prepare the selected Live commit, configure it, build and deploy the accepted
+Release. Use Build Configuration and Preview controls for a requested Preview. Report only observed Release, configuration revision,
 deployment, and E2E identities; never fabricate a deployment result.

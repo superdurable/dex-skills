@@ -386,14 +386,14 @@ def check_app_builder() -> None:
         "“Future flexibility”",
         "`dex-app.yaml`",
         "Project release and hosted deployment handoff",
-        "Publishing is project-scoped, not coding-session-scoped",
+        "Live Publishing is project-scoped",
         "filter commits by author",
         "Publishing has no Flow Type",
-        "`SUPERVERSE_CONNECTOR_CONFIG_FILE`",
-        "Application code never reads, persists, logs, or refreshes provider refresh tokens",
-        "READY configuration revision",
-        "exact revision, object version, and digest",
-        "refresh or rotation takes",
+        "`projectconfig.LoadFromEnvironment`",
+        "Business code never reads, persists, logs or refreshes provider tokens",
+        "source\'s exact manifest/FDG",
+        "accepted revision, object version and",
+        "Shared environment credentials",
     )
     for text in required:
         if text not in content:
@@ -482,10 +482,11 @@ def check_app_builder() -> None:
         "approved discovery artifact must name the Dex Web v2 capability gap",
         "management UI capability mapping was completed before the UI-mode",
         "`make superverse-release-artifacts` emits a valid FDG 2.0 bundle",
-        "selected default-branch commit regardless of",
-        "one immutable whole-app Release",
+        "eligible main-branch commit regardless of author",
+        "builds the whole",
         "hosted deployment pins a READY connector configuration revision",
-        "forced token expiry, concurrent Connector calls, refresh-token rotation",
+        "known token expiry, concurrent calls, credential rotation",
+        "`DEX_PROJECT_*` scope, canonical key, exact version/digest",
     ):
         if text not in build_handoff:
             fail(f"build and handoff must contain: {text}")
@@ -505,10 +506,11 @@ def check_app_builder() -> None:
         "Do not infer access to a private repository",
         "uncommitted `go.work` or temporary Go",
         "## Hosted configuration and credential boundary",
-        "`SUPERVERSE_CONNECTOR_CONFIG_FILE`",
-        "The broker performs",
-        "Application code must not",
-        "A non-secret configuration edit creates a new revision",
+        "`projectconfig.LoadFromEnvironment`",
+        "`DEX_PROJECT_CONFIG_VERSION`",
+        "`DEX_PROJECT_CONFIG_DIGEST`",
+        "Business code neither reads credential objects",
+        "existing deployments continue",
     ):
         if text not in connector_architecture:
             fail(f"connector architecture must contain: {text}")

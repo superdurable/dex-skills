@@ -64,7 +64,10 @@ Treat component mocks and intercepted browser responses as UI evidence only.
 They cannot establish Dex durability, Worker replacement, Timer, RPC, retry,
 provider, or application E2E semantics.
 
-Show Dex Web early. Once the first Flow graph renders, keep one user-facing `dexcli dev` stack running with a persistent `--flow-rendering-dir`, stable ports, and persistent state, and give the user its URL before continuing. Then keep implementing and testing against isolated test stacks. Do not wait until verification passes to start it, and do not let test scripts reuse or stop it. Report its URL again at handoff.
+For standalone development, show Dex Web early. Once the first Flow graph renders, keep one user-facing `dexcli dev` stack running with a persistent `--flow-rendering-dir`, stable ports, and persistent state, and give the user its URL before continuing. Then keep implementing and testing against isolated test stacks. Do not wait until verification passes to start it, and do not let test scripts reuse or stop it. Report its URL again at handoff. In a platform with native Studio management,
+use that existing surface and authenticated Go backend instead; Dex engine Pods
+need only `api,interpreter`. Do not start a second management server or infer that
+this platform boundary removes standalone Dex Web support.
 
 ## Baselines and local CLI
 
@@ -157,21 +160,30 @@ Ensure:
 - each Connector Step branch receives only its current operation result, while application Attributes retain domain context;
 - every Connector factory uses pure `MapToOperationInput` and graph-only `Annotations`;
 - each Connector Trigger binding has a static binding name, application-owned Flow ID resolver, and typed target;
-- the displayed local connection path and **DEX_CONNECTOR_CONFIG_FILE** launch command work after a Dex Web restart;
+- for standalone local configuration, the displayed connection path and
+  **DEX_CONNECTOR_CONFIG_FILE** launch command work after a Dex Web restart;
+  for project-scoped configuration, exact snapshot and credential versions
+  survive management-host and Worker replacement without exposing secrets;
 - `dex-app.yaml` lists every Release Flow source and static connector
   connection without configuration values or secrets;
 - `make superverse-release-artifacts` emits a valid FDG 2.0 bundle, connector
   contract, environment contract, and exact application manifest;
-- project Publishing accepts the selected default-branch commit regardless of
-  author, prepares one immutable whole-app Release, and never treats a Flow
-  Type as a deployment unit;
+- Live Publishing accepts an eligible main-branch commit regardless of author,
+  prepares its exact FDG/manifest, configures that source and builds the whole
+  application with a frozen configuration reference before deployment; a Flow
+  Type is never the deployment unit. Preview uses the current clean pushed
+  Sandbox source through Build Configuration and Preview controls;
 - a hosted deployment pins a READY connector configuration revision, exact S3
   object version, and digest, and fails closed when any identity mismatches;
-- hosted application code reads only the mounted non-secret snapshot and uses
-  the broker workload identity; it never reads or refreshes provider tokens;
-- forced token expiry, concurrent Connector calls, refresh-token rotation, and
-  Worker restart have real integration coverage when the connector supports
-  refresh;
+- hosted bootstrap uses the official `projectconfig.LoadFromEnvironment` with
+  trusted `DEX_PROJECT_*` scope, canonical key, exact version/digest and scoped
+  AWS identity; it never substitutes latest, a mounted configuration file or
+  a credential broker. Resolve/apply application environment before Workers
+  start, and keep provider tokens entirely inside the official SDK boundary;
+- known token expiry, concurrent calls, credential rotation, lost exchange
+  responses and Worker restart have real integration coverage when supported;
+  retries join an admitted exchange and only an immutable result authorizes
+  recovery. Unknown expiry or an unclassified 401 never triggers refresh;
 - connector fork/PR status and any release blocker are explicit;
 - no `go.work`, local `replace`, branch, pseudo-version, or commit SHA remains
   in the production dependency graph;
