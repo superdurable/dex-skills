@@ -2,6 +2,12 @@
 
 All notable changes to Dex Skills are documented here.
 
+## 0.29.16 - 2026-10-01
+
+- Advance the basic-process template baseline from `v1.8.0` to `v1.8.2`.
+- Require the released template to preserve sandbox contract revision 3 without project-local skills.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.16.
+
 ## 0.29.15 - 2026-10-01
 
 - Advance the immutable Server and CLI baselines to v1.3.0; retain the SDK source and application template baselines.
