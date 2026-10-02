@@ -60,4 +60,3 @@ preserve its intentional structure rather than silently replacing it. Compare
 it with the pinned template. If it is not compatible with the Go-only platform
 and Connector boundary, stop before implementation and ask whether to adopt the
 template stack or continue as an explicitly requested standalone SDK project.
-
