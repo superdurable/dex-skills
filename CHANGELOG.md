@@ -11,7 +11,7 @@ All notable changes to Dex Skills are documented here.
 - Distinguish connection settings, operation configuration and credential codecs
   at the official project bootstrap; retain actual dependency verification.
 - Align application guidance with the template's real-dependency test policy.
-
+- Advance the template baseline to released `v1.9.0` (`8d845f98de1fff9dde5b321d931ac1f5cdbcf085`), whose application bootstrap consumes canonical project configuration without changing the template Go or Dex SDK pins.
 
 - Correct project-scoped application bootstrap to the released standard Connector SDK loader with trusted `DEX_PROJECT_*` scope, canonical key, exact object version/digest and AWS identity.
 - Remove obsolete mounted configuration-file and credential-broker guidance; keep tokens, actual-use refresh and uncertain exchange recovery inside the official SDK boundary.
