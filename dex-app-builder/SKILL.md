@@ -5,7 +5,12 @@ description: Primary entry point for designing and building Dex applications and
 
 # Dex App Builder
 
-Build the smallest coherent product that solves the confirmed business process. Keep discovery, the UI decision, backend modeling, and verification as explicit checkpoints.
+Build the smallest coherent product that solves the requested business process.
+Keep discovery, the UI decision, backend modeling and verification explicit, but
+do not turn them into repeated approval gates. A clear implementation request
+already authorizes the work and routine choices needed to finish it. Capture
+those decisions in the application, then continue; ask only for missing business
+requirements, access or consequential choices that the user must supply.
 
 ## Session start
 
@@ -139,7 +144,10 @@ Read [product discovery](references/product-discovery.md) before proposing archi
 
 ## Stage 1: confirm the business process and application surface
 
-Begin with discussion, not code. Identify:
+Read the request and retained context first. Resolve the following design facts
+from the supplied intent, existing host and source. Discuss only unresolved facts
+that materially change the product; a short business request need not become a
+questionnaire before implementation. Identify:
 
 - process maintainer;
 - managers, operators, approvers, terminal users, participants, and external
@@ -181,8 +189,9 @@ For each LLM use, record whether it is generic, a named model, a named
 provider, or provider-native.
 Actors describe participants; roles group authenticated people with the same
 visibility and allowed operations; permissions describe individual Actions.
-Default to `admin`, justify every additional role, and obtain explicit user
-confirmation before implementation. The boundary matrices must distinguish
+Default to `admin` or the existing host authorization model and justify every
+additional role. Existing implementation authorization and stated requirements
+count as confirmation; do not ask again merely to approve routine design defaults. The boundary matrices must distinguish
 parallel Steps, independently started top-level Flows that communicate through
 typed RPCs or Channels, and explicitly confirmed parent-child SubFlows.
 
@@ -191,6 +200,9 @@ If the process begins from Slack, email, a webhook, or another external source, 
 ## Stage 2: establish the confirmed application surface
 
 Read [UI workflow](references/ui-workflow.md), then use exactly one mode.
+When the host already supplies authenticated process management and no separate
+participant UI is requested, select No custom UI and continue without a UI-choice
+question. Keep the business contract review proportional to the application.
 A request for an admin portal, dashboard, or management backend is not itself a
 reason to select Custom UI. Select it only when the completed management UI
 capability mapping records a specific interaction Dex Web v2 cannot provide.
@@ -210,7 +222,7 @@ Adapt the template to retain only its future-ready architecture:
 - the OpenAPI source and generation pipeline;
 - locally generated Go server interfaces and TypeScript client;
 - generation, build, and smoke-test commands;
-- one non-business `GetApplicationInfo` operation returning the application name and optional Dex Web URL.
+- one non-business `GetApplicationInfo` operation returning the application name and an optional host management URL.
 
 Remove every custom process-management operation and surface: approval, rejection, retry, escalation, status, display, list, search, detail, Action or Attribute proxies, dashboards, forms, queues, lifecycle mock state, and Mock Controls. Remove their handlers, services, fixtures, generated usages, and E2E tests. Do not keep speculative endpoints.
 
@@ -404,7 +416,7 @@ on the next Connector call without changing Flow state or rebuilding the app.
 
 ## Stage 4: integrate the Custom UI, verify, polish, and hand off
 
-Read [build, test, and handoff](references/build-test-handoff.md). Run the narrowest tests while iterating, then the template's full supported check. Every Flow must pass FDG 2.0 JSON analysis with `valid: true`.
+Read [build, test, and handoff](references/build-test-handoff.md). Run narrow checks while iterating, then the source gate declared by the template and all requested real acceptance scenarios. Every Flow must pass FDG 2.0 JSON analysis with `valid: true`. A source gate does not prove business execution; a missing test service must not be reported as a pass.
 
 For No custom UI, verify the Hello World page, `GetApplicationInfo`
 generated-client call, local regeneration and compilation, production build,
@@ -417,17 +429,16 @@ For Custom UI, wait until the Go backend and its real Dex and Connector paths
 run before replacing inert wireframe controls with generated TypeScript client
 calls. Then implement the confirmed loading, validation, empty, success,
 failure, retry, recovery, and terminal behavior and run the real end-to-end
-journey. Use component-level mocks of the generated client for UI states that
-are difficult to trigger economically. A browser-only edge case may use
-test-local Playwright request interception.
+journey. Follow the application repository real-dependency test policy. For the template, exercise UI
+states through the real API; do not introduce component mocks or intercepted API
+responses. Report a case requiring unavailable dependencies as incomplete.
 Do not create an application-level mock server. Do not create a second Go business backend, product mock routes,
 or user-visible Mock Controls.
 Mock evidence never replaces real Dex durability, Connector, or application E2E evidence.
 
 Only after the real Dex and Connector end-to-end journey passes may the Custom
 UI add images, custom icons, branding, animation, refined responsive behavior,
-or other visual polish. Rerun frontend component tests, real E2E, and the
-production build after polishing. Do not generate or source visual assets
+or other visual polish. Rerun affected real E2E and the production build after polishing. Do not generate or source visual assets
 before this stage.
 
 Use a real Dex Server for waits, RPCs, Channels, retries, Worker replacement, terminal behavior, Work Queue permission history, and connector boundaries. Use deadline-based convergence rather than fixed sleeps.

@@ -2,7 +2,16 @@
 
 All notable changes to Dex Skills are documented here.
 
-## 0.29.16 - 2026-10-01
+## 0.29.17 - 2026-10-01
+
+- Treat clear application requests and existing host choices as implementation
+  authorization; ask only for missing user-owned business decisions.
+- Separate production-source verification from real hosted acceptance and keep
+  both Go and frontend generation/build paths in the source gate.
+- Distinguish connection settings, operation configuration and credential codecs
+  at the official project bootstrap; retain actual dependency verification.
+- Align application guidance with the template's real-dependency test policy.
+
 
 - Correct project-scoped application bootstrap to the released standard Connector SDK loader with trusted `DEX_PROJECT_*` scope, canonical key, exact object version/digest and AWS identity.
 - Remove obsolete mounted configuration-file and credential-broker guidance; keep tokens, actual-use refresh and uncertain exchange recovery inside the official SDK boundary.

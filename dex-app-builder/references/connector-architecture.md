@@ -215,6 +215,22 @@ constructing business clients, Workers, HTTP servers or goroutines. Secret
 references pin private immutable objects by scope, key, version and digest.
 Configuration reads never load latest in place of a missing accepted version.
 
+Connection settings and Step configuration have different identities. Decode a
+Connector's connection-level config with
+`LoadedProject.Configuration.DecodeConnectionConfiguration(ConnectionKey, &config)`;
+use `provider.LoadOperationConfiguration` only for the exact Flow/Step operation
+configuration declared in FDG. A valid Worker registration alone cannot establish
+that the provider client received its required connection settings. Read the
+installed Connector factory and configuration types, then verify application
+startup against the real accepted snapshot before calling a provider.
+
+Inspect the generated Connector's credential codec and the released typed
+adapter before wiring project credentials. Secret wrappers may intentionally
+reject JSON marshaling: do not serialize public `Credentials` directly, invent
+field names, or treat a missing key as empty usable credentials. Keep any required
+typed codec at the bootstrap adapter boundary, use the manifest's exact fields,
+and let the official store own credential resolution and refresh.
+
 The official typed `projectconfig/provider` adapter resolves current connection
 credentials at actual use. Business code neither reads credential objects nor
 implements refresh, token exchange or token persistence. Refresh requires known
