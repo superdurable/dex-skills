@@ -80,8 +80,9 @@ Observed with Dex CLI v0.13.8 and Go SDK v0.12.1:
 - Start Flow sends the FDG's Flow and Step type names, which must match the
   Worker's registrations. Follow the SDK's [default type-name rule](../../dex-sdk/references/go/versioning.md#default-flow-and-step-type-names).
   Keep derived names for new definitions. Go SDK v1.5.0 and later register
-  names without the package, so generate the JSON with a `dexcli` release whose
-  analyzer uses the same rule. If the graph and Worker names differ,
+  names without the package, and `dexcli` v1.5.0 and later generate matching
+  names. Pair a Go SDK before v1.5.0 with a `dexcli` release before v1.5.0.
+  If the graph and Worker names differ,
   diagnose the analyzer/SDK version or generated metadata; do not implement
   `GetFlowType` and `GetStepType` on every Flow and Step as a Web workaround.
 - Those older versions invoked `WaitFor` on an execute-only Start Step and

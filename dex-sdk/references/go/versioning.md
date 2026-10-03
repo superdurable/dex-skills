@@ -23,7 +23,7 @@ The only exception is an unavoidable Go type rename, or a package rename before 
 
 Upgrading a production application from a Go SDK before v1.5.0 changes every default Flow and Step type the Worker registers. Open executions keep their package-qualified types, and a v1.5.0 Worker cannot dispatch them. Before that upgrade, let affected executions finish, or apply the production-rename exception to each affected Flow and Step with its exact package-qualified string. Update stored Flow type queries and Step type strings to the registered names.
 
-Dex Web or FDG metadata mismatch is not a reason to override every type. Compare generated metadata with the SDK's registered defaults and diagnose the analyzer/SDK version or metadata issue. Generate FDG metadata with a `dexcli` release whose analyzer uses the installed SDK's naming rule. When the production-rename exception applies, verify an old execution resumes on the renamed Worker before rollout.
+Dex Web or FDG metadata mismatch is not a reason to override every type. Compare generated metadata with the SDK's registered defaults and diagnose the analyzer/SDK version or metadata issue. Pair the analyzer with the installed SDK: Go SDK v1.5.0 or later needs `dexcli` v1.5.0 or later, and an earlier Go SDK needs a `dexcli` release before v1.5.0. When the production-rename exception applies, verify an old execution resumes on the renamed Worker before rollout.
 
 ## Open-Flow compatibility
 

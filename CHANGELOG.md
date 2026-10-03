@@ -6,6 +6,8 @@
 - Document Go SDK v1.5.0 default Flow and Step type names, which omit the Go package, the required override for generic types, and how to upgrade production Flows that use package-qualified names.
 - Require a domain Flow type name such as `ApprovalFlow`, never just `Flow`, across Core and all five language references.
 - Refresh pinned source links, example dependency versions, and the TypeScript concrete-error excerpt.
+- Advance the Dex CLI baseline from `cli-v1.4.2` to `cli-v1.5.0`, whose FDG analyzer uses the same Go type names as Go SDK v1.5.0.
+- Pair Go SDK and `dexcli` releases by naming rule, and keep template applications that pin a Go SDK before v1.5.0 on a `dexcli` before v1.5.0.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.26.
 
 ## 0.29.25

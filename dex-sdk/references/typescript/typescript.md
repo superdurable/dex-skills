@@ -14,7 +14,7 @@ The Connector local JSON loader and generated `NewLocalConnection` API are Go-on
 
 ## Raw Temporal payload inspection
 
-Use **dexcli codec-server** with CLI v1.4.2 to inspect Dex internal payloads
+Use **dexcli codec-server** with CLI v1.4.2 or later to inspect Dex internal payloads
 in Temporal Cloud or a local Temporal Web UI. Follow the shared
 [codec-server guidance](../core/operations.md#inspect-raw-temporal-payloads);
 local UI ports need no additional server arguments.
