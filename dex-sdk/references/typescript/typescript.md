@@ -1,8 +1,8 @@
 # TypeScript handbook
 
-The SDK API reference uses the [released v1.2.1 baseline](../core/bundle-baselines.md); the source examples' older dependency pins below remain factual and do not define the current error API.
+The SDK API reference uses the [released v1.4.0 baseline](../core/bundle-baselines.md); the source examples' older dependency pins below remain factual and do not define the current error API.
 
-Read this page first for TypeScript application work, then open only the topic reference needed. The [baseline package](https://github.com/superdurable/dex/blob/sdk-go/v1.2.1/examples/typescript/package.json) uses `@superdurable/dex@0.13.0` on Node.js 22 or 24. Always inspect the application's lockfile and installed declarations before using a precise API.
+Read this page first for TypeScript application work, then open only the topic reference needed. The [baseline package](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/typescript/package.json) uses `@superdurable/dex@1.2.1` on Node.js 22 or 24. Always inspect the application's lockfile and installed declarations before using a precise API.
 
 ## Project shape
 
@@ -41,7 +41,7 @@ for the Go-only analyzer contract.
 
 ## Minimal Flow
 
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v1.2.1/examples/typescript/src/primitives/flow/example-flow.ts)
+[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/typescript/src/primitives/flow/example-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/flow/example-flow.ts -->
 ```typescript
 export class ExampleFlow implements Flow<number> {
@@ -63,7 +63,7 @@ export class ExampleFlow implements Flow<number> {
 
 Each Step supplies a stable `getStepType()` and an input codec when a non-default wire form is required. A Flow returns all registered Step instances once. The starting Step input must match `Flow<I>`.
 
-[Pinned Step source](https://github.com/superdurable/dex/blob/sdk-go/v1.2.1/examples/typescript/src/primitives/flow/example-flow.ts)
+[Pinned Step source](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/typescript/src/primitives/flow/example-flow.ts)
 <!-- dex-source: examples/typescript/src/primitives/flow/example-flow.ts -->
 ```typescript
 class ExampleStep implements Step<number> {
@@ -88,7 +88,7 @@ class ExampleStep implements Step<number> {
 
 ## Registry, Worker, and Client
 
-[Pinned process bootstrap](https://github.com/superdurable/dex/blob/sdk-go/v1.2.1/examples/typescript/src/main.ts)
+[Pinned process bootstrap](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/typescript/src/main.ts)
 <!-- dex-source: examples/typescript/src/main.ts -->
 ```typescript
 const registry = createExampleRegistry();

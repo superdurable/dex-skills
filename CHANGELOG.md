@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.29.26 - 2026-10-03
+
+- Advance the Dex SDK baseline from `sdk-go/v1.2.1` to `sdk-go/v1.5.0`. Python, TypeScript, Java, and Rust sources at that tag match their v1.4.0 releases.
+- Document Go SDK v1.5.0 default Flow and Step type names, which omit the Go package, the required override for generic types, and how to upgrade production Flows that use package-qualified names.
+- Require a domain Flow type name such as `ApprovalFlow`, never just `Flow`, across Core and all five language references.
+- Refresh pinned source links, example dependency versions, and the TypeScript concrete-error excerpt.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.26.
+
 ## 0.29.25
 
 - Advance the template baseline to released v1.9.6, preserving application source
