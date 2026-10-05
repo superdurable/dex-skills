@@ -44,11 +44,35 @@ explicitly.
 
 ## Polling
 
-- **Timer polling**: wait on a durable Timer between attempts when the cadence is business-defined.
-- **Backoff polling**: let retry policy schedule attempts when polling is equivalent to retrying one operation.
-- **Iteration polling**: keep iteration state durable when each pass changes inputs, cursor, or termination criteria.
+Use this one pattern whenever a Flow waits for an external system to become ready or finish, such as a cloud build, Kubernetes rollout, provisioning job, or third-party API status. Business signals inside Dex (Channels, RPCs) and business timers (TTL, reminders, inactivity) still use WaitFor; they are not polling.
 
-Never block a Worker thread or coroutine with a local sleep. Persist the condition that ends the loop and enforce a total deadline or iteration budget.
+One long-running Step's Execute owns the whole wait. Each round:
+
+1. Call the external API with its own short timeout, such as 10 seconds.
+2. On a transient error, return the error so the Execute retry policy re-runs the Step.
+3. On a terminal status, return the next decision: success or a business-failure decision.
+4. When the business deadline has passed, return a failure decision. Compute it from the handler's first-attempt time plus the budget, or receive it as Step input when the SDK exposes no first-attempt time, so it is stable across attempts.
+5. Report progress: write a Stream frame when the observed status changes (each write is an implicit heartbeat); otherwise record a heartbeat with the resume checkpoint.
+6. Sleep for the interval with the language's plain sleep, then repeat.
+
+“Not ready yet” is a normal loop branch, never an error. Keep `interval + call timeout <= HeartbeatTimeout - 10s`; with the one-minute default and a 10-second call timeout, the interval is at most 40 seconds. Use a few seconds when a user is watching something they just started and tens of seconds for long jobs such as builds. Do not add cancellation-select machinery around the sleep: the call has its own timeout, and after a cancelled attempt the next call fails fast.
+
+Configure the polling Step's Execute:
+
+- **Durability**: override Execute to SYNC when the Flow default is ASYNC; the ASYNC local phase ignores heartbeat and method timeouts.
+- **Method timeout**: the maximum wait plus a margin. The server default is two hours and the server has no hard cap.
+- **Heartbeat timeout**: keep the one-minute default, so a stalled Worker is detected within a minute rather than after the whole attempt timeout.
+- **Retry**: a few attempts with backoff for Worker crashes and transient errors, with a total duration of at least the maximum wait.
+
+A new attempt resumes from the last heartbeat checkpoint. Stream progress is best effort; consumers recover from durable Attributes or a snapshot RPC. Write frames only on status changes so the shared Stream budget is not flooded. Do not hold Execute lock Attributes for the whole wait; commit results that need a lock in a short following Step.
+
+Never:
+
+- WaitFor a Timer and `GoTo` the same Step to poll again.
+- Use retry policy, backoff, or RetryAfter as the polling loop by returning “not ready” as an error.
+- Run a long loop that never heartbeats or writes progress.
+- Call an external system without its own timeout.
+- Pass a page token to the Step's next execution to iterate; the Iteration pattern is removed.
 
 ## Durable timers
 
@@ -123,6 +147,7 @@ For a cross-instance write invariant, use a [singleton coordination Attribute](d
 Sources:
 
 - Pattern catalog: https://docs.superdurable.io/design-patterns
+- Polling: https://docs.superdurable.io/design-patterns/polling
 - Sequential chunking: https://docs.superdurable.io/design-patterns/sequentially-chunked-attribute-map
 - Hash partitioning: https://docs.superdurable.io/design-patterns/hash-partitioned-attribute-map
 - Baseline runnable implementations: https://github.com/superdurable/dex/tree/sdk-go/v1.5.0/examples
