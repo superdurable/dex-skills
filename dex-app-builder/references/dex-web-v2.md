@@ -1,18 +1,18 @@
 # Dex Web v2 and FDG 2.0
 
-Reference capability baselines: Dex Server `v1.3.0`, Dex CLI `v1.3.0`, and
+Reference capability baselines: Dex Server `v1.3.0`, Dex CLI `v1.5.0`, and
 the SDK source baseline in [bundle-baselines.md](../../dex-sdk/references/core/bundle-baselines.md).
 These validate the guidance, not an instruction to upgrade an application.
-A generated application retains the exact Server, CLI, and Go SDK versions
-pinned by its `TEMPLATE_BASELINE` release unless the user authorizes an upgrade.
-Both Server and CLI embed Web v2, trusted hosted starts, native project
-configuration, permission-based Work Queue, and release-owned Connector setup.
+An application retains its pinned Server, CLI, and Go SDK versions unless the
+user authorizes an upgrade. Both Server and CLI embed Web v2, trusted embedded
+starts, project Connector configuration, permission-based Work Queue, and
+release-owned Connector setup.
 
 Released connector modules may require an older Connector SDK; at connectors
 `main` `980a6f9`, modules require exact releases from `sdkgo/v0.7.0` through
 `sdkgo/v0.10.0`. Go minimum version selection builds the application with its
-own Dex Go SDK `v0.13.1` requirement, so keep the application pin and do not
-wait for connector re-releases.
+own newer Dex Go SDK requirement, so keep the application pin and do not wait
+for connector re-releases.
 
 Web v2 is Go-only. Validate every Flow with the v2 analyzer and never fall back to v1.
 
@@ -45,7 +45,7 @@ fact that a product needs administration does not establish such a gap.
 
 In development `local-selector` mode, **Working as** selects one declared Action permission and filters Work Queue candidates. It does not authenticate a user or grant permission.
 
-Production uses `trusted-header` behind an authenticated host or reverse proxy. The boundary strips browser-supplied permission headers, maps authenticated roles to permissions, and injects exactly one **X-Dex-Work-Queue-Permissions** header. Dex Web hides the selector, ignores request-body permissions, and authorizes Search and Actions against that trusted set. Port 8802 must not be reachable around the proxy.
+A deployed Dex Web uses `trusted-header` behind an authenticated reverse proxy. The boundary strips browser-supplied permission headers, maps authenticated roles to permissions, and injects exactly one **X-Dex-Work-Queue-Permissions** header. Dex Web hides the selector, ignores request-body permissions, and authorizes Search and Actions against that trusted set. Port 8802 must not be reachable around the proxy.
 
 ## Start Flow
 
@@ -160,15 +160,15 @@ pending OAuth/PKCE exchanges and UI sessions. Credential replacement is read
 for each provider call; non-secret connection, binding, and operation
 configuration remains startup-bound in the application.
 
-Native project mode uses the same release-owned authorization and field UI.
-Project, environment, and Preview Session scope comes from immutable Dex startup
-configuration and trusted host admission; browser parameters cannot override it.
+Project Connector mode in a deployed Dex Server uses the same release-owned
+authorization and field UI. Its configuration scope comes from immutable Dex
+startup configuration and the trusted proxy; browser parameters cannot override it.
 Dex owns conditional, versioned native storage and OAuth dispatch. Application
 replicas consume validated immutable ordinary snapshots and separately resolved
-credentials through the released Go project configuration package. The private
-host admits exact manifests and deployments and blocks internal endpoints from
-browser routing. No secret values, S3 keys, local paths, or launch commands enter
-the browser. See [native project configuration](../../dex-sdk/references/core/operations.md#native-hosted-project-configuration).
+credentials through the released Go project configuration package. The trusted
+proxy blocks internal configuration endpoints from browser routing. No secret
+values, S3 keys, local paths, or launch commands enter the browser. See
+[native project configuration](../../dex-sdk/references/core/operations.md#native-hosted-project-configuration).
 
 Embedded Action and Display-edit mutations require exactly one browser
 `X-CSRF-Token` matching one nonempty trusted `X-Dex-Web-CSRF-Token`; the host
@@ -176,15 +176,14 @@ must validate the browser token and inject its own trusted context. Missing,
 duplicate, or mismatched tokens fail before Flow access. Malformed trusted
 context is rejected by the embedding ingress before mutation-specific checks.
 Test the actual native display and declared Action path, with the real Worker,
-and separately verify the consuming host's authentication/proxy boundary.
+and separately verify the embedding proxy's authentication boundary.
 
-The target environment is READY only after Superverse validates a configuration
-revision against the selected Release connector contract. Configuration fields
-that can be obtained from verified claims, profile APIs, or declared read-only
-setup commands render as derived read-only values rather than duplicate text
-inputs. Every remaining normal or OAuth field keeps the connector-owned start
-URL, exact provider page path, creation or lookup steps, format, units, secret
-status, blank semantics, and parenthesized manifest default.
+Configuration fields that can be obtained from verified claims, profile APIs,
+or declared read-only setup commands render as derived read-only values rather
+than duplicate text inputs. Every remaining normal or OAuth field keeps the
+connector-owned start URL, exact provider page path, creation or lookup steps,
+format, units, secret status, blank semantics, and
+parenthesized manifest default.
 
 **POST /api/v2/search** accepts several permissions; a run matches any requested permission, then Flow type and other filters apply with AND. A historical permission match discovers work that is or was available. Dex Web rechecks current Action eligibility when the run opens.
 
@@ -202,8 +201,7 @@ For each Flow, keep all of these in one Go file:
 ## Directives
 
 Use the focused [Go FDG authoring reference](fdg-authoring.md)
-for exact field, input, indexed Attribute and typed Action syntax. It owns the
-syntax examples shared by Studio and standalone Dex Web.
+for exact field, input, indexed Attribute and typed Action syntax.
 
 ### QR capture hint
 
@@ -222,8 +220,8 @@ Camera access requires HTTPS or localhost. An embedding host must allow camera
 access in its Permissions Policy. A denied permission, missing camera, or
 insecure context leaves manual input available. Scanning does not authenticate
 the operator, grant a permission, satisfy an Action condition, validate the
-business value, or bypass the RPC. Superverse remains responsible for identity,
-role-to-permission mapping, trusted-header injection, and the embedding camera
+business value, or bypass the RPC. The embedding host remains responsible for
+identity, role-to-permission mapping, trusted-header injection, and the camera
 policy.
 
 ## Permission projection
@@ -239,6 +237,7 @@ Permission history is discovery data, not authorization evidence or proof that a
 ## Validation
 
 Use the [Go FDG validation and diagnostic reference](fdg-authoring.md#focused-verification).
-Validate every Flow declared by the current template manifest. Keep standalone
-rendered definitions in the existing `--flow-rendering-dir`; hosted applications
-use Studio Design/Preview without starting an extra management server.
+Validate every Flow source file in the application. Keep locally rendered
+definitions in the existing `--flow-rendering-dir`, and package the same
+validated definitions for a deployed Dex Web as described in
+[verification and handoff](verification-handoff.md#package-flow-definitions).

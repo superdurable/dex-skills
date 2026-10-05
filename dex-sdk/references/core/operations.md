@@ -106,12 +106,12 @@ Connection credentials and Trigger binding matchers are separate. One connection
 ## Native hosted project configuration
 
 Server and CLI v1.3.0 embed native project configuration. Project Connectors can
-render an exact admitted AppManifest before an application Release or Flow
-definition exists. Flow operations still require the actual validated definition.
-Project, environment, and Preview Session scope are immutable server startup
-configuration; browser parameters cannot override them. An authenticated private
-proxy supplies actor, mount, public origin, permissions, and CSRF context and
-blocks internal AppManifest/validation endpoints from browser routing.
+render an exact admitted application manifest before the application's Flow
+definitions exist. Flow operations still require the actual validated definition.
+The configuration scope is immutable server startup configuration; browser
+parameters cannot override it. An authenticated private proxy supplies actor,
+mount, public origin, permissions, and CSRF context and blocks internal
+manifest/validation endpoints from browser routing.
 
 Dex and Go applications use the released Connector SDK's `sdkgo/projectconfig`
 storage contract. Ordinary snapshots contain logical connection IDs; credentials

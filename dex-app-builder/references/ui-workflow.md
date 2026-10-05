@@ -8,30 +8,24 @@ Dex Web v2 capability gap.
 
 ## No custom UI
 
-The host owns process management: native Studio on a platform, or Dex Web for
-standalone development. With no separate participant UI requested, select this
-mode without a redundant question. The template retains:
+Dex Web owns process management: `dexcli dev` locally and the Dex Server's
+embedded Dex Web when deployed. With no separate participant UI requested,
+select this mode without a redundant question. The application ships its Go
+Worker and, only for confirmed integration ingress, a minimal HTTP server.
 
-- a non-business Hello World React page;
-- the Go HTTP server and OpenAPI source;
-- locally generated Go server interfaces and TypeScript client;
-- one `GetApplicationInfo` operation used by the page, plus health;
-- generation, build, and smoke-test commands.
-
-Remove process state, management operations, Action/Attribute proxy endpoints,
-dashboards, forms, mock lifecycle state, Mock Controls, fixtures, and related
-tests. The shell must not present approval, display, status, list, search,
-detail, retry, or escalation controls.
+Do not add process state views, management operations, Action/Attribute proxy
+endpoints, dashboards, forms, mock lifecycle state, mock controls, fixtures, or
+related tests. No application page may present approval, display, status,
+list, search, detail, retry, or escalation controls.
 
 Retain a webhook only when it is confirmed integration ingress. An external
 provider webhook belongs to its dedicated Connector Trigger. An internal
 system may use the generic HTTP webhook connector.
 
-Do not require mock approval for the inert shell. Verify that the generated
-client calls `GetApplicationInfo`, the production build passes, and no
-management route remains. Remove mock-server routes, lifecycle state, Mock
-Controls, mock launch scripts, and mock E2E. If custom behavior is requested
-later, follow the workflow below before connecting it to production.
+Verify through Dex Web that Runs, Summary and Display fields, Work Queue
+discovery, and Actions cover the confirmed process, and that no management
+route exists in the application. If custom behavior is requested later, follow
+the workflow below before connecting it to production.
 
 ## Custom UI
 
@@ -54,16 +48,16 @@ Agree only on the information architecture needed to unblock backend design:
 - labels, inputs, buttons, and placeholder regions on each page;
 - which Dex Web v2 surfaces remain available to maintainers.
 
-Implement those pages as static markup in the template React/Vite frontend.
-React remains the rendering shell, but this checkpoint has no hooks or
-application state, API imports, generated-client calls, local storage, timers,
-mock lifecycle, Mock Controls, or provider behavior. Use no images, generated
-art, custom icons, animation, branding, gradients, or decorative effects. Keep
-CSS neutral and minimal. Inputs and buttons are inert; use ordinary links or
-link-styled buttons only to demonstrate navigation between directly openable
-page URLs.
+Implement those pages as static markup in the application's frontend; a new
+frontend defaults to React/Vite. React remains the rendering shell, but this
+checkpoint has no hooks or application state, API imports, generated-client
+calls, local storage, timers, mock lifecycle, mock controls, or provider
+behavior. Use no images, generated art, custom icons, animation, branding,
+gradients, or decorative effects. Keep CSS neutral and minimal. Inputs and
+buttons are inert; use ordinary links or link-styled buttons only to
+demonstrate navigation between directly openable page URLs.
 
-Run `npm --prefix web run dev` on a stable local port and verify that every
+Run the frontend development server on a stable local port and verify that every
 page URL renders. Give the user a page inventory with each name, purpose, and
 direct URL. Ask about the unresolved page set, navigation, fields or actions.
 Do not ask the user to approve colors, typography, imagery,
@@ -72,19 +66,21 @@ responsive refinements, dynamic states, or production behavior at this point.
 ### 2. Contract and backend design
 
 Once interaction requirements are known, design the Flow, Connector
-capabilities, and application OpenAPI contract together. Map every approved UI
+capabilities, and application HTTP API contract together. Map every approved UI
 action to an application operation backed by a Flow start, typed RPC, query, or
 confirmed ingress. Define authentication and permission enforcement,
 idempotency, asynchronous status, validation, response and error shapes, retry,
 and terminal outcomes.
 
-OpenAPI describes the application's business boundary. It must not expose Dex
+The API contract describes the application's business boundary. It must not expose Dex
 Steps, Channels, Attributes, connection credentials, or other runtime internals.
-Update `openapi/openapi.yaml` and run `make generate` before implementing HTTP
-handlers. The Go backend implements the generated server interfaces, and the
-browser later consumes the generated TypeScript client. Do not hand-write
-parallel transport types.
-The generated directories are ignored local build artifacts. Regenerate them in the workspace, but never edit or commit them.
+Write it as an OpenAPI document (or the project's existing contract format) and
+generate the Go server interfaces and TypeScript client from it before
+implementing HTTP handlers. The Go backend implements the generated server
+interfaces, and the browser later consumes the generated TypeScript client. Do
+not hand-write parallel transport types or hand-edit generated code; follow
+the project's convention for whether generated output is committed or
+regenerated as a build step.
 
 Implement and verify the Go Flows and required Connectors before returning to
 dynamic frontend work. A missing public Connector capability follows the
@@ -93,21 +89,22 @@ release requirements.
 
 ### 3. Integration and durable verification
 
-Implement the Go boundary and UI against the same generated OpenAPI contract.
+Implement the Go boundary and UI against the same generated API contract.
 Replace any wireframe's inert controls with generated TypeScript client calls.
 Missing private credentials defer real execution, not source implementation.
 Add the confirmed loading, validation, empty, success, failure, retry, recovery,
 and terminal behavior. The browser calls the application API; it never imports
 a Dex client or accesses raw Dex primitives.
 
-Follow the template's real-dependency test policy. Exercise loading, validation,
+Follow a real-dependency test policy. Exercise loading, validation,
 failure, retry and terminal states through real APIs; when a case cannot be
 executed, record its coverage gap. Do not add component mocks, intercepted API
-responses, fake providers, an application-level mock API or Mock Controls.
+responses, fake providers, an application-level mock API or mock controls.
 Prove waits, RPCs, retries, Worker replacement, provider effects and terminal
-behavior through the actual Dex and Connector end-to-end path.
+behavior through the actual Dex and Connector end-to-end path on a local
+`dexcli dev` stack.
 
-Do not claim application-level UI controls provide platform RBAC. A permission
+Do not claim application-level UI controls provide authorization. A permission
 selector filters work; it does not grant permission. Enforce identity-to-
 permission mapping at the trusted application boundary. Keep credentials and
 provider secrets server-side.
