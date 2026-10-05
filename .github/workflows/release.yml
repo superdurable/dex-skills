@@ -33,7 +33,6 @@ jobs:
           echo "sdk=$(cat DEX_BASELINE)" >> "$GITHUB_OUTPUT"
           echo "server=$(cat DEX_SERVER_BASELINE)" >> "$GITHUB_OUTPUT"
           echo "cli=$(cat DEX_CLI_BASELINE)" >> "$GITHUB_OUTPUT"
-          echo "template=$(cat TEMPLATE_BASELINE)" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           repository: superdurable/dex
@@ -50,18 +49,11 @@ jobs:
           ref: ${{ steps.metadata.outputs.cli }}
           path: upstream-dex-cli
           fetch-depth: 0
-      - uses: actions/checkout@v4
-        with:
-          repository: superdurable/dex-template-basic-process
-          ref: ${{ steps.metadata.outputs.template }}
-          path: upstream-template
       - name: Validate release package
         run: |
           python3 script/check-package.py
           python3 script/check-reference-sources.py --dex-root upstream-dex-sdk --server-root upstream-dex-server --cli-root upstream-dex-cli
-          python3 script/check-upstream-baselines.py \
-            --dex-root upstream-dex-cli \
-            --template-root upstream-template
+          python3 script/check-upstream-baselines.py --dex-root upstream-dex-cli
       - name: Check existing tag
         id: existing
         env:
