@@ -6,7 +6,7 @@
 - From Go SDK v1.5.0, default Flow and Step types are the Go type name without its package (`OrderFlow`, `shipOrder`); earlier releases use package-qualified names (`orders.OrderFlow`). Name every Flow type after its domain, such as `ApprovalFlow`, never just `Flow`. A generic Flow or Step must implement `GetFlowType` or `GetStepType`. Otherwise do not implement them for new definitions or as a Dex Web workaround; only a [required production rename that preserves the existing durable identity](versioning.md#default-flow-and-step-type-names) justifies an override.
 - Return every Context state, heartbeat, and Stream error.
 - Do not coordinate durable work with process-local mutexes, goroutines, or maps.
-- Put durable time in WaitFor; `time.Sleep` inside Execute occupies an attempt.
+- Put durable business time (TTL, reminders, inactivity) in a WaitFor Timer. `time.Sleep` inside Execute occupies the attempt; use it only between rounds of a heartbeating [Polling](patterns.md#polling) Step.
 - Preserve omitted versus explicit zero in pointer-valued options.
 - `dex.None` is nil-only; pass `nil`, not an invented empty payload.
 - Graceful and force terminal decisions have different parallel/cancellation semantics.

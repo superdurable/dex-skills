@@ -122,7 +122,7 @@ Docs: https://docs.superdurable.io/primitives/stream
 
 ## Timer
 
-Use a Timer Condition for a durable delay, reminder, deadline branch, or scheduling loop. Decide what happens if a timer is skipped and whether the business deadline should complete, cancel, fail, or route to a handler.
+Use a Timer Condition for a durable delay, reminder, deadline branch, or scheduling loop. Do not use a Timer loop to poll an external system; use the [Polling pattern](patterns.md#polling). Decide what happens if a timer is skipped and whether the business deadline should complete, cancel, fail, or route to a handler.
 
 A Flow timeout handler has Execute semantics. Configure its per-attempt timeout, heartbeat timeout, retry, failure route, durability, locks, and selective state loads through FlowTimeoutHandlerOptions on StartFlowOptions or SubFlowOptions. These options require a positive Flow timeout and the Handler policy. Handler timing starts after the soft timeout fires and may extend beyond the original deadline.
 

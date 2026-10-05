@@ -40,17 +40,7 @@ Follow the shared [missing query target rule](../core/error-handling.md#missing-
 
 ## Retry ownership
 
-Return an error when Step options should decide retry. Use `dex.RetryAfter` only when the application knows a meaningful delay. Never add an in-memory retry loop around Step work; it disappears with the Worker and hides attempts.
-
-[Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/go/patterns/polling/backoff.go)
-<!-- dex-source: examples/go/patterns/polling/backoff.go -->
-```go
-result, err := step.service.AttemptExternalAPICall("Poll for BackoffPollingFlow")
-if err != nil {
-	return nil, dex.RetryAfter(time.Second, err)
-}
-return dex.GracefulComplete(result), nil
-```
+Return an error when Step options should decide retry. Use `dex.RetryAfter` only as explicit backoff for a transient error whose meaningful delay the application knows, such as a provider's rate-limit hint. It is not a polling loop: an external “not ready yet” status is a normal branch of the [Polling pattern](patterns.md#polling), never an error. Never add an in-memory retry loop around failed Step work; it disappears with the Worker and hides attempts.
 
 ## Commit and recovery
 

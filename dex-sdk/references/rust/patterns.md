@@ -154,49 +154,9 @@ if !accepted {
 
 ## Polling
 
-### Timer polling
+Apply the Core [Polling pattern](../core/patterns.md#polling) to every wait on an external system. One long-running `execute` loops: call the provider with its own timeout, such as 10 seconds; return transient failures as `HandlerError` so Step retry re-runs it; keep “not ready” in the loop; return on a terminal status or once `context.first_attempt_at()` plus the budget has passed. Write a Stream frame on status change, otherwise `context.record_heartbeat_value(checkpoint)?`, then plain `thread::sleep(interval)`. Resume with `context.last_heartbeat_value::<T>()?`. Set `execute_method_timeout` to the maximum wait plus a margin, keep the one-minute `heartbeat_timeout` with `interval + call timeout <= heartbeat timeout - 10s`, and give `execute_retry` a few attempts with `total_duration` at least the maximum wait.
 
-Use a durable Timer between polls when every attempt should be a distinct Step execution. Carry the remaining count or cursor in Step input, and loop with `go_to`.
-
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/rust/src/patterns/polling/flow.rs)
-<!-- dex-source: examples/rust/src/patterns/polling/flow.rs -->
-```rust
-fn wait_for(&self, _context: &mut Context, _input: Self::Input) -> HandlerResult<Wait> {
-    Ok(Wait::until(Timer::by_duration(Duration::from_secs(5))))
-}
-```
-
-### Retry-backoff polling
-
-Use Execute retry when “not ready” is naturally a retryable failure of one logical method. Configure initial interval, coefficient, maximum interval, and maximum attempts. Do not use it when every poll must emit a durable business event.
-
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/rust/src/patterns/polling/flow.rs)
-<!-- dex-source: examples/rust/src/patterns/polling/flow.rs -->
-```rust
-fn options(&self) -> StepOptions<Self::Input> {
-    StepOptions::new().execute_retry(
-        RetryPolicy::new()
-            .initial_interval(Duration::from_secs(1))
-            .backoff_coefficient(2.0)
-            .maximum_interval(Duration::from_secs(30))
-            .maximum_attempts(8),
-    )
-}
-```
-
-### Iteration
-
-Use Step input as the durable page token and schedule the same Step until the source returns no next token. Make processing for one page idempotent before advancing the token.
-
-[Runnable source](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/rust/src/patterns/polling/flow.rs)
-<!-- dex-source: examples/rust/src/patterns/polling/flow.rs -->
-```rust
-if next_page_token.is_empty() {
-    Ok(StepDecision::graceful_complete(()))
-} else {
-    Ok(StepDecision::go_to(&Iteration, next_page_token.to_owned()))
-}
-```
+Never loop with a WaitFor Timer and `go_to`, `HandlerError::retry_after` or retry policy, or a page token passed to the next execution. Follow the [design pattern](https://docs.superdurable.io/design-patterns/polling); the pinned baseline has no runnable example of it yet.
 
 ## Durable timers
 
@@ -400,7 +360,7 @@ Adapt the standalone recovery pattern to the entity lifecycle. Read `Context::re
 | --- | --- |
 | Parallel Steps | `examples/rust/src/patterns/parallel/parallel_step_flows.rs` |
 | Parallel SubFlows | `examples/rust/src/patterns/parallel_subflows/flow.rs` |
-| Polling | `examples/rust/src/patterns/polling/flow.rs` |
+| Polling | None at the pinned baseline; follow [Polling](#polling) |
 | Cron, reminder, inactivity | `examples/rust/src/patterns/cron/flow.rs`, `reminders/flow.rs`, `inactiveness_tracker/flow.rs` |
 | Execute/manual/timeout recovery | `recovery/flow.rs`, `intervention/flow.rs`, `timeout/flow.rs` |
 | WaitFor recovery | `examples/rust/src/primitives/proceed_on_wait_failure/flow.rs` |

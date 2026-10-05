@@ -44,9 +44,12 @@ func (step subFlows) WaitFor(_ dex.Context, requests []string) (*dex.Wait, error
 
 ## Polling
 
-- **Timer:** put delay in WaitFor and loop with `GoTo`; never sleep in Execute. [Runnable](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/go/patterns/polling/simple.go).
-- **Backoff:** represent “not ready” as retryable Execute failure and use `RetryAfter` for a service hint. Bound attempts/time. [Runnable](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/go/patterns/polling/backoff.go).
-- **Iteration:** carry the next page token as durable Step input and `GoTo` the same Step. [Runnable](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/go/patterns/polling/iteration.go).
+Apply the Core [Polling pattern](../core/patterns.md#polling) to every wait on an external system: one long-running Step's `Execute` loops until a terminal status or the business deadline. Follow the [design pattern](https://docs.superdurable.io/design-patterns/polling); the pinned baseline has no runnable example of it yet.
+
+- **Round:** call the provider through `context.WithTimeout(ctx, 10*time.Second)`. Return a transient error wrapped with `dex.ErrorWithStack`; “not ready” stays in the loop. Return the next decision on a terminal status, or a failure decision once `ctx.FirstAttemptAt()` plus the budget has passed.
+- **Progress:** write a Stream frame when the status changes, otherwise call `ctx.RecordHeartbeat(checkpoint)`; then `time.Sleep(interval)`. Do not `select` on `ctx.Done()`. A new attempt resumes with `ctx.GetLastHeartbeatValue(&checkpoint)`.
+- **StepOptions:** `ExecuteDurability: dex.StepDurabilitySync` under an ASYNC Flow default; `ExecuteMethodTimeout` is the maximum wait plus a margin; keep `HeartbeatTimeout` at one minute with `interval + call timeout <= HeartbeatTimeout - 10s`; `ExecuteRetry` allows a few attempts with `TotalDuration` at least the maximum wait.
+- **Forbidden:** a WaitFor Timer plus `GoTo` loop, `RetryAfter` or retry policy as the loop, and `GoTo` the same Step with a page token.
 
 ## Durable Timer
 

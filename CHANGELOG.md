@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.30.0 - 2026-10-04
+
+- Replace the Timer, retry-backoff, and Iteration polling patterns with one Polling pattern: a single long-running Step's Execute owns every wait on an external system. Each round calls the provider with its own timeout, keeps “not ready” in the loop, writes a Stream frame or heartbeat, and sleeps with the language's plain sleep. The business deadline comes from the first attempt, and the Step keeps the one-minute heartbeat timeout with `interval + call timeout <= HeartbeatTimeout - 10s`.
+- Forbid a WaitFor Timer plus self-`GoTo` loop, retry policy or RetryAfter as a polling loop, a loop without heartbeats or progress, an external call without its own timeout, and a page token passed to the next Step execution.
+- Keep Go and Rust RetryAfter guidance as explicit backoff for transient errors, not a polling loop. Route Timer, WaitFor, and Go `time.Sleep` guidance to the Polling pattern.
+- Remove the source-checked polling excerpts from Go and Rust, and link the published [Polling design pattern](https://docs.superdurable.io/design-patterns/polling). Source-checked snippets will follow once a Dex release contains the new runnable example.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.30.0.
+
 ## 0.29.26 - 2026-10-03
 
 - Advance the Dex SDK baseline from `sdk-go/v1.2.1` to `sdk-go/v1.5.0`. Python, TypeScript, Java, and Rust sources at that tag match their v1.4.0 releases.
