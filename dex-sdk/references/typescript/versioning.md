@@ -24,6 +24,6 @@ Use additive fields with tolerant decoders where semantics allow. A compile-time
 - Route only new starts to the new version.
 - Remove old code only after no running, waiting, retrying, or recoverable execution needs it.
 
-Continue-as-new preserves the logical Flow ID and deadline semantics defined by the installed SDK. Retry creates a new run and may receive a new timeout budget. Neither transforms application state for you.
+A Flow retry creates a new run and may receive a new timeout budget. It does not transform application state for you.
 
 See the canonical [Application Operations versioning section](https://docs.superdurable.io/production/application-operations#versioning-flow-code).

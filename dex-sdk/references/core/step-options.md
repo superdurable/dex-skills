@@ -10,11 +10,11 @@ When most handlers are short and idempotent, set the FlowConfig default to **ASY
 
 Five seconds is a classification heuristic, not a timeout or SLA. Seven seconds is the limit it protects: the current ASYNC local phase permits at most about seven seconds and three attempts, and the heuristic leaves operating margin inside it. Classification does not need to be exact. ShortRunning work is allowed to exceed the estimate and fall back normally. If more than half of real calls fall back, classify the method as long-running because the local optimization is no longer useful.
 
-Fallback starts a regular activity, but the method's durability remains **ASYNC**. Do not describe fallback as switching durability to SYNC.
+Fallback starts a regular execution, but the method's durability remains **ASYNC**. Do not describe fallback as switching durability to SYNC.
 
 ## Understand the shared attempt budget
 
-The local phase and fallback regular activities are one logical method execution. They share maximum attempts, elapsed retry duration, and 1-based attempt numbers. Fallback starts immediately. Later regular retries continue the existing attempt and backoff sequence.
+The local phase and fallback regular attempts are one logical method execution. They share maximum attempts, elapsed retry duration, and 1-based attempt numbers. Fallback starts immediately. Later regular retries continue the existing attempt and backoff sequence.
 
 The local phase currently ignores method timeout and heartbeat timeout. A method timeout still bounds each regular attempt. When an external call needs a strict deadline during both phases, create a child context or use the installed SDK's cancellation mechanism around that call. Keep external mutations idempotent because an ASYNC result can replay after failure.
 
@@ -39,6 +39,6 @@ Do not infer durability from a large attempt timeout. Attempt timeout is a safet
 
 ## Verify behavior
 
-Test a fast ASYNC method that finishes locally, a slower ASYNC method that falls back and completes, and a known long method that starts as a regular SYNC activity. Verify retry attempts and elapsed budget across fallback. Verify the external child deadline during local execution. Replace the Worker at local fallback, durable waits, and external-effect boundaries.
+Test a fast ASYNC method that finishes locally, a slower ASYNC method that falls back and completes, and a known long method that starts as a regular SYNC execution. Verify retry attempts and elapsed budget across fallback. Verify the external child deadline during local execution. Replace the Worker at local fallback, durable waits, and external-effect boundaries.
 
 FlowConfig is persisted when the Flow starts. Changing the application default affects new Flows, not existing executions. Preserve or migrate open-Flow behavior deliberately.

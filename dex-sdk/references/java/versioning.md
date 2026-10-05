@@ -23,6 +23,6 @@ Additive changes are safest when old paths never reference the new Step or field
 - Route only new Flows to the new version, then remove old code after proving no running, waiting, retrying, or recoverable Flow needs it.
 - Test an old-open/new-worker case against a real Server.
 
-Continue-as-new preserves the logical Flow ID and existing deadline semantics described by the installed SDK. A retry creates a new run and may receive a fresh timeout budget. Do not assume either mechanism migrates application data automatically.
+A Flow retry creates a new run and may receive a fresh timeout budget. Do not assume it migrates application data automatically.
 
 The canonical operational guidance is the [Application Operations versioning section](https://docs.superdurable.io/production/application-operations#versioning-flow-code).

@@ -36,6 +36,18 @@ and Cursor. Its only public skills are `dex-sdk`, `dex-app-builder`, and
 - Platform constraints are stricter: Go only, strict FDG 2.0, provider effects
   only in `Execute`, and no provider or Dex mutations in `WaitFor`.
 
+## Dex concept boundary
+
+Skills describe Dex concepts and guarantees only. Never mention
+Continue-As-New in any skill file, including its threshold and trigger. Do not
+describe Temporal or Cadence internals (activity timeout names, Signals,
+Queries, Updates, workflow history mechanics) in application guidance; state the
+Dex behavior and guarantee instead. When a guarantee differs by backend, say so
+in Dex terms without explaining the backend mechanism. Deployment and operations
+guidance may name the backend and its configuration, such as a Temporal
+namespace or Cadence domain, Temporal Cloud index provisioning, local SQLite
+index slots, and the codec server for raw payloads.
+
 ## Packaging and release
 
 Keep Codex, Claude Code, and Cursor manifests synchronized on plugin ID,

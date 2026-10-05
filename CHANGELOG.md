@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.30.2 - 2026-10-05
+
+- Describe only Dex concepts and guarantees in the skills. Remove every Continue-As-New mention from Core, the `dex-sdk` entrypoint, the Java and TypeScript versioning guidance, App Builder's Dex Web reference, and the versioning, testing, and read-after-write guidance.
+- Stop telling developers to exclude `ContinuedAsNew` runs from application searches in Core primitives, Core operations, the `dex-sdk` entrypoint, and all five language data-handling references. Application run searches constrain FlowType.
+- Rewrite Core read-after-write as a Dex-level guarantee table: which write/read pairs are strong, which are eventual or asynchronous, and what to do for each, without backend messaging mechanisms. State once that the strong pairs hold on Temporal-backed deployments and that Cadence-backed deployments confirm with a bounded read loop and do not support locked RPCs, Step-completion waits, or Attribute-match waits.
+- Replace backend internals in application guidance with Dex behavior: RPC routing and closed-Flow rejection in Core primitives, error handling, and testing; accepted durable waits and handler generations for Step-completion and Attribute-match waits in Core and all five language references; regular Step executions in Core StepOptions; and direct-state readback in the `dex-sdk` entrypoint, App Builder handoff, and language error-handling references.
+- Add the Dex concept boundary to the repository agent rules. Deployment and operations guidance keeps naming the backend and its configuration.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.30.2.
+
 ## 0.30.0 - 2026-10-04
 
 - Replace the Timer, retry-backoff, and Iteration polling patterns with one Polling pattern: a single long-running Step's Execute owns every wait on an external system. Each round calls the provider with its own timeout, keeps “not ready” in the loop, writes a Stream frame or heartbeat, and sleeps with the language's plain sleep. The business deadline comes from the first attempt, and the Step keeps the one-minute heartbeat timeout with `interval + call timeout <= HeartbeatTimeout - 10s`.

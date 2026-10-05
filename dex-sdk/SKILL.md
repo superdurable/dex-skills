@@ -48,7 +48,7 @@ Always read the entry page for the project's language first:
 
 Before writing or reviewing any Client boundary—including Flow start, RPC, cleanup, admission, waits, or external Stream writes—read [Error handling](references/core/error-handling.md) and the selected language's **error-handling.md**. This is implementation guidance; do not defer it until a failure needs troubleshooting.
 
-For mutations followed by reads or completion checks, also read [Read-after-write consistency](references/core/read-after-write.md). Classify the write/read pair. Direct Temporal RPC state readback is strong; search/projections and triggered business work have separate confirmation boundaries. Do not require polling or callbacks merely because a write uses Signal.
+For mutations followed by reads or completion checks, also read [Read-after-write consistency](references/core/read-after-write.md). Classify the write/read pair. A typed read-only RPC after a successful direct-state RPC write observes the write; search/projections and triggered business work have separate confirmation boundaries. Do not add polling or callbacks to that strong pair.
 
 Then load only the references required by the task:
 
@@ -110,7 +110,7 @@ and Dex search for supported lookup paths, typed RPCs for reads and mutations,
 Channels for queued intent, bounded AttributeMap chunks or partitions for
 growing collections, and Dex blob storage for large values. Assign application indexes explicit
 generic typed slots shared across Flow types; keep business names on Attributes.
-Application run searches constrain FlowType and exclude ContinuedAsNew runs;
+Application run searches constrain FlowType;
 see [core primitives](references/core/primitives.md#attribute).
 For map-wide write invariants, follow the singleton coordination-lock pattern in
 [data handling](references/core/data-handling.md#whole-map-coordination).

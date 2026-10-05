@@ -1,6 +1,6 @@
 # Java error handling
 
-Before designing sequential writes and reads, use the [shared read-after-write matrix](../core/read-after-write.md). Temporal RPC direct-state readback is strong when the registered/read-loaded state matches the write; search indexes, Attribute Store projections and triggered business completion are separate. Follow this page for the language-specific error and timeout model.
+Before designing sequential writes and reads, use the [shared read-after-write matrix](../core/read-after-write.md). A typed read-only RPC issued after a successful direct-state RPC write observes that write when it loads the written state; search indexes, Attribute Store projections and triggered business completion are separate. Follow this page for the language-specific error and timeout model.
 
 Separate three categories: application rejection, retryable Worker failure, and Client/service failure.
 
@@ -16,7 +16,7 @@ Use `StepDecision.forceFail(detail)` for a deliberate terminal failed outcome, `
 
 ## Client exceptions
 
-Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveOrNotFoundException` reports a missing target or an operation that cannot use a closed Flow, and is the InvokeRPC mapping for missing targets; interpret it using the registered RPC path, not its class name alone. A query-only RPC can instead succeed against a retained terminal execution. Durable Step and Attribute waits never expose transport long-poll expiry; they reattach with the effective Request ID and preserve the total request budget. `RequestTimeoutException` means that caller-visible budget expired, not that the Flow or accepted durable Update failed. Internal handler rollover is transparent. An unclassified remote request failure remains `DexServiceException`. Its named gRPC code and Dex sub-status are diagnostic metadata; never branch on message text or raw numeric values.
+Catch concrete classes in `io.superdurable.dex.exceptions`. `FlowNotFoundException` means a read found no execution. `FlowNotActiveOrNotFoundException` reports a missing target or an operation that cannot use a closed Flow, and is the InvokeRPC mapping for missing targets; interpret it using the registered RPC path, not its class name alone. A query-only RPC can instead succeed against a retained terminal execution. Durable Step and Attribute waits never expose transport long-poll expiry; they reattach with the effective Request ID and preserve the total request budget. `RequestTimeoutException` means that caller-visible budget expired, not that the Flow or accepted durable wait failed. Internal handler rollover is transparent. An unclassified remote request failure remains `DexServiceException`. Its named gRPC code and Dex sub-status are diagnostic metadata; never branch on message text or raw numeric values.
 
 Normal domain logic catches only the concrete exceptions whose outcomes it can decide. Every remote Client exception extends the public `DexServiceException`; local validation, definition, serialization, value-mapping, and programming failures do not. Catch the base only at a narrow boundary whose policy intentionally treats every remote Dex failure the same, such as service availability translation or explicitly best-effort output. Do not repeat that translation around every invocation. Catching `RuntimeException` is not equivalent because it also hides local SDK and application defects.
 
@@ -26,7 +26,7 @@ For an idempotent start, set one stable `StartFlowOptions.Builder.requestId(...)
 
 ## Query-only Get failures
 
-Follow the shared [missing query target rule](../core/error-handling.md#missing-query-targets). For a business Get confirmed to have no registration or invocation locks, no transaction, no returned durable effects, and no Server-forced Update routing, catch `FlowNotActiveOrNotFoundException` or `FlowNotFoundException` and return the contract's not-found result directly. Retained closed executions remain readable, so do not call WaitForFlow, describe/search/history APIs, or add a timeout probe or retry to distinguish missing from closed. Preserve other errors and any explicit retention/unavailable contract. Do not apply this translation to mutations or active-only RPC paths.
+Follow the shared [missing query target rule](../core/error-handling.md#missing-query-targets). For a business Get confirmed to have no registration or invocation locks, no transaction, no returned durable effects, and no Server policy that runs every RPC transactionally, catch `FlowNotActiveOrNotFoundException` or `FlowNotFoundException` and return the contract's not-found result directly. Retained closed executions remain readable, so do not call WaitForFlow, describe/search/history APIs, or add a timeout probe or retry to distinguish missing from closed. Preserve other errors and any explicit retention/unavailable contract. Do not apply this translation to mutations or active-only RPC paths.
 
 ## Closed-Flow races
 

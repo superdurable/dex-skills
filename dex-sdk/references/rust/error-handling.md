@@ -1,6 +1,6 @@
 # Rust error handling
 
-Before designing sequential writes and reads, use the [shared read-after-write matrix](../core/read-after-write.md). Temporal RPC direct-state readback is strong when the registered/read-loaded state matches the write; search indexes, Attribute Store projections and triggered business completion are separate. Follow this page for the language-specific error and timeout model.
+Before designing sequential writes and reads, use the [shared read-after-write matrix](../core/read-after-write.md). A typed read-only RPC issued after a successful direct-state RPC write observes that write when it loads the written state; search indexes, Attribute Store projections and triggered business completion are separate. Follow this page for the language-specific error and timeout model.
 
 Separate handler failures from controller/client failures. A Step or RPC returns `HandlerResult<T>` and uses `HandlerError` to control retryable Worker behavior. A Client operation returns `SdkResult<T>` and exposes typed `SdkError` variants. Do not collapse either into strings before policy or HTTP mapping has examined it.
 
@@ -68,7 +68,7 @@ Record recovery progress durably before triggering another non-idempotent action
 
 ## Client errors
 
-Match `SdkError` variants that affect external behavior, such as `FlowAlreadyStarted`, `RequestTimeout`, `RpcLockConflict`, Channel message absence, or Worker invocation failure. Durable Step and Attribute waits never expose transport long-poll expiry; they reattach with the effective Request ID and preserve the total request budget. `RequestTimeout` means that caller-visible budget expired, not that the Flow or accepted durable Update failed. Internal handler rollover is transparent. Controllers should map known conflicts and invalid requests distinctly from infrastructure failures. Preserve `source()` chains in logs. Do not retry every `SdkError`; only retry operations whose semantics and request IDs make repetition safe.
+Match `SdkError` variants that affect external behavior, such as `FlowAlreadyStarted`, `RequestTimeout`, `RpcLockConflict`, Channel message absence, or Worker invocation failure. Durable Step and Attribute waits never expose transport long-poll expiry; they reattach with the effective Request ID and preserve the total request budget. `RequestTimeout` means that caller-visible budget expired, not that the Flow or accepted durable wait failed. Internal handler rollover is transparent. Controllers should map known conflicts and invalid requests distinctly from infrastructure failures. Preserve `source()` chains in logs. Do not retry every `SdkError`; only retry operations whose semantics and request IDs make repetition safe.
 
 Unlike the class-based SDKs, `SdkError` is one enum containing both service-backed variants and local `FlowDefinition`, `InvalidArgument`, `ValueMapping`, and `InvalidStepResult` defects. Never discard every `SdkError` to implement a remote-failure policy. Match the documented service variant for the operation, or use `service_error().is_some()` only at a narrow boundary that intentionally handles every remote variant identically.
 
@@ -80,7 +80,7 @@ For an explicitly best-effort external `Client::write_stream`, suppress only `Sd
 
 ## Query-only Get failures
 
-Follow the shared [missing query target rule](../core/error-handling.md#missing-query-targets). For a business Get confirmed to have no registration or invocation locks, no transaction, no returned durable effects, and no Server-forced Update routing, catch `SdkError::FlowNotActiveOrNotFound` or `SdkError::FlowNotFound` and return the contract's not-found result directly. Retained closed executions remain readable, so do not call WaitForFlow, describe/search/history APIs, or add a timeout probe or retry to distinguish missing from closed. Preserve other errors and any explicit retention/unavailable contract. Do not apply this translation to mutations or active-only RPC paths.
+Follow the shared [missing query target rule](../core/error-handling.md#missing-query-targets). For a business Get confirmed to have no registration or invocation locks, no transaction, no returned durable effects, and no Server policy that runs every RPC transactionally, catch `SdkError::FlowNotActiveOrNotFound` or `SdkError::FlowNotFound` and return the contract's not-found result directly. Retained closed executions remain readable, so do not call WaitForFlow, describe/search/history APIs, or add a timeout probe or retry to distinguish missing from closed. Preserve other errors and any explicit retention/unavailable contract. Do not apply this translation to mutations or active-only RPC paths.
 
 ## Terminal decisions
 

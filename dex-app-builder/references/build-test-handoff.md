@@ -1,6 +1,6 @@
 # Build, test, and handoff
 
-For write/read boundaries, follow the shared [SDK consistency matrix](../../dex-sdk/references/core/read-after-write.md). Test direct Temporal RPC reads on the first read; confirm triggered business work separately. Do not add callbacks or polling to strong paths solely because they use Signal.
+For write/read boundaries, follow the shared [SDK consistency matrix](../../dex-sdk/references/core/read-after-write.md). Assert direct-state RPC reads on the first read; confirm triggered business work separately. Do not add callbacks or polling to strong write/read pairs.
 
 ## Implementation loop
 
