@@ -58,8 +58,8 @@ One long-running Step's Execute owns the whole wait. Each round:
 
 Every wait limit comes from the polling Step's Execute options, and the engine enforces each one. The Step code never computes a deadline:
 
-- **Method timeout**: the maximum wait. It bounds one attempt (the activity StartToClose timeout on the Temporal backend); an omitted value uses the two-hour server default.
-- **Retry**: a few attempts with backoff for Worker crashes and transient errors, with a total duration equal to the maximum wait. The total duration is measured from the first attempt's schedule, includes every retry, and also cuts the in-flight attempt; on the Temporal backend it is the activity ScheduleToClose timeout. An omitted total duration uses the four-hour server default, so always set it.
+- **Method timeout**: the maximum wait. It bounds one attempt; an omitted value uses the two-hour server default.
+- **Retry**: a few attempts with backoff for Worker crashes and transient errors, with a total duration equal to the maximum wait. The total duration is measured from the first attempt's schedule, includes every retry, and also cuts the in-flight attempt. An omitted total duration uses the four-hour server default, so always set it.
 - **Heartbeat timeout**: keep the one-minute default, so a stalled Worker is detected within a minute rather than after the whole attempt timeout.
 - **Durability**: override Execute to SYNC when the Flow default is ASYNC; the ASYNC local phase ignores heartbeat and method timeouts.
 

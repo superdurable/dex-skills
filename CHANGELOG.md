@@ -2,7 +2,7 @@
 
 ## 0.30.1 - 2026-10-05
 
-- Bound every Polling wait only with the polling Step's StepOptions, which the engine enforces: the Execute method timeout is the maximum wait for one attempt, and the Execute retry total duration is the maximum wait across all attempts (the activity ScheduleToClose timeout on Temporal, which also cuts the in-flight attempt). Always set the total duration, because an omitted value uses the four-hour server default. Keep the one-minute heartbeat timeout.
+- Bound every Polling wait only with the polling Step's StepOptions, which the engine enforces: the Execute method timeout is the maximum wait for one attempt, and the Execute retry total duration is the maximum wait across all attempts, measured from the first attempt and also cutting the in-flight attempt. Always set the total duration, because an omitted value uses the four-hour server default. Keep the one-minute heartbeat timeout.
 - Remove the in-code business deadline from Core, the `dex-sdk` entrypoint, and the Go, Java, Python, TypeScript, and Rust Polling guidance, including the Python advice to pass an absolute deadline as Step input. The heartbeat checkpoint holds only resume state, such as the last reported status.
 - Route an expired wait through each SDK's Execute-failure recovery option to a Step that reads the recovery error (detail and error type) and records the business failure; without that route the Flow fails. A non-duration business condition, such as an externally owned lease expiring, is still checked in the loop.
 - Add the anti-pattern of a hand-written deadline that duplicates the method timeout or the retry total duration.
