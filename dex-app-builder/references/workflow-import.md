@@ -31,6 +31,15 @@ semantics](n8n-semantics.md).
 - A row's state describes its own element. A value computation reproduced in
   Go is `mapped` even when its consumer is `blocked`; note the dependency. A
   node whose parts map differently gets sub-rows, such as `N3a` and `N3b`.
+  A placeholder node whose behavior only the user can supply is `blocked`
+  with a `D` row that asks; `pending` is for a concrete proposal. When the
+  export has no effect at all, such as when it fails n8n's pre-execution
+  check for every trigger, one `D` row asks whether to build the intended
+  workflow, and the other rows describe what Dex builds if the user says yes.
+- A `mapped` row's notes cite evidence. `verify` rejects wording that marks a
+  claim as unverified (from memory, assumed, probably, unconfirmed, not
+  verified, or confirm against the source), so resolve the claim or mark the
+  row `blocked`.
 - No silent drops and no silent fixes. Port a source defect faithfully by
   default. A fix is a `diverged` row that the user approves, never a change
   hidden inside the port.
@@ -74,7 +83,10 @@ component tag; then a local clone of the official connector library, after
 `git tag -l <directory>/<version>` confirms the tag, through
 `git show <directory>/<version>:<directory>/<file>`, never the working tree or
 `main`; otherwise record a `blocked` verification row and write no design
-fields for that operation. Record which source you used.
+fields for that operation. Record which source you used. In zsh, write a tag
+held in a variable as `"${TAG}:path"`, because `$TAG:` is parsed as a modifier.
+Rerunning `inventory` refuses to overwrite a ledger that already has resolved
+rows unless you pass `--force`.
 
 ## 2. Secure the source before mapping it
 
@@ -91,13 +103,23 @@ fields for that operation. Record which source you used.
 ## 3. Resolve behavior, not labels
 
 - Ask for the source instance's n8n release (Settings, About) and record it in
-  the ledger. Read each node's implementation at that release's tag in the
+  the ledger. When it is unknown, bound it: the earliest release that ships
+  every exported node `typeVersion` (bisect release tags for the node files
+  that list it) and the latest release. Read both, and record each behavior
+  that differs between them as a decision. Read each node's implementation at
+  that release's tag in the
   n8n repository (`packages/nodes-base/nodes/<Node>/`,
   `packages/@n8n/nodes-langchain/nodes/`), and engine behavior in
   `packages/workflow/src/expression.ts`,
   `packages/workflow/src/node-parameters/filter-parameter.ts`, and
   `packages/core/src/execution-engine/workflow-execute.ts` (before n8n 1.96
   the first two are `Expression.ts` and `NodeParameters/FilterParameter.ts`).
+  Recent releases evaluate expressions in an isolated engine by default
+  (`N8N_EXPRESSION_ENGINE`, with the error rule in
+  `@n8n/expression-runtime`), and Code nodes run in a task runner rather than
+  an in-process sandbox; read the engine the release uses. Behavior that lives
+  in a dependency, such as a LangChain provider library or the mail composer,
+  is read from that dependency at the version n8n's lockfile pins.
   Add a `K` row for every other claim, such as a template description or the
   user's summary. Read a community
   node from its package at the exported version. The script's version notes
@@ -137,9 +159,14 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   [n8n semantics](n8n-semantics.md#schedule-rules) for run
   identity, lateness, and the waiting Step's retry window.
 - A Trigger-started workflow becomes one Flow per delivery, identified by the
-  Trigger's event ID. Constants that the source set for configuration live in
+  Trigger's event ID. Flow IDs reject `/`, `$`, and `:`, so hash an event ID
+  that may contain them. Constants that the source set for configuration live in
   application configuration bound at registration, or in typed start input
   when an operator chooses them per run.
+- A fan-out from one output to distinct effects runs one branch after
+  another under execution order `v1`, top to bottom on the canvas. A faithful
+  port chains those Steps in that order; running them in parallel is a
+  `diverged` row.
 - Per-item processing over application Steps becomes dynamic parallel Steps,
   bounded by the source's own limits. Carry every upstream field a later Step
   reads in that Step's input or in an AttributeMap entry keyed by the item's
@@ -162,9 +189,11 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   Mutation derives
   its idempotency key from the Connector call, which covers retries of one Step
   execution only. When the provider does not deduplicate on that key and the
-  source made one attempt, decide through `StepOptionsOverride` whether to cap
+  source made one attempt, decide through the generated Step config's
+  `StepOptionsOverride` (a `*dex.StepOptions` from the connector SDK) whether to cap
   `ExecuteRetry`, use sync `ExecuteDurability` (an async result can replay),
-  and route `uncertain` to recovery, never to a blind resend. A metered Query
+  and route `uncertain`, when the operation declares it, to recovery, never to
+  a blind resend. A metered Query
   gets one dispatch attempt under [Connector architecture](connector-architecture.md)
   unless the user approves source-like retries. Record each choice.
 - Constants set for configuration become typed start input or editable scalar
@@ -184,8 +213,11 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   and builds the next typed input.
 - List every branch the operation's `connector.yaml` declares in the ledger's
   connector-branch rows, and route each one: success to the next Step,
-  `uncertain` to recovery, and each optional failure branch to a Step that
-  records the source-equivalent outcome. An optional branch left unrouted
+  `uncertain` (when declared) to recovery, and each optional failure branch to
+  a Step that records the source-equivalent outcome. For a connector gap, the
+  row holds the planned operation and routing and stays `blocked`. Wire the
+  Execute-failure route through `StepOptionsOverride.ExecuteFailure`, such as
+  `dex.ProceedToOnExecuteFailure(RecoveryStep{}, nil)`. An optional branch left unrouted
   fails the Flow when it is selected, so leaving one out is a recorded
   decision justified against the source. Execute failure covers only
   exhausted retries and timeouts.
@@ -254,9 +286,15 @@ node scripts/n8n_code_golden.mjs /path/to/export.json "Node name" fixture.json >
 JavaScript in a fresh context with n8n's item rules and prints its normalized
 output items. A thrown error exits 1, which is golden behavior too: the source
 node fails. Code or expressions that read time need Luxon: install the version
-that the `catalog` section of n8n's root `pnpm-workspace.yaml` pins at the
-source release with
+that n8n pins at the source release (the `catalog` section of the root
+`pnpm-workspace.yaml` on recent releases, `packages/workflow/package.json` on
+older ones) with
 `npm install --prefix DIRECTORY luxon@VERSION`, then pass `--luxon DIRECTORY`.
+`fixture.now` fixes `$now`, `$today`, and `DateTime.now()`; `fixture.locale`
+sets Luxon's locale, and running node with `LC_ALL` set to the instance's
+locale covers `toLocaleString`. The harness does not evaluate IF or Filter
+operators: keep hand-written predicate expectations, with the
+`filter-parameter.ts` lines they come from, next to the goldens.
 
 - Use synthetic fixtures only, never production records or personal data.
   Cover normal input, empty collections, null and missing fields, special
@@ -298,13 +336,14 @@ no row is `pending`. Then build through the normal stages.
 
 ## 8. Accept and cut over
 
-- `python3 scripts/n8n_inventory.py verify ledger.md --strict` passes, with
+- `python3 scripts/n8n_inventory.py verify ledger.md --accept` passes, with
   `--inventory` naming the generated `inventory.json` when the ledger moved: no
   row remains `todo` or `pending`, every non-`mapped` row has notes, every
   decision a note cites exists, no `mapped` row rests on an unverified claim,
-  and every row that `inventory.json` generated is still present.
-- No row remains `blocked`. A connector gap stays a production handoff blocker
-  until the connector is released and its exact component tag is pinned.
+  and every row that `inventory.json` generated is still present. `--accept`
+  also fails while a row is `blocked`: a connector gap stays a production
+  handoff blocker until the connector is released and its exact component tag
+  is pinned.
 - The golden parity tests pass.
 - When the source has execution history, run a shadow comparison: the Dex
   application processes the same real inputs with its mutations directed to a

@@ -11,8 +11,10 @@
 //     "items": [{"json": {}}],              input items of the node
 //     "nodes": {"Setup": [{"json": {}}]},   items of nodes read through $('Name')
 //     "now": "2026-01-05T07:00:00-05:00",   required when the code reads time
-//     "timezone": "America/New_York"         optional workflow timezone
-//   }
+//     "timezone": "America/New_York",        optional workflow timezone
+//     "locale": "en-US"                      optional Luxon locale; run node with LC_ALL set to the
+//   }                                        instance locale for toLocaleString
+// An item {"jsonUndefined": true} has undefined json.
 //
 // In Run Once for All Items mode and in a Function node, $input.item and $json
 // read the first input item, as in n8n. In Run Once for Each Item mode, n8n's
@@ -75,7 +77,9 @@ if (kind === "code") {
   fail(`node ${nodeName} is ${node.type}, not a Code or Function node`);
 }
 
-const toItem = (value) => (value && typeof value === "object" && "json" in value ? value : { json: value });
+// {"jsonUndefined": true} stands for an item whose json is undefined, which JSON cannot express.
+const toItem = (value) => (value?.jsonUndefined === true ? { json: undefined }
+  : value && typeof value === "object" && "json" in value ? value : { json: value });
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8"));
 const items = (fixture.items ?? []).map(toItem);
 const otherNodes = Object.fromEntries(
@@ -101,7 +105,10 @@ if (/\$now|\$today|DateTime\b/.test(code)) {
   const luxon = loadLuxon("the code");
   if (!fixture.now) fail("the code reads time; set fixture.now to a fixed ISO instant", 3);
   if (fixture.timezone) luxon.Settings.defaultZone = fixture.timezone;
+  if (fixture.locale) luxon.Settings.defaultLocale = fixture.locale;
   const now = luxon.DateTime.fromISO(fixture.now, { setZone: !fixture.timezone });
+  // DateTime.now() and new DateTime() read the same fixed instant as $now.
+  luxon.Settings.now = () => now.toMillis();
   time = { DateTime: luxon.DateTime, $now: now, $today: now.startOf("day") };
 }
 
@@ -193,6 +200,12 @@ if (mode === "runOnceForEachItem") {
     process.stderr.write(`node failed: Can't use .${method}() here (line ${line + 1}): this is only available in 'Run Once for All Items' mode\n`);
     process.exit(1);
   }
+}
+
+if (items.length === 0 && mode !== "function") {
+  process.stderr.write("note: n8n never runs a node with zero input items, so this case is unreachable\n");
+  process.stdout.write("[]\n");
+  process.exit(0);
 }
 
 const output = [];

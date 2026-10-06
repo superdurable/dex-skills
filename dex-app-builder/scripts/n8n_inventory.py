@@ -254,6 +254,8 @@ class Inventory:
     def build(self) -> "Inventory":
         self.collect_edges()
         self.collect_secrets()
+        if self.workflow.get("name"):
+            self.claims.append({"source": "Workflow name", "text": str(self.workflow["name"])})
         for node in self.nodes:
             self.collect_node(node)
         self.emit_grouped()
@@ -535,7 +537,8 @@ class Inventory:
             if "model" in parameters or "modelName" in parameters or "modelId" in parameters:
                 if not selected:
                     self.add_finding("high", "hollow-node", name,
-                                     "The model selector is empty, so n8n cannot run this model as exported. Ask which provider and model the Dex llm connection uses.")
+                                     "The node is a placeholder (missing required model selection), so n8n cannot run this model as exported. "
+                                     "Ask which provider and model the Dex llm connection uses.")
         if not self.is_app_node(node) or node.get("disabled"):
             return
         resource = parameters.get("resource", DEFAULT_RESOURCE.get(kind, "(default)"))
@@ -546,10 +549,16 @@ class Inventory:
         key = (kind, str(parameters.get("resource", DEFAULT_RESOURCE.get(kind, ""))),
                str(parameters.get("operation", DEFAULT_OPERATION.get(kind, ""))))
         missing = [field for field in REQUIRED_PARAMETERS.get(key, ()) if not parameters.get(field)]
+        empty_locators = sorted(key for key, value in parameters.items()
+                                if isinstance(value, dict) and value.get("__rl") and not value.get("value") and key not in ("model", "modelId", "modelName"))
+        if empty_locators:
+            self.add_finding("high", "hollow-node", name,
+                             f"Empty resource locator(s) {', '.join(empty_locators)}: the export does not say which account resource the node acts on. "
+                             "Ask the user; when the locator is required at this version, n8n also refuses to run executions that reach the node.")
         if not payload or missing:
             detail = f"missing required {', '.join(missing)}" if missing else "only its resource and operation are set"
             self.add_finding("high", "hollow-node", name,
-                             f"The node is a placeholder ({detail}; confirm in the node source at typeVersion {node_version(node):g}), so n8n cannot run it as exported. "
+                             f"The node is a placeholder ({detail}; check the node source at typeVersion {node_version(node):g}), so the export cannot do what the node is named for. "
                              "Its real behavior must come from the user, not from notes or the node name.")
 
     def hint(self, node: dict) -> str:
@@ -822,7 +831,8 @@ class Inventory:
                 amount = parameters.get("amount", 1 if version < 1.1 else 5)
                 unit = parameters.get("unit", "hours" if version < 1.1 else "seconds")
                 seconds = {"seconds": 1, "minutes": 60, "hours": 3600, "days": 86400}.get(str(unit), 0) * (amount if isinstance(amount, (int, float)) else 0)
-                note = (f"Wait resumes {amount} {unit} after the Wait node runs ({'defaults: amount 1, unit hours' if version < 1.1 else 'defaults: amount 5, unit seconds'})"
+                unit_text = str(unit)[:-1] if amount == 1 and str(unit).endswith("s") else unit
+                note = (f"Wait resumes {amount} {unit_text} after the Wait node runs ({'defaults: amount 1, unit hours' if version < 1.1 else 'defaults: amount 5, unit seconds'})"
                         + ("; a day is exactly 24 hours, not a calendar day" if unit == "days" else "") + ". "
                         + ("The execution sleeps in place (under 65 seconds), and sibling branches that have not run wait too."
                            if 0 < seconds < 65 else
@@ -839,7 +849,7 @@ class Inventory:
                     "The Dex webhook Trigger accepts only verified POST requests with a JSON or urlencoded body up to its size limit and deduplicates by event ID, "
                     "so record each difference.")
         if note:
-            self.add_finding("medium", "version-default", name, note + f" (typeVersion {version:g}; confirm against the n8n node source.)")
+            self.add_finding("medium", "version-default", name, note + f" (typeVersion {version:g}; check the n8n node source at the release.)")
 
     # ----- graph checks -------------------------------------------------
     def adjacency(self):
@@ -1003,7 +1013,8 @@ class Inventory:
             self.add_finding("high", "secret-in-request", expression["node"],
                              f"`{expression['parameter']}` sends the credential field(s) {', '.join(f'`{field}`' for field in secrets)} from workflow data in the {where}"
                              + (", where provider, proxy, and n8n logs record it" if where == "URL" else "")
-                             + ". In Dex the credential belongs to the connector connection, sent as its manifest declares; record the divergence.")
+                             + ". In Dex the credential belongs to the connector connection, sent as its manifest declares; record the divergence. "
+                             "When the credential is embedded in a URL handed to another provider, the Dex design fetches the content itself instead of forwarding the URL.")
 
     def check_model_output_bodies(self) -> None:
         """Email bodies built from model output carry whatever markup the model returns."""
@@ -1049,6 +1060,15 @@ class Inventory:
             if short_type(node.get("type", "")) != "wait":
                 continue
             name = node.get("name", "")
+            predecessors = [self.by_name.get(edge["from"], {}) for edge in self.edges if edge["to"] == name and edge["type"] == "main"]
+            successors = [self.by_name.get(edge["to"], {}) for edge in self.edges if edge["from"] == name and edge["type"] == "main"]
+            submits = [other.get("name", "") for other in predecessors if self.is_effect_node(other)]
+            reads = [other.get("name", "") for other in successors
+                     if short_type(other.get("type", "")) == "httpRequest" and not self.is_effect_node(other)]
+            if submits and reads and name not in self.descendants(name):
+                self.add_finding("medium", "wait-poll-delay", name,
+                                 f"This Wait is a fixed delay between {', '.join(submits)} and {', '.join(reads)}: it assumes the submitted job finishes in time, "
+                                 "and n8n fails or reads an incomplete result when it does not. Map it to the Dex Polling pattern, and record the source's fixed delay as the behavior it replaces.")
             if name in self.descendants(name):
                 cycle = sorted(other for other in self.descendants(name) if name in self.descendants(other))
                 if any(short_type(self.by_name.get(other, {}).get("type", "")) == "splitInBatches" for other in cycle):
@@ -1439,17 +1459,23 @@ class Inventory:
         uncredentialed = defaultdict(list)
         for row in self.connector_matrix():
             node = self.by_name.get(row["node"], {})
-            if not node.get("credentials") and self.is_app_node(node) and not node.get("disabled"):
+            needs_connection = self.is_app_node(node) or kind_is_model(node)
+            if not node.get("credentials") and needs_connection and not node.get("disabled"):
                 connector = row["connector"] if row["connector"] and row["connector"] != "-" else row["type"]
                 uncredentialed[connector].append(row["node"])
         for connector, nodes in uncredentialed.items():
             credential_index += 1
             lines.append(f"| C{credential_index} | (none in the export) | {cell(', '.join(nodes))} | "
                          f"A Dex connection is still needed for {cell(connector)}; ask which account it acts for | todo |   |")
+        for node_name, value in sorted(self.placeholders):
+            credential_index += 1
+            lines.append(f"| C{credential_index} | (placeholder in workflow data) | {cell(node_name)} | "
+                         f"The placeholder `{cell(value, 60)}` stands for a credential; the Dex connector connection holds the real one | todo |   |")
         settings = self.workflow.get("settings", {}) or {}
         lines += ["", "## Connector branches", "",
                   "Replace each placeholder with one row per branch of the mapped operation, read from its connector.yaml at the release tag, "
-                  "and say where each branch goes and which source outcome it matches.", "",
+                  "and say where each branch goes and which source outcome it matches. For a connector gap, write the planned operation "
+                  "and routing instead and mark the row `blocked`.", "",
                   "| ID | n8n node | Branch and Dex target | Status | Notes |", "| --- | --- | --- | --- | --- |"]
         branch_nodes = [row["node"] for row in self.connector_matrix()
                         if not langchain_sub_node_role(self.by_name.get(row["node"], {})) and not is_trigger(self.by_name.get(row["node"], {}))
@@ -1474,7 +1500,7 @@ class Inventory:
         lines += ["", "## Findings", "", "| ID | Severity | Kind | Node | Finding | Status | Notes |", "| --- | --- | --- | --- | --- | --- | --- |"]
         for index, finding in enumerate(self.findings, 1):
             lines.append(
-                f"| F{index} | {finding['severity']} | {finding['kind']} | {cell(finding['node'])} | {cell(finding['message'], 420)} | todo |   |"
+                f"| F{index} | {finding['severity']} | {finding['kind']} | {cell(finding['node'])} | {cell(finding['message'], 2000)} | todo |   |"
             )
         lines += ["", "## Behavior matrix", "",
                   "What the source does in each situation; Dex must match it or record a decision.", "",
@@ -1501,7 +1527,8 @@ class Inventory:
             lines.append(f"| {index} | {cell(row['node'])} | {cell(row['type'])} | {cell(row['element'])} | {cell(row['notes'], 320)} |")
         decisions = defaultdict(list)
         for index, finding in enumerate(self.findings, 1):
-            if finding["severity"] in ("critical", "high"):
+            # A code port is required work, not a choice for the user.
+            if finding["severity"] in ("critical", "high") and finding["kind"] not in ("code-port", "python-code"):
                 decisions[finding["kind"]].append((index, finding))
         lines += ["", "## Decisions for the user", "",
                   "One row per kind of open question. Set Status to `decided` with the user's answer in Notes, or `pending` while it is open.", "",
@@ -1509,7 +1536,7 @@ class Inventory:
         for index, (kind, items) in enumerate(decisions.items(), 1):
             ids = ", ".join(f"F{number}" for number, _ in items)
             question = items[0][1]["message"] if len(items) == 1 else f"{len(items)} findings on {', '.join(sorted({item['node'] for _, item in items}))}: {items[0][1]['message']}"
-            lines.append(f"| D{index} | {kind} | {ids} | {cell(question, 420)} | todo |   |")
+            lines.append(f"| D{index} | {kind} | {ids} | {cell(question, 2000)} | todo |   |")
         if not decisions:
             lines.append("| D1 | none | - | No critical or high finding; add questions found during the semantic review. | todo |   |")
         lines.append("")
@@ -1548,6 +1575,12 @@ class Inventory:
                          "an expression yields undefined, and a method call on the missing value is swallowed, so the value is empty and the node continues; "
                          "a strict IF accepts null and undefined; Code nodes throw instead"))
         return rows
+
+
+def kind_is_model(node: dict) -> bool:
+    """A LangChain chat or language model sub-node, which carries the provider credential."""
+    kind = short_type(node.get("type", ""))
+    return "langchain" in node.get("type", "") and (kind.startswith("lmChat") or kind.startswith("lmOpenAi"))
 
 
 def langchain_sub_node_role(node: dict) -> str:
@@ -1725,7 +1758,7 @@ def split_row(line: str) -> list:
     return cells[1:-1] if len(cells) >= 2 else cells
 
 
-def verify(path: Path, is_strict: bool = False, inventory_path: Path | None = None) -> int:
+def verify(path: Path, is_strict: bool = False, inventory_path: Path | None = None, is_acceptance: bool = False) -> int:
     problems, counts, seen, by_section = [], defaultdict(int), set(), defaultdict(lambda: defaultdict(int))
     text = path.read_text(encoding="utf-8")
     # A decision is defined by a Decisions table row, or by a bullet or heading that starts with its ID.
@@ -1751,6 +1784,8 @@ def verify(path: Path, is_strict: bool = False, inventory_path: Path | None = No
             problems.append(f"line {number} {cells[0]}: {status} needs notes")
         elif status == "pending" and is_strict:
             problems.append(f"line {number} {cells[0]}: pending awaits the user's decision")
+        elif status == "blocked" and is_acceptance:
+            problems.append(f"line {number} {cells[0]}: blocked rows must be resolved before cutover")
     if not counts:
         problems.append("no ledger rows found")
     inventory_path = inventory_path or path.parent / "inventory.json"
@@ -1785,14 +1820,16 @@ def main(argv=None) -> int:
     inventory_parser.add_argument("export", type=Path)
     inventory_parser.add_argument("--out", type=Path, help="directory for ledger.md and inventory.json")
     inventory_parser.add_argument("--catalog", type=Path, help="downloaded Dex connector catalog.yaml for the capability matrix")
+    inventory_parser.add_argument("--force", action="store_true", help="overwrite a ledger that already has resolved rows")
     verify_parser = commands.add_parser("verify", help="check that every ledger row is resolved")
     verify_parser.add_argument("ledger", type=Path)
     verify_parser.add_argument("--strict", action="store_true", help="also fail while any row is pending")
+    verify_parser.add_argument("--accept", action="store_true", help="the cutover gate: --strict, and also fail while any row is blocked")
     verify_parser.add_argument("--inventory", type=Path, help="inventory.json generated with this ledger (default: next to it)")
     arguments = parser.parse_args(argv)
 
     if arguments.command == "verify":
-        return verify(arguments.ledger, arguments.strict, arguments.inventory)
+        return verify(arguments.ledger, arguments.strict or arguments.accept, arguments.inventory, arguments.accept)
 
     try:
         workflows = load_workflows(arguments.export)
@@ -1812,6 +1849,11 @@ def main(argv=None) -> int:
             print(inventory.to_markdown())
             continue
         directory = arguments.out if len(workflows) == 1 else arguments.out / f"workflow-{index + 1}"
+        existing = directory / "ledger.md"
+        if existing.exists() and not arguments.force and any(
+                cells[-2].lower() != "todo" for _, cells in ledger_rows(existing.read_text(encoding="utf-8"))):
+            print(f"error: {existing} already has resolved rows; pass --force to overwrite it", file=sys.stderr)
+            return 2
         directory.mkdir(parents=True, exist_ok=True)
         (directory / "ledger.md").write_text(inventory.to_markdown(), encoding="utf-8")
         (directory / "inventory.json").write_text(json.dumps(inventory.to_json(), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

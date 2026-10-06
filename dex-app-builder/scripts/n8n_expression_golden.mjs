@@ -12,7 +12,10 @@
 // FIXTURE.json uses the n8n_code_golden.mjs shape:
 //   {"items": [{"json": {}}], "nodes": {"Setup": [{"json": {}}]},
 //    "now": "2026-01-05T07:00:00-05:00", "timezone": "America/New_York",
+//    "locale": "en-US",
 //    "globals": {"$execution": {"id": "1"}, "$workflow": {"name": "W"}, "$vars": {}, "$runIndex": 0}}
+// An item {"jsonUndefined": true} has undefined json. Run node with LC_ALL set to the instance
+// locale when the expression formats with toLocaleString.
 // "globals" supplies n8n globals that the export does not contain.
 //
 // --expression evaluates a proposed replacement, such as a fix the user must
@@ -76,7 +79,9 @@ const segments = [...template.matchAll(/\{\{([\s\S]*?)\}\}/g)];
 // Any text around the only segment, whitespace included, makes the parameter a string template in n8n.
 const isSingleExpression = segments.length === 1 && segments[0][0] === template;
 
-const toItem = (value) => (value && typeof value === "object" && "json" in value ? value : { json: value });
+// {"jsonUndefined": true} stands for an item whose json is undefined, which JSON cannot express.
+const toItem = (value) => (value?.jsonUndefined === true ? { json: undefined }
+  : value && typeof value === "object" && "json" in value ? value : { json: value });
 const fixture = JSON.parse(readFileSync(fixturePath, "utf8"));
 const items = (fixture.items ?? []).map(toItem);
 const otherNodes = Object.fromEntries(
@@ -102,7 +107,10 @@ if (/\$now|\$today|DateTime\b/.test(template)) {
   const luxon = loadLuxon("the expression");
   if (!fixture.now) fail("the expression reads time; set fixture.now to a fixed ISO instant", 3);
   if (fixture.timezone) luxon.Settings.defaultZone = fixture.timezone;
+  if (fixture.locale) luxon.Settings.defaultLocale = fixture.locale;
   const now = luxon.DateTime.fromISO(fixture.now, { setZone: !fixture.timezone });
+  // DateTime.now() and new DateTime() read the same fixed instant as $now.
+  luxon.Settings.now = () => now.toMillis();
   time = { DateTime: luxon.DateTime, $now: now, $today: now.startOf("day") };
 }
 

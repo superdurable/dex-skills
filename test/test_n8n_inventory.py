@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -504,6 +505,42 @@ class DetectorTest(unittest.TestCase):
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def test_acceptance_gate_overwrite_guard_and_poll_delay(self):
+        export = {
+            "nodes": [
+                {"name": "Start", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "parameters": {}},
+                {"name": "Submit", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2,
+                 "parameters": {"method": "POST", "url": "https://jobs.example.test/submit"}},
+                {"name": "Hold", "type": "n8n-nodes-base.wait", "typeVersion": 1.1, "parameters": {"amount": 30}},
+                {"name": "Result", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "parameters": {"url": "={{ $json.resultUrl }}"}},
+                {"name": "Keys", "type": "n8n-nodes-base.set", "typeVersion": 3.4, "parameters": {"assignments": {"assignments": [
+                    {"name": "apiKey", "type": "string", "value": "YOUR_API_KEY"}]}}},
+            ],
+            "connections": {
+                "Start": {"main": [[{"node": "Keys", "type": "main", "index": 0}]]},
+                "Keys": {"main": [[{"node": "Submit", "type": "main", "index": 0}]]},
+                "Submit": {"main": [[{"node": "Hold", "type": "main", "index": 0}]]},
+                "Hold": {"main": [[{"node": "Result", "type": "main", "index": 0}]]},
+            },
+        }
+        _, by_kind, ledger = self.inventory(export)
+        self.assertIn("Submit and Result", by_kind["wait-poll-delay"][0]["message"])
+        self.assertIn("(placeholder in workflow data)", ledger)
+        self.assertNotIn("code-port", {row.split("|")[2].strip() for row in ledger.splitlines() if row.startswith("| D")})
+        ledger_path = self.root / "out" / "ledger.md"
+        resolved = resolve_ledger(ledger)
+        ledger_path.write_text(re.sub(r"\| E1 \|(.*?)\| dropped \| [^|]* \|", r"| E1 |\1| blocked | connector gap |", resolved, count=1))
+        verify = [sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)]
+        self.assertEqual(subprocess.run(verify, capture_output=True, text=True).returncode, 0)
+        accept = subprocess.run(verify + ["--accept"], capture_output=True, text=True)
+        self.assertEqual(accept.returncode, 1)
+        self.assertIn("blocked rows must be resolved", accept.stderr)
+        path = self.root / "export.json"
+        rerun = subprocess.run([sys.executable, "-B", str(INVENTORY), "inventory", str(path), "--out", str(self.root / "out")],
+                               capture_output=True, text=True)
+        self.assertEqual(rerun.returncode, 2)
+        self.assertIn("--force", rerun.stderr)
+
     def test_rejects_a_file_that_is_not_the_published_catalog(self):
         catalog = self.root / "catalog.yaml"
         catalog.write_text("apiVersion: connectors.dex.dev/v1alpha1\nkind: ConnectorCatalogSource\n")
@@ -621,6 +658,25 @@ class GoldenHarnessTest(unittest.TestCase):
         missing = subprocess.run(["node", str(EXPRESSION_GOLDEN), str(self.export), "Text", "value", str(fixture), "extra"],
                                  capture_output=True, text=True)
         self.assertEqual(missing.returncode, 2)
+
+    def test_fixture_time_locale_and_empty_items(self):
+        export = {"nodes": [
+            {"name": "Clock", "type": "n8n-nodes-base.set", "typeVersion": 3.4, "parameters": {"value": "={{ DateTime.now().toISODate() }}"}},
+            {"name": "Code", "type": "n8n-nodes-base.code", "typeVersion": 2, "parameters": {"jsCode": "return $input.all();"}},
+        ]}
+        self.export.write_text(json.dumps(export))
+        empty = self.root / "empty.json"
+        empty.write_text(json.dumps({"items": []}))
+        result = subprocess.run(["node", str(GOLDEN), str(self.export), "Code", str(empty)], capture_output=True, text=True)
+        self.assertEqual((result.returncode, json.loads(result.stdout)), (0, []))
+        self.assertIn("unreachable", result.stderr)
+        # Runs when Luxon is installed, for example with N8N_GOLDEN_LUXON pointing at an npm prefix.
+        luxon = os.environ.get("N8N_GOLDEN_LUXON") or subprocess.run(["node", "-e", "require.resolve('luxon')"], capture_output=True).returncode == 0
+        if luxon:
+            fixture = self.root / "time.json"
+            fixture.write_text(json.dumps({"items": [{"json": {}}], "now": "2026-03-08T07:00:00-05:00", "timezone": "America/New_York"}))
+            clock = subprocess.run(["node", str(EXPRESSION_GOLDEN), str(self.export), "Clock", "value", str(fixture)], capture_output=True, text=True)
+            self.assertEqual(json.loads(clock.stdout), [{"value": "2026-03-08"}], "DateTime.now() reads fixture.now")
 
     def test_function_node_and_per_item_check_follow_n8n(self):
         export = {"nodes": [

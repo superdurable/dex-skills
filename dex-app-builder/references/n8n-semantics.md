@@ -203,7 +203,7 @@ change between releases without a `typeVersion` change.
 | Execute Workflow | Steps in the same Flow, or an independent top-level Flow under the Core boundary rules. Never a SubFlow by default. |
 | No Operation, Sticky Note | No behavior. Mark it `dropped` and check what a note claims. |
 | App node, such as Gmail, Google Calendar, or Slack | The released connector operation for the node's resource and operation. |
-| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text. |
+| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation selects `invalidResponse`, where n8n forwards empty text. |
 
 When the source waits for hours or days, choose a versioning strategy from the
 Dex SDK [versioning guide](../../dex-sdk/references/core/versioning.md) before
@@ -223,9 +223,11 @@ the first deploy, since Flows will be open across deploys.
 
   An absent `field` means `days`, and an omitted hour or minute is 0, because
   n8n fills declared defaults before the node runs. Each rule fires
-  independently. The second is jittered on every rule except `seconds` and
-  cron rules: a random second picked at each activation before n8n 2.19, and a
-  stable per-node second from 2.19.
+  independently. The second depends on the release: 0 on early 1.x releases,
+  then a random second picked at each activation, and from n8n 2.19 a stable
+  second derived from the workflow and node IDs; `seconds` and cron rules are
+  never jittered. Check the Schedule node's `GenericFunctions.ts` at the
+  release.
 - A node name such as "Every morning" proves nothing. The inventory reports a
   mismatch between the name and the rule.
 - Compare the schedule's interval with the time window each execution reads.
@@ -271,7 +273,7 @@ the first deploy, since Flows will be open across deploys.
 | --- | --- |
 | Set | Before 3.3, input fields pass through next to the set fields; from 3.3 they are dropped unless `includeOtherFields` is on. A string field that resolves to null or undefined becomes the text `null` or `undefined` at 3.0, fails the node at 3.1 unless `ignoreConversionErrors` is on, and becomes null from 3.2; a field of another type becomes null. Binary data is dropped through 3.3 unless `includeBinary` is set, and from 3.4 is kept while input fields are kept. |
 | Gmail send | From 2.1, the footer "This email was sent automatically with n8n" is appended unless `options.appendAttribution` is false; reply never appends it. `emailType` defaults to html (text before n8n 1.10), and html mail has no text/plain part at all. The message is trimmed. |
-| Send Email | From 2.1, the same footer is appended unless `appendAttribution` is false. |
+| Send Email | From 2.1, the same footer is appended unless `appendAttribution` is false. The Dex email connector sends plain text only, from the sender fixed on its connection, and its connection needs IMAP and SMTP hosts even for sending; read its Go types at the tag. |
 | Telegram send message | `parse_mode` is Markdown when unset, so the text is parsed as markup. From 1.1, "This message was sent automatically with n8n" is appended for Markdown or HTML unless `appendAttribution` is false; from 1.2, link previews are off by default. |
 | Slack post or update | From 2.1, an "Automated with this n8n workflow" link is appended unless `includeLinkToWorkflow` is false. |
 | Microsoft Teams create message | From 1.1, a "Powered by this n8n workflow" link is appended, as HTML, unless `includeLinkToWorkflow` is false. |
