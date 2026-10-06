@@ -31,14 +31,23 @@ semantics](n8n-semantics.md).
 - A row's state describes its own element. A value computation reproduced in
   Go is `mapped` even when its consumer is `blocked`; note the dependency. A
   node whose parts map differently gets sub-rows, such as `N3a` and `N3b`.
-  A placeholder node whose behavior only the user can supply is `blocked`
-  with a `D` row that asks; `pending` is for a concrete proposal. When the
+  A placeholder node whose behavior only the user can supply, and an unknown
+  source fact such as the release, timezone, locale, or workflow ID, is
+  `blocked` with a `D` row that asks; `pending` is for a concrete proposal and
+  its notes name that `D` row. A divergence the secure-first rules require,
+  such as moving a credential out of workflow data, is `diverged` without a
+  user choice; say so in its notes. When the
   export has no effect at all, such as when it fails n8n's pre-execution
   check for every trigger, one `D` row asks whether to build the intended
   workflow. Rows that describe what Dex builds if the user says yes reproduce
   specified, not observed, behavior: mark them `mapped` only with
-  `spec: D<n>` in their notes, and `verify` counts them as conditional while
-  that decision is pending.
+  `spec: D<n>` (or `spec: D1, D5`) in their notes, and `verify` counts them as
+  conditional while one of those decisions is pending.
+- A claim row (`K`) is `mapped` when the configuration bears the claim out,
+  and `diverged` or `pending` with a `D` row when it does not. An
+  informational finding, such as a release marker, is `mapped` once its
+  information is recorded where it applies (cite that row), or `dropped` when
+  it does not apply. A finding about a connector gap is `blocked` with the gap.
 - A `mapped` row's notes cite evidence. `verify` rejects wording that marks a
   claim as unverified (from memory, assumed, probably, unconfirmed, not
   verified, or confirm against the source), so resolve the claim or mark the
@@ -87,7 +96,16 @@ component tag; then a local clone of the official connector library, after
 `git show <directory>/<version>:<directory>/<file>`, never the working tree or
 `main`; otherwise record a `blocked` verification row and write no design
 fields for that operation. Record which source you used. In zsh, write a tag
-held in a variable as `"${TAG}:path"`, because `$TAG:` is parsed as a modifier.
+held in a variable as `"${TAG}:path"`, because `$TAG:` is parsed as a modifier:
+
+```bash
+TAG=connectors/google/gmail/v0.21.0
+git -C /path/to/dex-connectors-library show "${TAG}:connectors/google/gmail/connector.yaml"
+```
+
+Dependency source, such as a LangChain provider library, nodemailer, or the
+`cron` package, comes from the npm registry: `npm pack PACKAGE@VERSION`
+downloads the published tarball to read.
 Rerunning `inventory` refuses to overwrite a ledger that already has resolved
 rows unless you pass `--force`.
 
@@ -107,9 +125,11 @@ rows unless you pass `--force`.
 
 - Ask for the source instance's n8n release (Settings, About) and record it in
   the ledger. When it is unknown, bound it: the earliest release that ships
-  every exported node `typeVersion` (bisect release tags for the node files
-  that list it) and the latest release. Read both, and record each behavior
-  that differs between them as a decision. Read each node's implementation at
+  every exported node `typeVersion` and every release marker (bisect release
+  tags for the node files that list it), and the latest stable release, not a
+  prerelease. List tags for every major line, with the trailing dot, such as
+  `gh api repos/n8n-io/n8n/git/matching-refs/tags/n8n@2. --paginate`. Read both
+  bounds, and record each behavior that differs between them as a decision. Read each node's implementation at
   that release's tag in the
   n8n repository (`packages/nodes-base/nodes/<Node>/`,
   `packages/@n8n/nodes-langchain/nodes/`), and engine behavior in
@@ -117,10 +137,13 @@ rows unless you pass `--force`.
   `packages/workflow/src/node-parameters/filter-parameter.ts`, and
   `packages/core/src/execution-engine/workflow-execute.ts` (before n8n 1.96
   the first two are `Expression.ts` and `NodeParameters/FilterParameter.ts`).
-  Recent releases evaluate expressions in an isolated engine by default
-  (`N8N_EXPRESSION_ENGINE`, with the error rule in
-  `@n8n/expression-runtime`), and Code nodes run in a task runner rather than
-  an in-process sandbox; read the engine the release uses. Behavior that lives
+  The default expression engine changed from `legacy` to an isolated `vm`
+  engine during the 2.x line (`N8N_EXPRESSION_ENGINE`, defaulted in
+  `packages/@n8n/config/src/configs/expression-engine.config.ts`); both swallow
+  native errors, the isolated one in `@n8n/expression-runtime`'s bridge. Code
+  nodes run in a task runner rather than an in-process sandbox on recent
+  releases. Read the engine the release uses. [n8n
+  semantics](n8n-semantics.md#where-engine-behavior-lives) lists the files. Behavior that lives
   in a dependency, such as a LangChain provider library or the mail composer,
   is read from that dependency at the version n8n's lockfile pins.
   Add a `K` row for every other claim, such as a template description or the
@@ -351,9 +374,11 @@ that n8n pins at the source release (the `catalog` section of the root
 `pnpm-workspace.yaml` on recent releases, `packages/workflow/package.json` on
 older ones) with
 `npm install --prefix DIRECTORY luxon@VERSION`, then pass `--luxon DIRECTORY`.
-`fixture.now` fixes `$now`, `$today`, and `DateTime.now()`; `fixture.locale`
-sets Luxon's locale, and running node with `LC_ALL` set to the instance's
-locale covers `toLocaleString`. The harness does not evaluate IF or Filter
+`fixture.now` fixes `$now`, `$today`, and `DateTime.now()`. n8n formats with
+the process's ICU locale, so set `fixture.locale` and `LC_ALL` to the same
+instance locale. An HTTP Request JSON body is the rendered string parsed as
+JSON, so golden it by parsing the expression golden's value; a parse error is
+the node's failure. The harness does not evaluate IF or Filter
 operators: keep hand-written predicate expectations, with the
 `filter-parameter.ts` lines they come from, next to the goldens.
 
@@ -366,8 +391,13 @@ operators: keep hand-written predicate expectations, with the
   and mark guards those inputs never reach as unreachable.
 - Run every final-payload golden, including empty-collection and all-null
   fixtures, through the consuming operation's input validation at the tag, so
-  a derived required field is never blank. Push each fixture through the
-  consuming connector's typed output before claiming parity. A value the Go type cannot represent, such as null versus
+  a derived required field is never blank. Before implementation, record each
+  validation rule as a connector-imposed difference row; once code exists,
+  assert it in a Go test that calls the operation's validation at the tag (or a
+  copy of it, citing the tag). Push each fixture through the consuming
+  connector's typed output before claiming parity; for a connector gap, each
+  value the planned type must carry, such as null versus missing, becomes a
+  contribution requirement. A value the Go type cannot represent, such as null versus
   missing versus empty, becomes a connector contribution requirement or a
   `diverged` row that states the exact difference.
 - Golden the final effect payload, not only the upstream node: read the

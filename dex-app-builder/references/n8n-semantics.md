@@ -66,7 +66,25 @@ the n8n tags.
 
 Release-gated behavior to recheck once bounded: server-side activation
 validation of parameters and credentials from n8n 2.8, deduplicated scheduled
-executions from 2.19, and stable schedule seconds from 2.19.
+executions from 2.19, stable schedule seconds from 2.19, and the default
+expression engine.
+
+## Where engine behavior lives
+
+Cite these files at the bounded release tags (kebab-case paths are from about
+n8n 1.96; earlier tags use PascalCase names):
+
+| Behavior | Source |
+| --- | --- |
+| Pre-execution parameter check, execution order, retry clamps | `packages/core/src/execution-engine/workflow-execute.ts` |
+| Required-parameter issues | `packages/workflow/src/node-helpers.ts` |
+| Activation and publish validation | `packages/cli/src/workflows/workflow-validation.service.ts` |
+| Expression rendering and error swallowing | `packages/workflow/src/expression.ts`; the isolated engine's error handler in `packages/@n8n/expression-runtime/src/bridge/isolated-vm-bridge.ts` |
+| Default expression engine | `packages/@n8n/config/src/configs/expression-engine.config.ts` |
+| IF, Filter, and Switch operators | `packages/workflow/src/node-parameters/filter-parameter.ts` |
+| Waiting executions and their resume | `packages/cli/src/wait-tracker.ts`; the short in-process wait in the Wait node or, on recent releases, `packages/core/src/execution-engine/node-execution-context/base-execute-context.ts` |
+| Schedule cron expression and stable values | `packages/nodes-base/nodes/Schedule/GenericFunctions.ts` |
+| `$now`, `$today`, and `$input` | `packages/workflow/src/workflow-data-proxy.ts` |
 
 ## Item model
 
@@ -175,7 +193,9 @@ executions from 2.19, and stable schedule seconds from 2.19.
 - Luxon maps to Go as follows. `toFormat('yyyy-MM-dd')` is
   `Format("2006-01-02")`. `plus` and `minus` with `days` are `AddDate` on a time
   in the same `*time.Location`. `startOf('day')` is `time.Date` at midnight in
-  that location.
+  that location, except where DST skips midnight: Luxon moves forward to the
+  first valid time, while Go's `time.Date` can land on the previous day, so
+  golden the zone's transition days.
 - IF and Filter from version 2, and Switch from version 3: null and undefined
   pass strict type validation. String operators compare `leftValue ?? ''`, and `exists` and
   `notExists` test null, undefined, and NaN. Only a present value of the wrong
@@ -229,7 +249,7 @@ executions from 2.19, and stable schedule seconds from 2.19.
 | Execute Workflow | Steps in the same Flow, or an independent top-level Flow under the Core boundary rules. Never a SubFlow by default. |
 | No Operation, Sticky Note | No behavior. Mark it `dropped` and check what a note claims. |
 | App node, such as Gmail, Google Calendar, or Slack | The released connector operation for the node's resource and operation. |
-| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation selects `invalidResponse`, where n8n forwards empty text. n8n's output parser checks the answer after generation and fails the node on a mismatch, while `llm` structured output is enforced by the provider, so a schema-mismatch failure path in the source is a `diverged` row. Record every exit path of a tools agent at the release, including the max-iterations stop, whose fixed text skips the output parser. Model sub-nodes can retry inside the model client and set their own timeout: read the node's options and the LangChain library at the version n8n pins. |
+| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation selects `invalidResponse`, where n8n forwards empty text; `generateText` joins the text parts of an answer with no separator, and a `truncated` answer still carries the text LangChain would forward, so route it as the source did. Use a provider connector, such as a native Gemini one, only for a provider-native feature. n8n's output parser checks the answer after generation and fails the node on a mismatch, while `llm` structured output is enforced by the provider, so a schema-mismatch failure path in the source is a `diverged` row. Record every exit path of a tools agent at the release, including the max-iterations stop, whose fixed text skips the output parser. Model sub-nodes can retry inside the model client and set their own timeout: read the node's options and the LangChain library at the version n8n pins. |
 
 When the source waits for hours or days, choose a versioning strategy from the
 Dex SDK [versioning guide](../../dex-sdk/references/core/versioning.md) before
@@ -307,7 +327,7 @@ the first deploy, since Flows will be open across deploys.
 | Node | What to confirm at the exported version |
 | --- | --- |
 | Set | Before 3.3, input fields pass through next to the set fields; from 3.3 they are dropped unless `includeOtherFields` is on. A string field that resolves to null or undefined becomes the text `null` or `undefined` at 3.0, fails the node at 3.1 unless `ignoreConversionErrors` is on, and becomes null from 3.2; a field of another type becomes null. Binary data is dropped through 3.3 unless `includeBinary` is set, and from 3.4 is kept while input fields are kept. |
-| Gmail send | From 2.1, the footer "This email was sent automatically with n8n" is appended unless `options.appendAttribution` is false; reply never appends it. `emailType` defaults to html (text before n8n 1.10), and html mail has no text/plain part at all. The message is trimmed. The mail composer turns line breaks in the subject into spaces; check it at the nodemailer version n8n pins. |
+| Gmail send | From 2.1, the footer "This email was sent automatically with n8n" is appended unless `options.appendAttribution` is false; reply never appends it. `emailType` defaults to html (text before n8n 1.10), and html mail has no text/plain part at all. The message is trimmed. The mail composer turns line breaks in the subject into spaces; check it at the nodemailer version n8n pins. The Dex `gmail` `sendMessage` requires a non-blank text body and builds its own headers, so an HTML-only source message is a recorded difference. |
 | Send Email | From 2.1, the same footer is appended unless `appendAttribution` is false. The Dex email connector sends plain text only, from the sender fixed on its connection, and its connection needs IMAP and SMTP hosts even for sending; read its Go types at the tag. |
 | Telegram send message | `parse_mode` is Markdown when unset, so the text is parsed as markup. From 1.1, "This message was sent automatically with n8n" is appended for Markdown or HTML unless `appendAttribution` is false; from 1.2, link previews are off by default. |
 | Slack post or update | From 2.1, an "Automated with this n8n workflow" link is appended unless `includeLinkToWorkflow` is false. |

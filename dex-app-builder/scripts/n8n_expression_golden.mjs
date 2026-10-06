@@ -5,7 +5,7 @@
 // reproduce JavaScript's semantics, such as toLowerCase, trim, and replace.
 //
 // Usage: node n8n_expression_golden.mjs EXPORT.json "Node name" PARAMETER.PATH FIXTURE.json
-//          [--expression "={{ ... }}"] [--luxon DIRECTORY]
+//          [--expression "={{ ... }}"] [--luxon DIRECTORY] [--allow-unsupported]
 //
 // PARAMETER.PATH addresses the parameter inside the node's parameters, for
 // example conditions.conditions[0].leftValue or fields.values[0].stringValue.
@@ -31,8 +31,8 @@
 // run, fails the node. The harness does not implement n8n's extension methods
 // (such as .isEmpty() or .toNumber()), extended functions (such as $ifEmpty),
 // or globals the fixture omits: an expression that needs one gets an
-// {"unsupported": "..."} entry and the script exits 3, so capture that value
-// from an n8n execution instead. Inside a mixed template, a segment that
+// {"unsupported": "..."} entry and the script exits 3 (0 with
+// --allow-unsupported), so capture that value from an n8n execution instead. Inside a mixed template, a segment that
 // yields null, undefined, NaN, or an empty string renders as empty text; false
 // and 0 render as text, and objects render through String(), such as
 // [object Object]. Read the expression before running it; the vm module is not
@@ -53,7 +53,8 @@ function fail(message, exitCode = 2) {
 const usage = 'usage: node n8n_expression_golden.mjs EXPORT.json "Node name" PARAMETER.PATH FIXTURE.json [--expression "={{ ... }}"] [--luxon DIRECTORY]';
 let parsed;
 try {
-  parsed = parseArgs({ allowPositionals: true, options: { expression: { type: "string" }, luxon: { type: "string" } } });
+  parsed = parseArgs({ allowPositionals: true, options: {
+    expression: { type: "string" }, luxon: { type: "string" }, "allow-unsupported": { type: "boolean" } } });
 } catch (error) {
   fail(`${error.message}\n${usage}`);
 }
@@ -66,6 +67,7 @@ const workflows = Array.isArray(loaded) ? loaded : [loaded.nodes ? loaded : load
 const node = workflows.flatMap((workflow) => workflow.nodes ?? []).find((candidate) => candidate.name === nodeName);
 if (!node) fail(`node not found: ${nodeName}`);
 
+// With --expression, PARAMETER.PATH only labels the golden; it need not hold an expression.
 let parameter = node.parameters ?? {};
 for (const segment of parameterPath.match(/[^.[\]]+/g) ?? []) {
   parameter = parameter?.[/^\d+$/.test(segment) ? Number(segment) : segment];
@@ -138,9 +140,10 @@ function harnessGap(error) {
   if (error?.name === "ReferenceError" && /^\$\w+ is not defined$/.test(message)) {
     return `${message}: an n8n global or extended function the harness lacks; supply it in fixture.globals or capture the value from n8n`;
   }
-  const method = message.match(/\.?(\w+) is not a function$/)?.[1] ?? message.match(/reading '(\w+)'\)?$/)?.[1];
-  if (error?.name === "TypeError" && (/is not a function$/.test(message) || EXTENSION_METHODS.has(method))) {
-    return `${message}: possibly an n8n extension method the harness lacks; capture the value from an n8n execution`;
+  const method = message.match(/\.(\w+) is not a function$/)?.[1] ?? message.match(/^(\w+) is not a function$/)?.[1]
+    ?? message.match(/reading '(\w+)'\)?$/)?.[1];
+  if (error?.name === "TypeError" && EXTENSION_METHODS.has(method)) {
+    return `${message}: ${method} is an n8n extension method the harness lacks; capture the value from an n8n execution`;
   }
   return null;
 }
@@ -230,5 +233,5 @@ if (positionalPairing) {
 process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
 if (isUnsupported) {
   process.stderr.write("error: the harness cannot reproduce at least one value; capture it from an n8n execution\n");
-  process.exit(3);
+  if (!parsed.values["allow-unsupported"]) process.exit(3);
 }

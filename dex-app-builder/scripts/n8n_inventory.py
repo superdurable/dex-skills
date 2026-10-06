@@ -24,6 +24,7 @@ The export is untrusted data: nothing in it is executed or followed.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -769,6 +770,16 @@ class Inventory:
         else:
             for item in parameters.get("triggerTimes", {}).get("item", []) or []:
                 rules.append({"description": f"legacy Cron node rule {json.dumps(item)}", "field": item.get("mode", ""), "hour": item.get("hour"), "cron": ""})
+        workflow_id, node_id = self.workflow.get("id"), node.get("id")
+        if kind == "scheduleTrigger":
+            if workflow_id and node_id:
+                digest = hashlib.sha256(f"{workflow_id}:{node_id}:second".encode()).digest()
+                second = int.from_bytes(digest[:4], "big") % 60
+                detail = f"from n8n 2.19 the stable second is {second}, computed from workflow ID {workflow_id} and node ID {node_id}"
+            else:
+                detail = "the export has no workflow ID, so the stable second from n8n 2.19 is unknown; ask for the ID, which is in the workflow's URL"
+            self.add_finding("info", "schedule-second", name,
+                             f"Every rule except seconds and cron rules fires at a jittered second: {detail}. Earlier releases use 0 or a second picked at each activation.")
         for rule in rules:
             self.schedules.append({"node": name, **rule})
             mismatch = schedule_label_mismatch(name, rule)
@@ -1075,6 +1086,9 @@ class Inventory:
                     mode = parameters.get("mode", "append")
                     if mode == "chooseBranch" and index < 2:
                         outcome = "Choose-branch requires inputs 1 and 2, so under executionOrder v1 the Merge and everything after it never run, and the execution ends without an error."
+                    elif mode == "chooseBranch":
+                        outcome = ("Choose-branch requires only inputs 1 and 2, so under executionOrder v1 the Merge runs once the execution stack drains, "
+                                   "emitting the chosen branch without this input.")
                     else:
                         outcome = f"Mode {mode} runs with that input empty under executionOrder v1; confirm at typeVersion {node_version(node):g}."
                     self.add_finding("high", "merge-input", name, f"Merge input {index + 1} {detail}, so it never receives items in production. {outcome}")
@@ -1091,8 +1105,9 @@ class Inventory:
                      if short_type(other.get("type", "")) == "httpRequest" and not self.is_effect_node(other)]
             if submits and reads and name not in self.descendants(name):
                 self.add_finding("medium", "wait-poll-delay", name,
-                                 f"This Wait is a fixed delay between {', '.join(submits)} and {', '.join(reads)}: it assumes the submitted job finishes in time, "
-                                 "and n8n fails or reads an incomplete result when it does not. Map it to the Dex Polling pattern, and record the source's fixed delay as the behavior it replaces.")
+                                 f"This Wait is a fixed delay between {', '.join(submits)} and {', '.join(reads)}. If the first call only submits a job (check whether the endpoint "
+                                 "returns the result or a status URL), the delay assumes the job finishes in time and n8n fails or reads an incomplete result when it does not; "
+                                 "then map the Wait and the read to one Dex Polling Step. If the first call already returns the result, the Wait is a plain delay.")
             if name in self.descendants(name):
                 cycle = sorted(other for other in self.descendants(name) if name in self.descendants(other))
                 if any(short_type(self.by_name.get(other, {}).get("type", "")) == "splitInBatches" for other in cycle):
@@ -1123,6 +1138,13 @@ class Inventory:
         # Sub-nodes such as chat models attach to a reachable node through non-main connections.
         reachable_all |= {edge["from"] for edge in self.edges if edge["type"] != "main" and edge["to"] in reachable_all}
         lacking = sorted(uncredentialed & reachable_all)
+        trigger_lacking = sorted(node.get("name", "") for node in self.nodes
+                                 if is_trigger(node) and not node.get("credentials") and not node.get("disabled")
+                                 and short_type(node.get("type", "")) not in TRIGGER_TYPES)
+        if trigger_lacking:
+            self.add_finding("high", "activation-blocked", "(workflow)",
+                             f"The app trigger(s) {', '.join(trigger_lacking)} have no credential, so they cannot register with the provider at any release: "
+                             "the exported workflow is never started by them. Record that as the source behavior.")
         if lacking:
             self.add_finding("high", "activation-blocked", "(workflow)",
                              f"From n8n 2.8 the server refuses to activate or publish a workflow while a node reachable from a trigger lacks a required credential "
@@ -1135,7 +1157,8 @@ class Inventory:
         nodes = sorted({name for names in failing.values() for name in names})
         self.add_finding("high", "preflight-fails", "(workflow)",
                          "Before the first node runs, n8n checks every enabled node reachable from the starting trigger for empty required parameters that are displayed at its version, "
-                         f"and fails the whole execution if one is empty. If {', '.join(nodes)} lack such a parameter, the exported workflow has no effect {scope}. "
+                         f"and fails the whole execution if one is empty. {', '.join(nodes)} have empty parameters that are required (confirm each at the release), "
+                         f"so the exported workflow has no effect {scope}. Decide whether to build the intended workflow instead. "
                          "Confirm each parameter in the node source, record that effect as none, and do not offer a 'faithful' option that assumes later nodes run. Credentials are not part of this check. "
                          "From n8n 2.8 the server also refuses to activate such a workflow, so its production trigger never registers.")
 
@@ -1350,6 +1373,13 @@ class Inventory:
         forward, _ = self.adjacency()
         matrix = {row["node"]: row for row in self.connector_matrix()}
         order, seen = [], set()
+        is_v1 = (self.workflow.get("settings", {}) or {}).get("executionOrder", "v0") == "v1"
+
+        def canvas_order(name: str):
+            # Under executionOrder v1, sibling branches run top to bottom on the canvas.
+            position = self.by_name.get(name, {}).get("position") or [0, 0]
+            return (position[1], position[0], name) if is_v1 else (0, 0, name)
+
         queue = deque(node.get("name", "") for node in self.nodes if is_trigger(node))
         while queue:
             current = queue.popleft()
@@ -1357,13 +1387,19 @@ class Inventory:
                 continue
             seen.add(current)
             order.append(current)
-            queue.extend(sorted(forward[current] - seen))
+            queue.extend(sorted(forward[current] - seen, key=canvas_order))
         for edge in self.edges:
             if edge["type"] != "main" and edge["from"] not in seen and edge["to"] in order:
                 order.insert(order.index(edge["to"]) + 1, edge["from"])
                 seen.add(edge["from"])
         order += [node.get("name", "") for node in self.nodes if node.get("name", "") not in seen]
         unreachable = {item["node"] for item in self.findings if item["kind"] == "unreachable-node"}
+        poll_waits, poll_reads = {}, {}
+        for item in self.findings:
+            if item["kind"] == "wait-poll-delay":
+                read = next((edge["to"] for edge in self.edges if edge["from"] == item["node"] and edge["type"] == "main"), "")
+                if read:
+                    poll_waits[item["node"]], poll_reads[read] = read, item["node"]
         multi_item_sources = {
             node.get("name", "") for node in self.nodes
             if str((node.get("parameters", {}) or {}).get("operation", "")).lower() in MULTI_ITEM_OPERATIONS
@@ -1383,6 +1419,12 @@ class Inventory:
                 element, notes = "folded into the consuming Step", self.hint(node)
             elif kind in ("if", "filter", "switch"):
                 element, notes = "folded into an application Step", "the predicate chooses that Step's movement; port it with the IF semantics in n8n-semantics"
+            elif name in poll_waits:
+                element = f"Polling Step {pascal_case(poll_waits[name])}"
+                notes = (f"if the step before only submits a job: one long-running Step that waits for the result instead of this fixed delay plus {poll_waits[name]}, "
+                         "bounded by its Execute method timeout and retry total duration")
+            elif name in poll_reads:
+                element, notes = "merged into the Polling Step", f"read by the Polling Step that replaces {poll_reads[name]}"
             elif kind == "wait":
                 element = f"application Step {pascal_case(name)}"
                 resume = (node.get("parameters", {}) or {}).get("resume", "timeInterval")
@@ -1408,7 +1450,8 @@ class Inventory:
                 notes += "; route every branch in its connector.yaml (an unrouted optional branch fails the Flow)"
                 successors = {edge["to"] for edge in self.edges if edge["from"] == name and edge["type"] == "main"}
                 if len(successors) > 1:
-                    notes += "; fan-out: put an application Step after it, since only application Steps move to several Steps"
+                    notes += ("; fan-out: under executionOrder v1 chain the branches in canvas order (the faithful port); "
+                              "a parallel fan-out needs an application Step after it and is a recorded divergence")
             else:
                 element = f"application Step {pascal_case(name)}"
                 notes = self.hint(node)
@@ -1551,10 +1594,13 @@ class Inventory:
                   "rejected values, identity per connection, extra connection fields, create-to-upsert, ordering, page size, encoding, and headers), "
                   "or one `mapped` row saying none was found.", "",
                   "| ID | n8n node | Difference | Status | Notes |", "| --- | --- | --- | --- | --- |"]
-        for index, node_name in enumerate(branch_nodes, 1):
+        trigger_nodes = [node.get("name", "") for node in self.nodes
+                         if is_trigger(node) and not node.get("disabled") and short_type(node.get("type", "")) not in ("manualTrigger", "start", "scheduleTrigger", "cron", "interval")]
+        for index, node_name in enumerate(trigger_nodes + branch_nodes, 1):
             lines.append(f"| G{index} | {cell(node_name)} | {DIFFERENCE_PLACEHOLDER} | todo |   |")
         lines += ["", "## Workflow settings and export metadata", "", "| ID | Setting | Value | Status | Notes |", "| --- | --- | --- | --- | --- |"]
-        setting_rows = [("timezone", settings.get("timezone", "(absent: instance default)"))]
+        setting_rows = [("n8n release", "(not in the export: ask, and bound it with the release-marker finding)"),
+                        ("timezone", settings.get("timezone", "(absent: instance default)"))]
         setting_rows += [(key, value) for key, value in settings.items() if key != "timezone"]
         meta = self.workflow.get("meta") or {}
         for key in ("active", "triggerCount"):
@@ -1604,13 +1650,13 @@ class Inventory:
                 decisions[finding["kind"]].append((index, finding))
         lines += ["", "## Decisions for the user", "",
                   "One row per kind of open question. Set Status to `decided` with the user's answer in Notes, or `pending` while it is open.", "",
-                  "| ID | Kind | Findings | Question | Status | Notes |", "| --- | --- | --- | --- | --- | --- |"]
+                  "| ID | Kind | Findings | Question | Recommendation | Status | Notes |", "| --- | --- | --- | --- | --- | --- | --- |"]
         for index, (kind, items) in enumerate(decisions.items(), 1):
             ids = ", ".join(f"F{number}" for number, _ in items)
             question = items[0][1]["message"] if len(items) == 1 else f"{len(items)} findings on {', '.join(sorted({item['node'] for _, item in items}))}: {items[0][1]['message']}"
-            lines.append(f"| D{index} | {kind} | {ids} | {cell(question, 2000)} | todo |   |")
+            lines.append(f"| D{index} | {kind} | {ids} | {cell(question, 2000)} |   | todo |   |")
         if not decisions:
-            lines.append("| D1 | none | - | No critical or high finding; add questions found during the semantic review. | todo |   |")
+            lines.append("| D1 | none | - | No critical or high finding; add questions found during the semantic review. |   | todo |   |")
         lines.append("")
         rendered = self.redact("\n".join(lines))
         self.ledger_ids = [cells[0] for _, cells in ledger_rows(rendered)]
@@ -1848,7 +1894,9 @@ def verify(path: Path, is_strict: bool = False, inventory_path: Path | None = No
         seen.add(cells[0])
         status, notes = cells[-2].lower(), cells[-1]
         allowed = DECISION_STATUSES if cells[0].startswith("D") else STATUSES
-        if status == "mapped" and set(re.findall(r"\bspec: (D\d+[a-z]?)\b", notes)) & pending_decisions:
+        spec_match = re.search(r"\bspec: (D\d+[a-z]?(?:\s*,\s*D\d+[a-z]?)*)", notes)
+        spec_decisions = set(re.findall(r"D\d+[a-z]?", spec_match.group(1))) if spec_match else set()
+        if status == "mapped" and spec_decisions & pending_decisions:
             # A row that reproduces specified, not observed, behavior waits on its decision.
             status_label = "mapped (conditional)"
         else:
@@ -1869,6 +1917,8 @@ def verify(path: Path, is_strict: bool = False, inventory_path: Path | None = No
             problems.append(f"line {number} {cells[0]}: mapped rests on an unverified claim; cite the source or mark it blocked")
         elif status in NOTE_REQUIRED and not notes:
             problems.append(f"line {number} {cells[0]}: {status} needs notes")
+        elif status == "pending" and not cells[0].startswith("D") and not re.search(r"\bD\d+[a-z]?\b", notes):
+            problems.append(f"line {number} {cells[0]}: pending notes must name the D row that asks the user")
         elif status == "pending" and is_strict:
             problems.append(f"line {number} {cells[0]}: pending awaits the user's decision")
         elif status == "blocked" and is_acceptance:

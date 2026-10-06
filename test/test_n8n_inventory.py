@@ -565,11 +565,25 @@ class DetectorTest(unittest.TestCase):
         self.assertRegex(ledger, r"\| G\d+ \| Contact \|")
         ledger_path = self.root / "out" / "ledger.md"
         resolved = resolve_ledger(ledger).replace("| decided | yes |", "| pending | proposed: build the intended workflow |", 1)
-        decision = re.search(r"^\| (D\d+) \| [^|]* \| [^|]* \| [^|]* \| pending \|", resolved, re.MULTILINE).group(1)
+        decision = re.search(r"^\| (D\d+) \|(?: [^|]* \|){4} pending \|", resolved, re.MULTILINE).group(1)
         resolved = re.sub(r"(\| N1 \|.*?)\| dropped \| [^|]* \|", rf"\1| mapped | spec: {decision} |", resolved, count=1)
         ledger_path.write_text(resolved)
         result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)], capture_output=True, text=True)
         self.assertIn("mapped (conditional)", result.stdout)
+
+    def test_schedule_second_and_pending_references(self):
+        export = synthetic_export()
+        export["id"] = "wf1"
+        export["nodes"][0]["id"] = "n1"
+        _, by_kind, ledger = self.inventory(export)
+        expected = int.from_bytes(__import__("hashlib").sha256(b"wf1:n1:second").digest()[:4], "big") % 60
+        self.assertIn(f"stable second is {expected}", by_kind["schedule-second"][0]["message"])
+        self.assertIn("| n8n release |", ledger)
+        ledger_path = self.root / "out" / "ledger.md"
+        resolved = re.sub(r"(\| N1 \|.*?)\| dropped \| [^|]* \|", r"\1| pending | proposed: keep it |", resolve_ledger(ledger), count=1)
+        ledger_path.write_text(resolved)
+        result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)], capture_output=True, text=True)
+        self.assertIn("must name the D row", result.stderr)
 
     def test_rejects_a_file_that_is_not_the_published_catalog(self):
         catalog = self.root / "catalog.yaml"
@@ -681,6 +695,9 @@ class GoldenHarnessTest(unittest.TestCase):
             self.assertEqual(result.returncode, 3, expression)
             self.assertIn("unsupported", json.loads(result.stdout)[0])
         self.assertEqual(json.loads(run("={{ $execution.id }}").stdout), [{"value": "e1"}])
+        native = json.loads(run("={{ $json.n.toLowerCase() }}").stdout)
+        self.assertTrue(native[0]["undefined"], "a native method missing on a number is swallowed, not unsupported")
+        self.assertEqual(run("={{ $json.s.isEmpty() }}").returncode, 3)
         self.assertEqual(json.loads(run("={{ $json.n; }}").stdout), [{"value": 5}])
         self.assertEqual(json.loads(run("={{ $json.n }} ").stdout), [{"value": "5 "}])
         self.assertEqual(json.loads(run("={{ $json.s.trim }}").stdout), [{"error": "this is a function, please add ()"}])
