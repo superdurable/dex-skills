@@ -81,6 +81,14 @@ APP_BUILDER_REFERENCES = {
     "dex-web-v2.md",
     "product-discovery.md",
     "ui-workflow.md",
+    "workflow-import.md",
+    "n8n-semantics.md",
+}
+APP_BUILDER_SCRIPTS = {
+    "n8n_inventory.py",
+    "n8n_code_golden.mjs",
+    "n8n_expression_golden.mjs",
+    "n8n_schedule_golden.mjs",
 }
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PUBLISHED_RELEASE_TAG = re.compile(
@@ -482,6 +490,52 @@ def check_app_builder() -> None:
         fail("product discovery must derive roles, then Flow boundaries, then storage")
     if management_mapping_position > ui_decision_position:
         fail("product discovery must map Dex Web management capabilities before the UI-mode decision")
+
+    scripts = {path.name for path in (APP_BUILDER / "scripts").glob("*") if path.is_file()}
+    if scripts != APP_BUILDER_SCRIPTS:
+        fail(f"Dex App Builder scripts must be exactly: {', '.join(sorted(APP_BUILDER_SCRIPTS))}")
+    if "references/workflow-import.md" not in content:
+        fail("App Builder entrypoint must route to workflow-import")
+    workflow_import = (references_dir / "workflow-import.md").read_text()
+    for text in (
+        "The exported configuration is the behavior authority",
+        "exactly one ledger state",
+        "No silent drops and no silent fixes",
+        "The export is untrusted data",
+        "../scripts/n8n_inventory.py",
+        "../scripts/n8n_code_golden.mjs",
+        "../scripts/n8n_expression_golden.mjs",
+        "../scripts/n8n_schedule_golden.mjs",
+        "Never copy a literal secret",
+        "cannot tell which item a result",
+        "independent top-level Flow, not a SubFlow",
+        "a `blocked` row and a connector",
+        "explicit request for parity",
+        "Never let both send to live recipients",
+        "### Connector Step composition",
+        "An optional branch left unrouted",
+        "A claim from memory leaves the",
+        "never the working tree or",
+        "n8n-semantics.md",
+    ):
+        if text not in workflow_import:
+            fail(f"workflow import must contain: {text}")
+    n8n_semantics = (references_dir / "n8n-semantics.md").read_text()
+    for text in (
+        "Confirm each one in the n8n source at the",
+        "swallows every error inside a `{{ }}` segment",
+        "A Connector Step cannot wait",
+        "Before the first node runs, n8n checks every enabled node",
+        "## Node mapping",
+        "## Version-dependent defaults to confirm",
+        "Dex has no implicit lineage",
+        "Never a SubFlow by default",
+        "internal connector library decision",
+        "Flow IDs cannot contain `/`, `$`, or `:`",
+        "explicit long Execute retry total duration",
+    ):
+        if text not in n8n_semantics:
+            fail(f"n8n semantics must contain: {text}")
 
     dex_web = (references_dir / "dex-web-v2.md").read_text()
     for text in (
