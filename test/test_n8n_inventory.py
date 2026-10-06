@@ -32,6 +32,8 @@ def resolve_ledger(ledger):
     for line in ledger.splitlines():
         if line.startswith("| D") and "| todo |   |" in line:
             line = line.replace("| todo |   |", "| decided | yes |")
+        elif line.startswith("| P") and "| todo |   |" in line:
+            line = line.replace("| todo |   |", "| adopted |   |")
         elif line.startswith("| R") and "(list every branch" in line:
             line = re.sub(r"\(list every branch[^|]*\)", "searched -> Render", line)
         elif line.startswith("| G") and "(list each connector-imposed" in line:
@@ -392,7 +394,9 @@ class DetectorTest(unittest.TestCase):
         self.assertIn("meta.templateId", ledger)
         self.assertRegex(ledger, r"\| B\d+ \| Duplicate or overlapping trigger \| Signup \|")
         self.assertRegex(ledger, r"\| R\d+ \| Contact \|")
-        self.assertRegex(ledger, r"\| D\d+ \| webhook-output-shape \|")
+        self.assertRegex(ledger, r"\| P\d+ \| fix: Read the request body fields the author meant \|", "a source defect becomes a proposal, not its own question")
+        self.assertNotRegex(ledger, r"\| D\d+ \| webhook-output-shape \|")
+        self.assertRegex(ledger, r"\| D1 \| migration-mode \|", "the mode question comes first")
 
     def test_schedule_window_secret_and_empty_reads(self):
         export = synthetic_export()
@@ -564,7 +568,9 @@ class DetectorTest(unittest.TestCase):
         self.assertIn("‹address›", ledger)
         self.assertRegex(ledger, r"\| G\d+ \| Contact \|")
         ledger_path = self.root / "out" / "ledger.md"
-        resolved = resolve_ledger(ledger).replace("| decided | yes |", "| pending | proposed: build the intended workflow |", 1)
+        resolved = re.sub(r"(\| D\d+ \| preflight-fails .*?)\| decided \| yes \|", r"\1| pending | proposed: build the intended workflow |", resolve_ledger(ledger), count=1)
+        if "| pending | proposed: build" not in resolved:
+            resolved = resolve_ledger(ledger).replace("| decided | yes |", "| pending | proposed: optimize |", 1)
         decision = re.search(r"^\| (D\d+) \|(?: [^|]* \|){4} pending \|", resolved, re.MULTILINE).group(1)
         resolved = re.sub(r"(\| N1 \|.*?)\| dropped \| [^|]* \|", rf"\1| mapped | spec: {decision} |", resolved, count=1)
         ledger_path.write_text(resolved)
@@ -621,6 +627,28 @@ class DetectorTest(unittest.TestCase):
         ledger_path.write_text(quoted)
         result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)], capture_output=True, text=True)
         self.assertNotIn("unverified claim", result.stderr, "a quoted source claim is not the migrator's own wording")
+
+    def test_redesign_proposals_and_one_mode_question(self):
+        inventory, by_kind, ledger = self.inventory(synthetic_export())
+        patterns = {proposal["pattern"] for proposal in inventory["redesign"]}
+        self.assertIn("entity-timer", patterns, "an hourly run over today's records repeats effects")
+        self.assertIn("typed-steps", patterns)
+        self.assertIn("explicit-recovery", patterns, "per-item sends recover per item")
+        self.assertIn("fix", patterns)
+        self.assertEqual(sum(1 for line in ledger.splitlines() if "| migration-mode |" in line), 1)
+        self.assertIn("## Intent contract (draft)", ledger)
+        self.assertIn("once per item from Read records", ledger)
+        self.assertNotRegex(ledger, r"\| D\d+ \| repeated-effects \|", "folded into the redesign proposal")
+        ledger_path = self.root / "out" / "ledger.md"
+        resolved = resolve_ledger(ledger)
+        ledger_path.write_text(resolved.replace("| adopted |   |", "| pending | awaiting D1 |", 1))
+        verify = [sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)]
+        self.assertEqual(subprocess.run(verify, capture_output=True, text=True).returncode, 0)
+        self.assertEqual(subprocess.run(verify + ["--strict"], capture_output=True, text=True).returncode, 1, "a pending proposal blocks --strict")
+        ledger_path.write_text(resolved.replace("| adopted |   |", "| mapped |   |", 1))
+        self.assertIn("is not one of adopted", subprocess.run(verify, capture_output=True, text=True).stderr)
+        ledger_path.write_text(resolved.replace("| dropped | not observable in this fixture |", "| diverged | per P99 |", 1))
+        self.assertIn("P99", subprocess.run(verify, capture_output=True, text=True).stderr)
 
     def test_rejects_a_file_that_is_not_the_published_catalog(self):
         catalog = self.root / "catalog.yaml"

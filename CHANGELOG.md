@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.33.0 - 2026-10-06
+
+- Propose a Dex redesign automatically. The inventory drafts the workflow's intent contract and detects n8n shapes that Dex primitives express better (per-entity Flows instead of schedule polling, cancellable waits, Polling Steps, Dex Web Actions for approvals, Flow identity instead of state tables, per-item recovery, parallel joins, structured generation, typed configuration, collapsed glue nodes) plus source defects worth fixing, as `P` rows. Workflow import then asks the user once whether to optimize for Dex with those improvements or keep the exact n8n behavior and migrate first, together with the remaining facts and their defaults, instead of asking question by question.
+- Add the intent contract draft, the `P` redesign-proposal rows (`adopted`, `deferred`, or `pending`), and a first decisions row that holds the single mode question to the n8n inventory ledger; `verify` checks `P` references, and `--strict` fails while a proposal is pending. Secure-first changes are stated for both modes instead of asked.
+- Add a "Propose a Dex redesign and ask once" step to workflow import, renumber the later steps, make the design confirmation report rather than ask again, and add a redesign-pattern table to `n8n-semantics.md`.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.33.0.
+
 ## 0.32.0 - 2026-10-05
 
 - Add an App Builder workflow for importing an exported workflow definition, starting with n8n JSON. The new `workflow-import.md` reference sets a fidelity contract: the exported configuration is the behavior authority, and every node, connection output, expression, credential, setting and export metadata field, claim, edge behavior, connector branch, and finding ends as `mapped`, `diverged`, `dropped`, `blocked`, or `pending` (a proposal awaiting the user), with no silent drops or fixes. A default or failure claim cites the n8n source at the instance's release; a claim from memory stays `blocked`. The workflow orders the work as inventory, secrets first, behavior over labels, execution-model mapping with Connector Step composition rules, released-connector mapping, golden parity, confirmation, and cutover.
