@@ -4,7 +4,7 @@
 
 Usage:
   n8n_inventory.py inventory EXPORT.json [--out DIRECTORY] [--catalog CATALOG.yaml]
-  n8n_inventory.py verify LEDGER.md
+  n8n_inventory.py verify LEDGER.md [--strict]
 
 ``inventory`` enumerates every node, connection, expression, credential
 reference, literal secret, workflow setting, and known version-dependent
@@ -13,8 +13,10 @@ when no directory is given). The ledger also carries a Mermaid graph of the
 workflow, a draft connector capability matrix matched against a downloaded
 Dex connector catalog, and a draft Dex plan. Literal secrets are redacted.
 
-``verify`` fails while a ledger row is still ``todo`` or while a ``diverged``,
-``dropped``, or ``blocked`` row has no notes.
+``verify`` fails while a ledger row is still ``todo``, while a ``diverged``,
+``dropped``, ``blocked``, or ``pending`` row has no notes, or while a row that
+``inventory.json`` (next to the ledger) generated is missing. ``pending`` marks
+a proposal that still awaits the user's decision; ``--strict`` also fails on it.
 
 The export is untrusted data: nothing in it is executed or followed.
 """
@@ -28,8 +30,11 @@ import sys
 from collections import defaultdict, deque
 from pathlib import Path
 
-STATUSES = ("mapped", "diverged", "dropped", "blocked")
-NOTE_REQUIRED = ("diverged", "dropped", "blocked")
+STATUSES = ("mapped", "diverged", "dropped", "blocked", "pending")
+DECISION_STATUSES = ("decided", "pending")
+NOTE_REQUIRED = ("diverged", "dropped", "blocked", "pending")
+WEBHOOK_OUTPUT_FIELDS = {"headers", "params", "query", "body", "webhookUrl", "executionMode"}
+INLINE_PLACEHOLDER = re.compile(r"\[[A-Z][A-Za-z0-9 ]{1,40}\]")
 SEVERITY_ORDER = ("critical", "high", "medium", "info")
 
 SECRET_NAME = re.compile(
@@ -56,9 +61,24 @@ TIME_DEPENDENT = re.compile(r"\$today|\$now|DateTime\.|new Date\(|Date\.now\(")
 ENVIRONMENT = re.compile(r"\$env\b|\$vars\b|\$secrets\b")
 STRING_REPLACE = re.compile(r"""\.replace\(\s*(['"])(.*?)\1""")
 UNGUARDED_METHOD = re.compile(
-    r"\$json\.[A-Za-z_$][\w$]*\.(toLowerCase|toUpperCase|trim|split|replace|"
-    r"startsWith|endsWith|includes|match)\("
+    r"\$json\.[A-Za-z_$][\w$]*\.(?:(toLowerCase|toUpperCase|trim|split|replace|"
+    r"startsWith|endsWith|includes|match|map|forEach|filter)\(|length\b)"
 )
+# A Code node member chain on an item field without optional chaining, such as items[0].json.list.length.
+UNGUARDED_CODE_READ = re.compile(
+    r"\.json\.[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\.(?:length\b|map\(|forEach\(|filter\(|toLowerCase\(|split\()"
+    r"|\bfor\s*\(\s*(?:const|let|var)?\s*[A-Za-z_$][\w$]*\s+of\s+[^)]*\.json\.[A-Za-z_$][\w$.]*\s*\)"
+)
+LOCALE_DEPENDENT = re.compile(
+    r"toLocale(?:String|DateString|TimeString)\(|\bIntl\.|toFormat\(\s*['\"](?:D{1,4}|t{1,4}|f{1,4}|F{1,4}|DD{0,3}\s*t{1,4})['\"]"
+)
+DAY_WINDOW = re.compile(r"\$today|startOf\(\s*['\"]day['\"]\s*\)")
+EMPTY_RESULT_CHECK = re.compile(r"\.length\s*(?:===?\s*0|<\s*1)|!\s*[\w$.]+\.length\b")
+IDENTIFIER_KEY = re.compile(
+    r"(?i)^(channel|chat|calendar|spreadsheet|document|folder|base|table|list|board|sheet|page|"
+    r"database|project|team|workspace|repository|group|drive|playlist|form|space|pipeline|portal)(id|_id|ids)?$"
+)
+EFFECT_VERBS = ("send", "sendmessage", "create", "post", "append", "update", "upsert", "delete", "reply", "publish", "upload")
 TEMPLATE_INTERPOLATION = re.compile(r"\$\{([^{}]*)\}")
 
 TRIGGER_TYPES = {
@@ -147,10 +167,15 @@ LANGCHAIN_SUB_NODE_PREFIXES = {
 }
 HTML_TAG = re.compile(r"<\s*(table|tr|td|div|a|p|li|ul|span|b|i|br|img)\b", re.IGNORECASE)
 HEADER_PARAMETERS = ("subject", "title", "headers", "header")
+MESSAGE_BODY_PARAMETERS = ("message", "html", "text", "body", "bodyContent", "content")
+EMAIL_NODE_TYPES = ("gmail", "emailSend", "microsoftOutlook", "sendGrid", "mailgun", "mailjet", "awsSes")
+LANGCHAIN_ROOT_PREFIXES = ("agent", "chain", "openAi", "anthropic", "googleGemini", "informationExtractor", "textClassifier", "sentimentAnalysis")
 RECIPIENT_PARAMETERS = ("sendTo", "toEmail", "to", "toRecipients", "ccList", "bccList")
 CORE_PACKAGES = ("n8n-nodes-base", "@n8n/n8n-nodes-langchain")
 STRUCTURAL_PARAMETERS = {"resource", "operation", "authentication", "options"}
 # Fields an operation cannot run without; confirm against the n8n node source.
+# Message content an operation cannot run without: at least one of these fields.
+REQUIRED_CONTENT = {"emailSend": ("text", "html"), "gmail": ("message",), "telegram": ("text",)}
 REQUIRED_PARAMETERS = {
     "emailSend": ("fromEmail", "toEmail"),
     "gmail": ("sendTo",),
@@ -218,6 +243,8 @@ class Inventory:
         self.claims: list[dict] = []
         self.node_rows: list[dict] = []
         self.grouped: dict[tuple, list[str]] = defaultdict(list)
+        self.secret_fields: set[str] = set()
+        self.ledger_ids: list[str] = []
 
     # ----- collection -------------------------------------------------
     def build(self) -> "Inventory":
@@ -227,6 +254,18 @@ class Inventory:
             self.collect_node(node)
         self.emit_grouped()
         self.check_reachability()
+        self.check_webhook_output_shape()
+        self.check_branch_order()
+        self.check_authentication_consistency()
+        self.check_zero_item_stops()
+        self.check_repeated_effects()
+        self.check_secret_requests()
+        self.check_model_output_bodies()
+        self.check_merge_inputs()
+        self.check_wait_loops()
+        self.check_provenance()
+        self.check_preflight()
+        self.check_open_triggers()
         self.check_references()
         self.check_dead_fields()
         self.check_literal_sets()
@@ -249,12 +288,34 @@ class Inventory:
             if kind == "timezone-dependent":
                 self.add_finding("medium", kind, node,
                                  f"Reads the current time or date in the workflow timezone: {listed}. Compute it in the same IANA zone in Dex.")
+            elif kind == "missing-field-empty":
+                self.add_finding("medium", kind, node,
+                                 f"Reads a member of an unguarded field in an expression: {listed}. For an item missing that field, n8n swallows the TypeError, so the value is empty and the node continues. "
+                                 "Trace the empty value to the next predicate or provider call, record what happens there, and port that, not a failure.")
             elif kind == "missing-field-throws":
                 self.add_finding("medium", kind, node,
-                                 f"Calls a string method on an unguarded field: {listed}. An item missing that field fails the node and the whole execution; decide whether Dex reproduces the failure or treats it as a non-match.")
+                                 f"Code reads a member of an unguarded field: {listed}. An item missing that field throws, which fails the node and the whole execution; decide whether Dex reproduces the failure or treats it as a non-match.")
             elif kind == "hardcoded-address":
                 self.add_finding("medium", kind, node,
                                  f"Literal address(es) {listed}; make them configuration or typed start input.")
+            elif kind == "no-retry":
+                self.add_finding("info", kind, node,
+                                 f"n8n does not retry {listed} (retryOnFail is off); a Dex connector retries per its execution policy. Record that divergence.")
+            elif kind == "missing-credential":
+                self.add_finding("high", kind, node,
+                                 f"No credential is attached to {listed}, so n8n cannot run them as exported and the account they act for is unknown. Ask which account each Dex connection authorizes.")
+            elif kind == "hardcoded-identifier":
+                self.add_finding("medium", kind, node,
+                                 f"Literal identifier(s) {listed} name one account's resources; make them configuration or typed start input.")
+            elif kind == "locale-dependent":
+                self.add_finding("medium", kind, node,
+                                 f"Formats with the runtime locale or a locale-dependent macro ({listed}); the n8n instance's locale and timezone decide the text. Pin both in Go and capture goldens under the same locale.")
+            elif kind == "community-node":
+                self.add_finding("high", kind, node,
+                                 f"Community node(s) {listed}: behavior and defaults come from that package, not n8n core. Read the package source at the exported version, or mark the rows `pending` until the user confirms the behavior.")
+            elif kind == "literal-placeholder":
+                self.add_finding("medium", kind, node,
+                                 f"Literal template placeholder(s) {listed} would be sent as written; ask for the real value or a field to fill it.")
 
     def collect_edges(self) -> None:
         connections = self.workflow.get("connections", {}) or {}
@@ -270,6 +331,7 @@ class Inventory:
                             "output": index,
                             "label": self.output_label(source, connection_type, index),
                             "to": target.get("node", ""),
+                            "input": target.get("index", 0),
                         })
 
     def output_label(self, source: str, connection_type: str, index: int) -> str:
@@ -297,6 +359,7 @@ class Inventory:
             for field in self.node_set_fields(node):
                 value = field.get("value")
                 if isinstance(value, str) and SECRET_NAME.search(field["name"] or ""):
+                    self.secret_fields.add(field["name"])
                     self.record_secret(name, f"Set field `{field['name']}`", value)
             for path, value in walk(parameters):
                 if not isinstance(value, str):
@@ -371,6 +434,10 @@ class Inventory:
         for credential_type, reference in (node.get("credentials") or {}).items():
             label = reference.get("name", "") if isinstance(reference, dict) else str(reference)
             self.credentials[(credential_type, label)].append(name)
+            if isinstance(reference, dict) and (not reference.get("id") or any(str(key).startswith("__") for key in reference)):
+                self.add_finding("medium", "managed-credential", name,
+                                 f"The `{credential_type}` reference has no credential ID ({', '.join(sorted(str(key) for key in reference if str(key).startswith('__'))) or 'not exported'}): n8n manages or omits it, so nothing about the account carries over. The Dex connection uses an account and key the user supplies.")
+        self.collect_identifiers(name, kind, parameters)
 
         for field in self.node_set_fields(node):
             self.set_fields.append({"node": name, **field})
@@ -387,6 +454,8 @@ class Inventory:
                 for address in sorted(set(EMAIL.findall(value))):
                     self.group("hardcoded-address", name, f"{address}` in `{path}")
             elif isinstance(value, str) and kind != "stickyNote" and "cachedResult" not in path:
+                for placeholder in sorted(set(INLINE_PLACEHOLDER.findall(value))):
+                    self.group("literal-placeholder", name, f"{placeholder}` in `{path}")
                 for address in sorted(set(EMAIL.findall(value))):
                     self.group("hardcoded-address", name, f"{address}` in `{path}")
 
@@ -401,8 +470,7 @@ class Inventory:
         self.check_runnable(node)
         if kind == "httpRequest" or (self.is_app_node(node) and not is_trigger(node)):
             if not node.get("retryOnFail"):
-                self.add_finding("info", "no-retry", name,
-                                 "n8n does not retry this call (retryOnFail is off); a Dex connector retries per its execution policy. Record that divergence.")
+                self.group("no-retry", f"{kind} nodes", name)
 
         self.node_rows.append({
             "node": name,
@@ -411,11 +479,34 @@ class Inventory:
             "hint": self.hint(node),
         })
 
+    def collect_identifiers(self, name: str, kind: str, parameters, path: str = "") -> None:
+        """Group literal resource identifiers, such as a channel or spreadsheet ID, that belong in configuration."""
+        if kind in ("stickyNote", "code", "function", "functionItem", "set"):
+            return
+        if isinstance(parameters, dict):
+            for key, value in parameters.items():
+                child = f"{path}.{key}" if path else str(key)
+                if key == "cachedResultName" or key == "cachedResultUrl":
+                    continue
+                if isinstance(value, dict) and value.get("__rl"):
+                    literal = value.get("value")
+                    if IDENTIFIER_KEY.match(str(key)) and isinstance(literal, str) and literal and not literal.startswith("=") and not EMAIL.fullmatch(literal):
+                        self.group("hardcoded-identifier", name, f"{literal}` in `{child}")
+                elif isinstance(value, (dict, list)):
+                    self.collect_identifiers(name, kind, value, child)
+                elif IDENTIFIER_KEY.match(str(key)) and isinstance(value, str) and value and not value.startswith("=") and not EMAIL.fullmatch(value):
+                    self.group("hardcoded-identifier", name, f"{value}` in `{child}")
+        elif isinstance(parameters, list):
+            for index, value in enumerate(parameters):
+                self.collect_identifiers(name, kind, value, f"{path}[{index}]")
+
     def is_app_node(self, node: dict) -> bool:
         kind = short_type(node.get("type", ""))
         package = node.get("type", "").rsplit(".", 1)[0]
         if package == "@n8n/n8n-nodes-langchain":
-            return False
+            # Vendor nodes, such as openAi, call the provider directly; agents, chains, and sub-nodes do not.
+            return bool((node.get("parameters", {}) or {}).get("resource")) and not langchain_sub_node_role(node) \
+                and not kind.startswith(("agent", "chain")) and not is_trigger(node)
         return kind not in DEX_HINTS and kind not in TRIGGER_TYPES
 
     def check_runnable(self, node: dict) -> None:
@@ -425,13 +516,18 @@ class Inventory:
         package = node.get("type", "").rsplit(".", 1)[0]
         parameters = node.get("parameters", {}) or {}
         if package not in CORE_PACKAGES:
-            self.add_finding("high", "community-node", name,
-                             f"Community node from {package}: its behavior and defaults come from that package, not n8n core. Read the package source at the exported version.")
+            self.group("community-node", package, name)
+        if kind.startswith("lmChat") or kind.startswith("lmOpenAi") or (package == "@n8n/n8n-nodes-langchain" and "modelId" in parameters):
+            model = parameters.get("model", parameters.get("modelName", parameters.get("modelId")))
+            selected = model.get("value") if isinstance(model, dict) else model
+            if "model" in parameters or "modelName" in parameters or "modelId" in parameters:
+                if not selected:
+                    self.add_finding("high", "hollow-node", name,
+                                     "The model selector is empty, so n8n cannot run this model as exported. Ask which provider and model the Dex llm connection uses.")
         if not self.is_app_node(node) or node.get("disabled"):
             return
         if not node.get("credentials"):
-            self.add_finding("high", "missing-credential", name,
-                             "No credential is attached, so n8n cannot run this node as exported and the account it acts for is unknown. Ask which account the Dex connection authorizes.")
+            self.group("missing-credential", f"{kind} nodes", name)
         payload = set(parameters) - STRUCTURAL_PARAMETERS
         operation = parameters.get("operation", "")
         missing = [field for field in REQUIRED_PARAMETERS.get(kind, ()) if not parameters.get(field)]
@@ -439,6 +535,10 @@ class Inventory:
             missing.append("contactId")
         if kind == "hubspot" and operation == "create" and not parameters.get("email"):
             missing.append("email")
+        content_fields = REQUIRED_CONTENT.get(kind, ())
+        is_message_operation = operation in ("", "send", "sendMessage", "reply")
+        if content_fields and is_message_operation and not any(parameters.get(field) for field in content_fields):
+            missing.append(" or ".join(content_fields) + " (message content)")
         if not payload or missing:
             detail = f"missing {', '.join(missing)}" if missing else "only its resource and operation are set"
             self.add_finding("high", "hollow-node", name,
@@ -481,7 +581,10 @@ class Inventory:
             parts.append("note: " + self.short_value(parameters.get("content", "").strip(), 120))
         else:
             resource = parameters.get("resource", DEFAULT_RESOURCE.get(kind, ""))
-            operation = parameters.get("operation", "")
+            operation = parameters.get("operation", DEFAULT_OPERATION.get(kind, ""))
+            if self.is_app_node(node) and not is_trigger(node):
+                resource = resource or "(node default resource)"
+                operation = operation or "(node default operation)"
             if resource or operation:
                 parts.append("/".join(part for part in (resource, operation) if part))
             for key, value in parameters.items():
@@ -491,6 +594,8 @@ class Inventory:
                     parts.append(f"{key}={value.get('value')} (fixed resource)")
                 elif isinstance(value, (str, int, float, bool)) and value != "":
                     parts.append(f"{key}={self.short_value(value, 80)}")
+                elif isinstance(value, (dict, list)) and value:
+                    parts.append(f"{key}={self.short_value(value, 120)}")
             options = parameters.get("options")
             if isinstance(options, dict):
                 parts.append("options: " + (", ".join(sorted(options)) or "none (all defaults)"))
@@ -538,6 +643,9 @@ class Inventory:
         if TIME_DEPENDENT.search(body):
             semantics.append("timezone-dependent (workflow timezone)")
             self.group("timezone-dependent", name, path)
+        if LOCALE_DEPENDENT.search(body):
+            semantics.append("locale-dependent formatting")
+            self.group("locale-dependent", name, path)
         if ENVIRONMENT.search(body):
             semantics.append("reads instance environment or variables")
             self.add_finding("high", "environment", name,
@@ -545,8 +653,8 @@ class Inventory:
         for match in STRING_REPLACE.finditer(body):
             semantics.append(f"String.replace({match.group(2)!r}) replaces only the first occurrence")
         if UNGUARDED_METHOD.search(body):
-            semantics.append("throws when the field is missing (fails the node)")
-            self.group("missing-field-throws", name, path)
+            semantics.append("a missing field makes this segment empty: n8n swallows the TypeError and the node continues")
+            self.group("missing-field-empty", name, path)
         if path.split(".")[-1] in HEADER_PARAMETERS and (JSON_FIELD.search(body) or NODE_REFERENCE.search(body)):
             semantics.append("an upstream value can carry a line break into a header")
             self.add_finding("info", "header-line-break", name,
@@ -581,10 +689,23 @@ class Inventory:
             self.add_finding("medium", "js-coercion", name,
                              f"{len(interpolations)} template-literal interpolation(s), such as "
                              + ", ".join(f"`{item[:60]}`" for item in interpolations[:4])
-                             + "; JavaScript renders null as 'null', undefined as 'undefined', and objects as '[object Object]'. The Go port must match the golden output.")
+                             + "; JavaScript renders null as 'null', undefined as 'undefined', and objects as '[object Object]', and NaN serializes as null in output items. The Go port must match the golden output.")
         if HTML_TAG.search(code) and interpolations and "escape" not in code.lower():
             self.add_finding("medium", "raw-html-interpolation", name,
                              "The code inserts upstream values into HTML without escaping, so provider markup renders and a stray < or & changes the page. Port it byte for byte first, then decide escaping explicitly.")
+        mode = parameters.get("mode", "runOnceForAllItems")
+        if node_version(node) >= 2 and short_type(node.get("type", "")) == "code" and mode == "runOnceForAllItems":
+            first_item_reads = sorted(set(re.findall(r"\$input\.item\b|\$json\b", code)))
+            if first_item_reads:
+                self.add_finding("high", "first-item-only", name,
+                                 f"Run Once for All Items mode, yet the code reads {', '.join(first_item_reads)}, which n8n resolves to the first input item only; "
+                                 "the other items are ignored unless the code iterates $input.all(). Port that behavior, or record the fix as a decision.")
+        if TIME_DEPENDENT.search(code):
+            self.group("timezone-dependent", name, "code")
+        for match in LOCALE_DEPENDENT.finditer(code):
+            self.group("locale-dependent", name, match.group(0))
+        for match in UNGUARDED_CODE_READ.finditer(code):
+            self.group("missing-field-throws", name, " ".join(match.group(0).split())[:60])
         if re.search(r"\bfor\s*\(\s*[A-Za-z_$][\w$]*\s+of\b", code):
             self.add_finding("info", "js-implicit-global", name, "A for-of loop assigns an undeclared variable (sloppy-mode implicit global); keep the harness in sloppy mode.")
         for match in NODE_REFERENCE.finditer(code):
@@ -641,21 +762,69 @@ class Inventory:
                 note = "Set before v3.3 keeps all input fields next to the set fields by default; downstream reads may rely on those pass-through fields."
             elif not parameters.get("includeOtherFields"):
                 note = "Set v3.3+ drops input fields unless includeOtherFields is on."
-        elif kind == "gmail" and version >= 2.1 and parameters.get("operation", "send") in ("send", "reply"):
+            if version >= 3:
+                conversion = {3.0: "a string field that resolves to null or undefined becomes the text 'null' or 'undefined'",
+                              3.1: "a string field that resolves to null or undefined fails the node unless ignoreConversionErrors is on"}.get(
+                    version, "a field that resolves to null or undefined becomes null")
+                extra = f"At v{version:g}, {conversion}; binary data is dropped{' unless input fields are kept' if version >= 3.4 else ' unless includeBinary is set'}."
+                note = f"{note} {extra}" if note else extra
+        elif kind == "gmail" and version >= 2.1 and parameters.get("operation", "send") == "send":
             if options.get("appendAttribution", True):
-                note = "Gmail v2.1+ appends the n8n attribution footer unless options.appendAttribution is false; the email type default also changed between versions. Verify at this typeVersion and record the footer as a divergence."
+                note = ("Gmail v2.1+ send appends the footer 'This email was sent automatically with n8n' unless options.appendAttribution is false (reply never appends it). "
+                        f"emailType is {options.get('emailType', parameters.get('emailType', 'html (default)'))}; html mail has no text/plain part, and the message is trimmed. Record the footer as a divergence.")
+        elif kind == "emailSend" and version >= 2.1 and options.get("appendAttribution", True):
+            note = "Send Email v2.1 appends 'This email was sent automatically with n8n' unless options.appendAttribution is false. Record the footer as a divergence."
+        elif kind == "telegram" and parameters.get("operation", "sendMessage") == "sendMessage":
+            fields = parameters.get("additionalFields", {}) or {}
+            parse_mode = fields.get("parse_mode", "Markdown")
+            note = f"Telegram sendMessage sends parse_mode {parse_mode} ({'the default when unset' if 'parse_mode' not in fields else 'set'}), so the text is parsed as markup."
+            if version >= 1.1 and fields.get("appendAttribution", True) and parse_mode in ("Markdown", "HTML"):
+                note += " v1.1+ appends 'This message was sent automatically with n8n' unless appendAttribution is false."
+            if version >= 1.2:
+                note += " v1.2+ disables link previews by default."
+        elif kind == "slack" and version >= 2.1 and parameters.get("operation", "post") in ("post", "update"):
+            note = "Slack v2.1+ appends an 'Automated with this n8n workflow' link unless otherOptions.includeLinkToWorkflow is false. Record it as a divergence."
+        elif kind == "microsoftTeams" and version >= 1.1 and parameters.get("operation", "create") == "create":
+            note = "Microsoft Teams v1.1+ appends a 'Powered by this n8n workflow' link and sends HTML unless includeLinkToWorkflow is false. Record it as a divergence."
         elif kind == "googleCalendar" and parameters.get("operation") == "getAll":
             if not parameters.get("returnAll"):
                 note = f"Google Calendar getAll returns one page of {parameters.get('limit', 50)} events (default 50) without paging; order is unspecified unless options.orderBy is set."
         elif kind == "httpRequest" and version >= 3:
             if not options.get("response", {}).get("response", {}).get("neverError"):
-                note = "HTTP Request v3+: a non-2xx response fails the node and the execution; there is no explicit timeout unless options.timeout is set."
-        elif kind == "if" and version >= 2:
-            note = "IF v2: strict type validation and expression errors fail the node and the execution; only the true and false outputs exist."
+                note = ("HTTP Request v3+: every item's request starts at once (options.batching only spaces the starts), and a non-2xx response fails the node "
+                        "and the execution after all requests settle; the timeout is 300000 ms unless options.timeout is set.")
+        elif kind in ("if", "filter", "switch") and version >= 2:
+            note = (f"{kind} v{version:g}: typeValidation {((parameters.get('conditions', {}) or {}).get('options', {}) or {}).get('typeValidation', 'strict')}, but null and undefined pass it; "
+                    "string operators compare leftValue ?? '' and exists/notExists test null, undefined, and NaN. A TypeError inside a condition expression leaves it empty instead of failing. "
+                    "Only a type mismatch of a present value or an n8n ExpressionError fails the node.")
         elif kind == "code":
             note = f"Code v2 mode is {parameters.get('mode', 'runOnceForAllItems')}; runOnceForEachItem returns one item per input item."
         elif kind == "scheduleTrigger":
-            note = "Schedule Trigger fires in the workflow timezone (settings.timezone, else the instance GENERIC_TIMEZONE); overlapping executions are allowed."
+            note = ("Schedule Trigger fires in the workflow timezone (settings.timezone, else the instance GENERIC_TIMEZONE, which defaults to America/New_York). "
+                    "An omitted hour or minute is 0, and the second is jittered except on seconds and cron rules. Executions may overlap. "
+                    "The default scheduler never runs a missed occurrence; deduplication per scheduled time exists from n8n 2.19, and misfire options from typeVersion 1.4 on the opt-in durable scheduler. Record the instance's release.")
+        elif kind == "wait":
+            resume = parameters.get("resume", "timeInterval")
+            if resume == "timeInterval":
+                amount = parameters.get("amount", 1 if version < 1.1 else 5)
+                unit = parameters.get("unit", "hours" if version < 1.1 else "seconds")
+                seconds = {"seconds": 1, "minutes": 60, "hours": 3600, "days": 86400}.get(str(unit), 0) * (amount if isinstance(amount, (int, float)) else 0)
+                note = (f"Wait resumes {amount} {unit} after the Wait node runs ({'defaults: amount 1, unit hours' if version < 1.1 else 'defaults: amount 5, unit seconds'})"
+                        + ("; a day is exactly 24 hours, not a calendar day" if unit == "days" else "") + ". "
+                        + ("The execution sleeps in place (under 65 seconds), and sibling branches that have not run wait too."
+                           if 0 < seconds < 65 else
+                           "A wait of 65 seconds or more pauses the whole execution, including sibling branches that have not run, "
+                           "and resumes it on the workflow as it was when the execution started."))
+            else:
+                note = (f"Wait resume={resume}: the execution pauses until {'a call to its resume URL' if resume == 'webhook' else 'the form is submitted' if resume == 'form' else 'the specified time'}"
+                        f"{'; limitWaitTime is off by default, so it can wait forever' if resume in ('webhook', 'form') else ''}.")
+        elif kind == "webhook":
+            method = parameters.get("httpMethod", "GET (default)")
+            note = (f"Webhook httpMethod {method}, authentication {parameters.get('authentication', 'none (default)')}, responseMode {parameters.get('responseMode', 'onReceived (default)')}. "
+                    "Each request starts its own execution with one item {headers, params, query, body, webhookUrl, executionMode}: a JSON body is parsed into body, "
+                    "urlencoded and multipart fields land in body as strings, multipart files in binary. onReceived answers 200 {\"message\":\"Workflow was started\"}. "
+                    "The Dex webhook Trigger accepts only verified POST requests with a JSON or urlencoded body up to its size limit and deduplicates by event ID, "
+                    "so record each difference.")
         if note:
             self.add_finding("medium", "version-default", name, note + f" (typeVersion {version:g}; confirm against the n8n node source.)")
 
@@ -706,6 +875,218 @@ class Inventory:
                         label = self.output_label(node.get("name", ""), "main", index)
                         self.add_finding("info", "unconnected-output", node.get("name", ""),
                                          f"The {label} output has no target; those items end silently.")
+
+    def check_webhook_output_shape(self) -> None:
+        """Webhook items wrap the request as {headers, params, query, body}; direct reads of other fields are undefined."""
+        for node in self.nodes:
+            if short_type(node.get("type", "")) != "webhook":
+                continue
+            children = {edge["to"] for edge in self.edges if edge["from"] == node.get("name") and edge["type"] == "main"}
+            for expression in self.expressions:
+                if expression["node"] not in children:
+                    continue
+                for match in re.finditer(r"\$json\.([A-Za-z_$][\w$]*)", expression["expression"]):
+                    if match.group(1) not in WEBHOOK_OUTPUT_FIELDS:
+                        self.add_finding("high", "webhook-output-shape", expression["node"],
+                                         f"`{expression['parameter']}` reads $json.{match.group(1)}, but a Webhook item holds the request under headers, params, query, and body, so the value is undefined in n8n (did the author mean $json.body.{match.group(1)}?). Record whether Dex reproduces the undefined read or fixes it.")
+
+    def check_branch_order(self) -> None:
+        """Under executionOrder v1, n8n runs fan-out branches top to bottom by canvas position."""
+        if (self.workflow.get("settings", {}) or {}).get("executionOrder", "v0") != "v1":
+            return
+        forward, _ = self.adjacency()
+        targets_by_output = defaultdict(list)
+        for edge in self.edges:
+            if edge["type"] == "main":
+                targets_by_output[(edge["from"], edge["output"])].append(edge["to"])
+        for (source, _), targets in targets_by_output.items():
+            if len(targets) < 2:
+                continue
+            ordered = sorted(targets, key=lambda target: tuple((self.by_name.get(target, {}).get("position") or [0, 0])[::-1]))
+            self.add_finding("info", "branch-order", source,
+                             f"executionOrder v1 runs these branches top to bottom on the canvas: {', '.join(ordered)}. A failure in an earlier branch stops the later ones.")
+            for index, target in enumerate(ordered[:-1]):
+                branch = {target} | self.descendants(target)
+                waits = [name for name in branch if short_type(self.by_name.get(name, {}).get("type", "")) == "wait"]
+                if waits:
+                    self.add_finding("medium", "branch-wait-pause", source,
+                                     f"The {target} branch contains Wait node(s) {', '.join(sorted(waits))}; n8n pauses the whole execution there, so the later branches ({', '.join(ordered[index + 1:])}) run only after the wait ends.")
+
+    def is_multi_item_read(self, node: dict) -> bool:
+        operation = str((node.get("parameters", {}) or {}).get("operation", "")).lower()
+        return operation in MULTI_ITEM_OPERATIONS
+
+    def is_effect_node(self, node: dict) -> bool:
+        kind = short_type(node.get("type", ""))
+        if not (self.is_app_node(node) or kind == "httpRequest") or is_trigger(node):
+            return False
+        parameters = node.get("parameters", {}) or {}
+        if kind == "httpRequest":
+            return str(parameters.get("method", "GET")).upper() not in ("GET", "HEAD")
+        operation = str(parameters.get("operation", DEFAULT_OPERATION.get(kind, ""))).lower()
+        return any(operation.startswith(verb) for verb in EFFECT_VERBS)
+
+    def check_zero_item_stops(self) -> None:
+        """A node that outputs no items stops its branch: downstream nodes do not run and the execution succeeds."""
+        main_children = defaultdict(set)
+        for edge in self.edges:
+            if edge["type"] == "main":
+                main_children[edge["from"]].add(edge["to"])
+        for node in self.nodes:
+            name = node.get("name", "")
+            if not self.is_multi_item_read(node) or not main_children[name] or node.get("alwaysOutputData"):
+                continue
+            downstream = self.descendants(name)
+            fallbacks = sorted(
+                other for other in downstream
+                if EMPTY_RESULT_CHECK.search(str((self.by_name.get(other, {}).get("parameters", {}) or {}).get("jsCode", "")))
+            )
+            message = (f"When this read returns no items, n8n runs none of {', '.join(sorted(main_children[name]))} or anything after them, "
+                       "and the execution still succeeds. A Dex Flow that continues with an empty list changes the effects; record which behavior Dex keeps.")
+            if fallbacks:
+                message += f" The empty-result handling in {', '.join(fallbacks)} never runs in n8n (dead code unless alwaysOutputData is on)."
+            self.add_finding("high" if fallbacks else "medium", "zero-items-stop", name, message)
+
+    def check_repeated_effects(self) -> None:
+        """A schedule that fires more often than its read window repeats the same effects every execution."""
+        sub_daily = [schedule for schedule in self.schedules if schedule.get("field") in ("seconds", "minutes", "hours")]
+        if not sub_daily:
+            return
+        windowed = sorted({expression["node"] for expression in self.expressions if DAY_WINDOW.search(expression["expression"])})
+        effects = sorted(node.get("name", "") for node in self.nodes if self.is_effect_node(node))
+        if windowed and effects:
+            self.add_finding("high", "repeated-effects", sub_daily[0]["node"],
+                             f"The schedule fires {sub_daily[0]['description']}, but {', '.join(windowed)} read a whole-day window, so every execution repeats "
+                             f"{', '.join(effects)} for the same items; n8n keeps no memory between executions. Record the repetition as source behavior and ask whether Dex keeps it.")
+
+    def check_secret_requests(self) -> None:
+        """A credential that travels from workflow data into a request belongs to the connector connection."""
+        for expression in self.expressions:
+            node = self.by_name.get(expression["node"], {})
+            if not (short_type(node.get("type", "")) == "httpRequest" or self.is_app_node(node)):
+                continue
+            parameter = expression["parameter"].lower()
+            fields = set(re.findall(r"(?:\$json|\.json)\.([A-Za-z_$][\w$]*)", expression["expression"]))
+            secrets = sorted(field for field in fields if field in self.secret_fields or SECRET_NAME.search(field))
+            if not secrets:
+                continue
+            where = "URL" if re.split(r"[.\[]", parameter)[-1] == "url" or "queryparameters" in parameter else "request"
+            self.add_finding("high", "secret-in-request", expression["node"],
+                             f"`{expression['parameter']}` sends the credential field(s) {', '.join(f'`{field}`' for field in secrets)} from workflow data in the {where}"
+                             + (", where provider, proxy, and n8n logs record it" if where == "URL" else "")
+                             + ". In Dex the credential belongs to the connector connection, sent as its manifest declares; record the divergence.")
+
+    def check_model_output_bodies(self) -> None:
+        """Email bodies built from model output carry whatever markup the model returns."""
+        model_nodes = {
+            node.get("name", "") for node in self.nodes
+            if "langchain" in node.get("type", "") and short_type(node.get("type", "")).startswith(LANGCHAIN_ROOT_PREFIXES)
+        }
+        if not model_nodes:
+            return
+        for expression in self.expressions:
+            node = self.by_name.get(expression["node"], {})
+            if short_type(node.get("type", "")) not in EMAIL_NODE_TYPES:
+                continue
+            if re.split(r"[.\[]", expression["parameter"])[-1] not in MESSAGE_BODY_PARAMETERS:
+                continue
+            sources = (set(expression["references"]) | self.ancestors(expression["node"])) & model_nodes
+            if sources:
+                self.add_finding("medium", "model-output-body", expression["node"],
+                                 f"`{expression['parameter']}` sends output of {', '.join(sorted(sources))} as the message body without escaping or validation; provider text that reached the model can add markup or links. Port it as is, then decide escaping or an allowlist explicitly.")
+
+    def check_merge_inputs(self) -> None:
+        for node in self.nodes:
+            if short_type(node.get("type", "")) != "merge":
+                continue
+            name = node.get("name", "")
+            parameters = node.get("parameters", {}) or {}
+            inputs = int(parameters.get("numberInputs", 2) or 2)
+            unreachable = {item["node"] for item in self.findings if item["kind"] == "unreachable-node"}
+            for index in range(inputs):
+                feeders = [edge["from"] for edge in self.edges if edge["to"] == name and edge["type"] == "main" and edge.get("input", 0) == index]
+                live = [feeder for feeder in feeders if feeder not in unreachable]
+                if not live:
+                    detail = f"is fed only by unreachable {', '.join(feeders)}" if feeders else "has no connection"
+                    mode = parameters.get("mode", "append")
+                    if mode == "chooseBranch" and index < 2:
+                        outcome = "Choose-branch requires inputs 1 and 2, so under executionOrder v1 the Merge and everything after it never run, and the execution ends without an error."
+                    else:
+                        outcome = f"Mode {mode} runs with that input empty under executionOrder v1; confirm at typeVersion {node_version(node):g}."
+                    self.add_finding("high", "merge-input", name, f"Merge input {index + 1} {detail}, so it never receives items in production. {outcome}")
+
+    def check_wait_loops(self) -> None:
+        for node in self.nodes:
+            if short_type(node.get("type", "")) != "wait":
+                continue
+            name = node.get("name", "")
+            if name in self.descendants(name):
+                cycle = sorted(other for other in self.descendants(name) if name in self.descendants(other))
+                self.add_finding("medium", "wait-poll-loop", name,
+                                 f"This Wait sits in a loop ({', '.join(cycle)}): a fixed delay standing in for an external job finishing. Map the loop to the Dex Polling pattern with a bounded attempt count, not a Timer plus a jump back, and record the source's missing bound if it has none.")
+
+    def check_preflight(self) -> None:
+        """n8n refuses to start an execution while a main-reachable node lacks a required displayed parameter."""
+        hollow = {item["node"] for item in self.findings if item["kind"] == "hollow-node" and "missing" in item["message"]}
+        reachable = set()
+        for node in self.nodes:
+            if is_trigger(node) and not node.get("disabled"):
+                reachable |= {node.get("name", "")} | self.descendants(node.get("name", ""), "main")
+        blocking = sorted(name for name in hollow if name in reachable and not langchain_sub_node_role(self.by_name.get(name, {})))
+        if blocking:
+            self.add_finding("high", "preflight-fails", "(workflow)",
+                             f"Before the first node runs, n8n checks every enabled node reachable from the trigger for empty required parameters that are displayed at its version, "
+                             f"and fails the whole execution if one is empty. If {', '.join(blocking)} lack such a parameter, the exported workflow has no effect at all for any trigger event. "
+                             "Confirm each parameter in the node source, record the export's effect as none, and do not offer a 'faithful' option that assumes later nodes run. Credentials are not part of this check.")
+
+    def check_open_triggers(self) -> None:
+        for node in self.nodes:
+            kind = short_type(node.get("type", ""))
+            parameters = node.get("parameters", {}) or {}
+            if kind == "telegramTrigger":
+                fields = parameters.get("additionalFields", {}) or {}
+                restricted = node_version(node) >= 1.2 and (fields.get("chatIds") or fields.get("userIds"))
+                if not restricted:
+                    self.add_finding("high", "open-trigger", node.get("name", ""),
+                                     "The Telegram Trigger starts the workflow for anyone who messages the bot: chat and user restrictions are absent or ignored before typeVersion 1.2. "
+                                     "Record the open trigger as source behavior and ask whether Dex keeps it or filters senders.")
+
+    def check_provenance(self) -> None:
+        meta = self.workflow.get("meta") or {}
+        reasons = []
+        if meta.get("templateId"):
+            reasons.append(f"meta.templateId {meta['templateId']} marks a gallery template")
+        if self.workflow.get("triggerCount") == 0:
+            reasons.append("triggerCount 0 means no trigger was ever active")
+        if self.workflow.get("active") is False:
+            reasons.append("active is false")
+        if reasons:
+            self.add_finding("info", "provenance", "(workflow)",
+                             "; ".join(reasons) + ". Treat the export as a specification that may never have run: there may be no execution history to compare, so accept against user-approved expected effects on synthetic inputs.")
+
+    def check_authentication_consistency(self) -> None:
+        methods = defaultdict(set)
+        for node in self.nodes:
+            if self.is_app_node(node) and not is_trigger(node):
+                methods[short_type(node.get("type", ""))].add(str((node.get("parameters", {}) or {}).get("authentication", "default")))
+        for kind, values in methods.items():
+            if len(values) > 1:
+                self.add_finding("medium", "inconsistent-authentication", f"{kind} nodes",
+                                 f"{kind} nodes use different authentication settings ({', '.join(sorted(values))}); confirm whether they act for one account (one Dex connection) or several.")
+
+    def descendants(self, name: str, connection_type: str = "") -> set:
+        forward = defaultdict(set)
+        for edge in self.edges:
+            if not connection_type or edge["type"] == connection_type:
+                forward[edge["from"]].add(edge["to"])
+        seen, queue = set(), deque(forward[name])
+        while queue:
+            current = queue.popleft()
+            if current in seen:
+                continue
+            seen.add(current)
+            queue.extend(forward[current] - seen)
+        return seen
 
     def ancestors(self, name: str) -> set:
         _, backward = self.adjacency()
@@ -783,14 +1164,14 @@ class Inventory:
                 if unhandled:
                     self.add_finding("high", "literal-set-mismatch", expression["node"],
                                      f"`{node.get('name')}` accepts {sorted(accepted)}, but `{expression['parameter']}` strips only {sorted(stripped)}: values matching {unhandled} pass the filter unnormalized"
-                                     + (f", and {unused} can never match." if unused else "."))
+                                     + (f", and the filter never accepts {unused} on its own, so that strip only changes values that also match an accepted literal." if unused else "."))
 
     def check_settings(self) -> None:
         settings = self.workflow.get("settings", {}) or {}
         if not settings.get("timezone"):
             if any(item["kind"] in ("timezone-dependent", "version-default") and "timezone" in item["message"] for item in self.findings) or self.schedules:
                 self.add_finding("high", "timezone-unset", "(workflow)",
-                                 "settings.timezone is absent, so schedules, $today, and $now use the n8n instance default (GENERIC_TIMEZONE). The export cannot tell which zone; ask the user.")
+                                 "settings.timezone is absent, so schedules, $today, and $now use the n8n instance's GENERIC_TIMEZONE, which is America/New_York when the instance never set it. The export cannot tell which zone; ask the user.")
         if settings.get("errorWorkflow"):
             self.add_finding("high", "error-workflow", "(workflow)",
                              "An error workflow handles failures; map it to Execute-failure recovery Steps.")
@@ -811,7 +1192,7 @@ class Inventory:
             operation = str(parameters.get("operation", DEFAULT_OPERATION.get(kind, "")))
             resource = str(parameters.get("resource", DEFAULT_RESOURCE.get(kind, "")))
             row = {"node": node.get("name", ""), "type": kind, "operation": "/".join(part for part in (resource, operation) if part),
-                   "host": "", "connector": "", "operations": [], "likelyOperation": "", "status": ""}
+                   "host": "", "connector": "", "operations": [], "likelyOperation": "", "semanticNote": "", "status": ""}
             sub_node_role = langchain_sub_node_role(node)
             if sub_node_role:
                 row["status"] = sub_node_role
@@ -834,9 +1215,14 @@ class Inventory:
                     row["connector"] = f"{entry['id']} {entry['version']}"
                     row["operations"] = [f"{name} ({op_kind})" for name, op_kind in entry["operations"]] + [f"{name} (trigger)" for name in entry["triggers"]]
                     row["likelyOperation"] = likely_operation(operation, entry)
+                    verb = re.sub(r"[^a-z]", "", operation.split("/")[-1].lower())
+                    if row["likelyOperation"] and verb and not row["likelyOperation"].lower().startswith(verb[:4]):
+                        row["semanticNote"] = f"semantics differ from n8n {verb}: confirm and record a divergence"
                     row["status"] = "released candidate; confirm the exact operation in its connector.yaml"
+                elif is_http and not row["host"]:
+                    row["status"] = "the URL host comes from an expression: resolve the host from upstream data before choosing a connector"
                 elif is_http:
-                    row["status"] = f"no released connector for {row['host'] or 'this host'}: connector contribution (generic HTTP only for an internal service)"
+                    row["status"] = f"no released connector for {row['host']}: connector contribution (generic HTTP only for an internal service)"
                 else:
                     row["status"] = "no released connector: connector contribution"
             rows.append(row)
@@ -855,7 +1241,12 @@ class Inventory:
             seen.add(current)
             order.append(current)
             queue.extend(sorted(forward[current] - seen))
+        for edge in self.edges:
+            if edge["type"] != "main" and edge["from"] not in seen and edge["to"] in order:
+                order.insert(order.index(edge["to"]) + 1, edge["from"])
+                seen.add(edge["from"])
         order += [node.get("name", "") for node in self.nodes if node.get("name", "") not in seen]
+        unreachable = {item["node"] for item in self.findings if item["kind"] == "unreachable-node"}
         multi_item_sources = {
             node.get("name", "") for node in self.nodes
             if str((node.get("parameters", {}) or {}).get("operation", "")).lower() in MULTI_ITEM_OPERATIONS
@@ -867,6 +1258,15 @@ class Inventory:
             per_item = any(source in self.ancestors(name) for source in multi_item_sources)
             if kind == "stickyNote" or kind == "noOp":
                 element, notes = "dropped", "no behavior"
+            elif name in unreachable:
+                element, notes = "dropped", "unreachable: never runs in production"
+            elif kind == "set":
+                element, notes = "folded into the consuming Step", self.hint(node)
+            elif kind in ("if", "filter", "switch"):
+                element, notes = "folded into an application Step", "the predicate chooses that Step's movement; port it with the IF semantics in n8n-semantics"
+            elif kind == "wait":
+                element = f"application Step {pascal_case(name)}"
+                notes = "WaitFor returns dex.Until(dex.Timer(duration)); Execute builds the next Step's input (a Connector Step cannot wait)"
             elif is_trigger(node):
                 element, notes = "trigger", self.hint(node)
             elif langchain_sub_node_role(node):
@@ -875,8 +1275,17 @@ class Inventory:
                 connector = matrix[name]
                 element = f"Connector Step {pascal_case(name)}"
                 notes = f"{connector['connector'] or 'missing connector'}: {connector['likelyOperation'] or connector['status']}"
+                if connector.get("semanticNote"):
+                    notes += f"; {connector['semanticNote']}"
                 if per_item:
                     notes += "; per item: loop with a persisted cursor (a Connector result carries no item context)"
+                predecessors = {edge["from"] for edge in self.edges if edge["to"] == name and edge["type"] == "main"}
+                if any(predecessor in matrix and not langchain_sub_node_role(self.by_name.get(predecessor, {})) for predecessor in predecessors):
+                    notes += "; add an application Step before it: a Connector Step receives only the previous result, so map the input and persist context there"
+                notes += "; route every branch in its connector.yaml (an unrouted optional branch fails the Flow) and an Execute-failure route; add an outcome application Step when the next Step needs more than the result"
+                successors = {edge["to"] for edge in self.edges if edge["from"] == name and edge["type"] == "main"}
+                if len(successors) > 1:
+                    notes += "; fan-out: put an application Step after it, since only application Steps move to several Steps"
             else:
                 element = f"application Step {pascal_case(name)}"
                 notes = self.hint(node)
@@ -914,6 +1323,8 @@ class Inventory:
             "findings": self.findings,
             "connectorMatrix": self.connector_matrix(),
             "planDraft": self.plan_rows(),
+            "ledgerIds": self.ledger_ids or [split_row(line)[0] for line in self.to_markdown().splitlines()
+                                             if line.startswith("| ") and re.fullmatch(LEDGER_ID, split_row(line)[0])],
         }
         return json.loads(self.redact(json.dumps(data)))
 
@@ -940,9 +1351,10 @@ class Inventory:
             f"Source `{self.source_name}`: {len(self.nodes)} nodes, {len(self.edges)} connections. "
             "Generated by `n8n_inventory.py`; literal secrets are redacted.",
             "",
-            "Set every Status cell to `mapped`, `diverged`, `dropped`, or `blocked`. "
-            "`diverged`, `dropped`, and `blocked` rows need Notes that record the reason or the user's decision. "
-            "Then run `n8n_inventory.py verify` on this file.",
+            "Set every Status cell to `mapped`, `diverged`, `dropped`, `blocked`, or `pending`. "
+            "Use `pending` for a proposal that still awaits the user's decision, and `diverged` only once the user approved it. "
+            "Every status except `mapped` needs Notes that record the reason or the decision. "
+            "Then run `n8n_inventory.py verify` on this file; `--strict` also fails while anything is pending.",
             "",
             "## Summary",
             "",
@@ -951,13 +1363,16 @@ class Inventory:
             f"- Code nodes: {', '.join(row['node'] for row in code_nodes) or 'none'}",
             f"- Findings: {counts['critical']} critical, {counts['high']} high, {counts['medium']} medium, {counts['info']} info",
             "",
+            "Rows may be split into sub-rows (`N3a`, `N3b`) when parts of one element map differently. "
+            "Add rows found during the semantic review with the next free ID in their section.",
+            "",
             "## Execution graph",
             "",
-            "| From | Output | To |",
-            "| --- | --- | --- |",
+            "| ID | From | Output | To | Status | Notes |",
+            "| --- | --- | --- | --- | --- | --- |",
         ]
-        for edge in self.edges:
-            lines.append(f"| {cell(edge['from'])} | {cell(edge['label'])} | {cell(edge['to'])} |")
+        for index, edge in enumerate(self.edges, 1):
+            lines.append(f"| E{index} | {cell(edge['from'])} | {cell(edge['label'])} | {cell(edge['to'])} | todo |   |")
         lines += ["", "Compare this graph with the Dex Web rendering of the migrated Flows.", ""]
         lines += self.to_mermaid()
         lines += ["", "## Nodes", "", "| ID | Node | Type | Source behavior | Dex mapping hint | Status | Notes |", "| --- | --- | --- | --- | --- | --- | --- |"]
@@ -975,10 +1390,38 @@ class Inventory:
                 f"| C{index} | {cell(key[0])} `{cell(key[1])}` | {cell(', '.join(nodes))} | "
                 "Connector connection authorized in Dex Web Connectors; n8n credentials are not portable | todo |   |"
             )
+        credential_index = len(self.credentials)
+        uncredentialed = defaultdict(list)
+        for row in self.connector_matrix():
+            node = self.by_name.get(row["node"], {})
+            if not node.get("credentials") and not langchain_sub_node_role(node) and row["type"] not in ("httpRequest",):
+                uncredentialed[row["connector"] or row["type"]].append(row["node"])
+        for connector, nodes in uncredentialed.items():
+            credential_index += 1
+            lines.append(f"| C{credential_index} | (none in the export) | {cell(', '.join(nodes))} | "
+                         f"A Dex connection is still needed for {cell(connector)}; ask which account it acts for | todo |   |")
         settings = self.workflow.get("settings", {}) or {}
-        lines += ["", "## Workflow settings", "", "| ID | Setting | Value | Status | Notes |", "| --- | --- | --- | --- | --- |"]
+        lines += ["", "## Connector branches", "",
+                  "Replace each placeholder with one row per branch of the mapped operation, read from its connector.yaml at the release tag, "
+                  "and say where each branch goes and which source outcome it matches.", "",
+                  "| ID | n8n node | Branch and Dex target | Status | Notes |", "| --- | --- | --- | --- | --- |"]
+        branch_nodes = [row["node"] for row in self.connector_matrix()
+                        if not langchain_sub_node_role(self.by_name.get(row["node"], {})) and not is_trigger(self.by_name.get(row["node"], {}))
+                        and row["node"] not in {item["node"] for item in self.findings if item["kind"] == "unreachable-node"}]
+        for index, node_name in enumerate(branch_nodes, 1):
+            lines.append(f"| R{index} | {cell(node_name)} | {BRANCH_PLACEHOLDER} | todo |   |")
+        lines += ["", "## Workflow settings and export metadata", "", "| ID | Setting | Value | Status | Notes |", "| --- | --- | --- | --- | --- |"]
         setting_rows = [("timezone", settings.get("timezone", "(absent: instance default)"))]
         setting_rows += [(key, value) for key, value in settings.items() if key != "timezone"]
+        meta = self.workflow.get("meta") or {}
+        for key in ("active", "triggerCount"):
+            if key in self.workflow:
+                setting_rows.append((key, self.workflow[key]))
+        for key, value in meta.items():
+            setting_rows.append((f"meta.{key}", value if key != "instanceId" else "(present)"))
+        for key in ("pinData", "staticData"):
+            if self.workflow.get(key):
+                setting_rows.append((key, "(present: editor or trigger state, not behavior)"))
         for index, (key, value) in enumerate(setting_rows, 1):
             lines.append(f"| S{index} | {cell(key)} | {cell(json.dumps(value) if not isinstance(value, str) else value)} | todo |   |")
         lines += ["", "## Findings", "", "| ID | Severity | Kind | Node | Finding | Status | Notes |", "| --- | --- | --- | --- | --- | --- | --- |"]
@@ -986,32 +1429,78 @@ class Inventory:
             lines.append(
                 f"| F{index} | {finding['severity']} | {finding['kind']} | {cell(finding['node'])} | {cell(finding['message'], 420)} | todo |   |"
             )
-        lines += ["", "## Claims to check against behavior", ""]
-        for claim in self.claims:
-            lines.append(f"- {claim['source']}: {cell(claim['text'], 400)}")
-        if not self.claims:
-            lines.append("- none")
+        lines += ["", "## Behavior matrix", "",
+                  "What the source does in each situation; Dex must match it or record a decision.", "",
+                  "| ID | Situation | Nodes | n8n behavior | Status | Notes |", "| --- | --- | --- | --- | --- | --- |"]
+        for index, row in enumerate(self.behavior_rows(), 1):
+            lines.append(f"| B{index} | {cell(row[0])} | {cell(row[1])} | {cell(row[2], 320)} | todo |   |")
+        lines += ["", "## Claims to check against behavior", "",
+                  "| ID | Source | Claim | Status | Notes |", "| --- | --- | --- | --- | --- |"]
+        for index, claim in enumerate(self.claims, 1):
+            lines.append(f"| K{index} | {cell(claim['source'])} | {cell(claim['text'], 400)} | todo |   |")
         lines += ["", "## Connector capability matrix (draft)", "",
                   "Confirm each candidate in the connector's release-tagged `connector.yaml` before mapping a row.", "",
                   "| n8n node | Type and operation | Candidate connector | Likely operation | Released operations and Triggers | Status |",
                   "| --- | --- | --- | --- | --- | --- |"]
         for row in self.connector_matrix():
             operation = row["operation"] + (f" ({row['host']})" if row["host"] else "")
+            likely = row["likelyOperation"] + (f" ({row['semanticNote']})" if row["semanticNote"] else "")
             lines.append(f"| {cell(row['node'])} | {cell(row['type'] + ' ' + operation)} | {cell(row['connector'] or '-')} | "
-                         f"{cell(row['likelyOperation'] or '-')} | {cell(', '.join(row['operations']) or '-', 300)} | {cell(row['status'])} |")
+                         f"{cell(likely or '-')} | {cell(', '.join(row['operations']) or '-', 300)} | {cell(row['status'])} |")
         lines += ["", "## Dex plan draft", "",
                   "A starting point in execution order. Apply the Flow-boundary, schedule, and per-item rules before coding.", "",
                   "| Order | n8n node | Type | Proposed Dex element | Notes |", "| --- | --- | --- | --- | --- |"]
         for index, row in enumerate(self.plan_rows(), 1):
             lines.append(f"| {index} | {cell(row['node'])} | {cell(row['type'])} | {cell(row['element'])} | {cell(row['notes'], 320)} |")
-        decisions = [item for item in self.findings if item["severity"] in ("critical", "high")]
-        lines += ["", "## Decisions for the user", ""]
-        for index, finding in enumerate(decisions, 1):
-            lines.append(f"{index}. [{finding['kind']}] {finding['node']}: {cell(finding['message'], 420)}")
+        decisions = defaultdict(list)
+        for index, finding in enumerate(self.findings, 1):
+            if finding["severity"] in ("critical", "high"):
+                decisions[finding["kind"]].append((index, finding))
+        lines += ["", "## Decisions for the user", "",
+                  "One row per kind of open question. Set Status to `decided` with the user's answer in Notes, or `pending` while it is open.", "",
+                  "| ID | Kind | Findings | Question | Status | Notes |", "| --- | --- | --- | --- | --- | --- |"]
+        for index, (kind, items) in enumerate(decisions.items(), 1):
+            ids = ", ".join(f"F{number}" for number, _ in items)
+            question = items[0][1]["message"] if len(items) == 1 else f"{len(items)} findings on {', '.join(sorted({item['node'] for _, item in items}))}: {items[0][1]['message']}"
+            lines.append(f"| D{index} | {kind} | {ids} | {cell(question, 420)} | todo |   |")
         if not decisions:
-            lines.append("None from the inventory; add any found during the semantic review.")
+            lines.append("| D1 | none | - | No critical or high finding; add questions found during the semantic review. | todo |   |")
         lines.append("")
-        return self.redact("\n".join(lines))
+        rendered = self.redact("\n".join(lines))
+        self.ledger_ids = [split_row(line)[0] for line in rendered.splitlines()
+                           if line.startswith("| ") and re.fullmatch(LEDGER_ID, split_row(line)[0])]
+        return rendered
+
+    def behavior_rows(self) -> list[tuple]:
+        rows = []
+        for node in self.nodes:
+            if self.is_multi_item_read(node):
+                kept = "alwaysOutputData emits one empty item, so downstream still runs" if node.get("alwaysOutputData") else "downstream nodes do not run and the execution succeeds"
+                rows.append(("Read returns zero items", node.get("name", ""), kept))
+        external = [node for node in self.nodes if (self.is_app_node(node) or short_type(node.get("type", "")) == "httpRequest") and not is_trigger(node)]
+        if external:
+            handled = [node.get("name", "") for node in external if (node.get("onError") or "stopWorkflow") != "stopWorkflow" or node.get("continueOnFail")]
+            retried = [node.get("name", "") for node in external if node.get("retryOnFail")]
+            detail = "the node fails and the execution stops; earlier effects stay done"
+            if retried:
+                detail += f"; {', '.join(retried)} retry first"
+            if handled:
+                detail += f"; {', '.join(handled)} continue per onError"
+            rows.append(("Provider error, timeout, or rejection", ", ".join(node.get("name", "") for node in external), detail))
+        for node in self.nodes:
+            if is_trigger(node):
+                kind = short_type(node.get("type", ""))
+                detail = {
+                    "webhook": "every request starts its own execution; n8n does not deduplicate retries or double submits",
+                    "scheduleTrigger": "every occurrence starts an execution, even while the previous one still runs; missed occurrences while n8n is down do not run",
+                    "manualTrigger": "every click starts an execution",
+                }.get(kind, "every delivered event starts its own execution unless the trigger node deduplicates; confirm in the node source")
+                rows.append(("Duplicate or overlapping trigger", node.get("name", ""), detail))
+        if self.expressions:
+            rows.append(("Input item lacks a field an expression reads", "expressions X1 onward",
+                         "an expression yields undefined, and a method call on the missing value is swallowed, so the value is empty and the node continues; "
+                         "a strict IF accepts null and undefined; Code nodes throw instead"))
+        return rows
 
 
 def langchain_sub_node_role(node: dict) -> str:
@@ -1058,8 +1547,11 @@ def load_catalog(path: Path) -> list:
     The catalog is generated YAML with a fixed shape, so a line reader suffices and keeps the
     script free of third-party packages.
     """
+    text = path.read_text(encoding="utf-8")
+    if "kind: ConnectorCatalog" not in text or not re.search(r"^apiVersion: connectors\.dex\.dev/catalog/", text, re.MULTILINE):
+        raise ValueError(f"{path} is not a Dex connector catalog (expected apiVersion connectors.dex.dev/catalog/* and kind ConnectorCatalog)")
     entries, current, section, pending_operation = [], None, "", None
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
+    for raw_line in text.splitlines():
         line = raw_line.rstrip()
         stripped = line.strip()
         indent = len(line) - len(line.lstrip(" "))
@@ -1156,34 +1648,70 @@ def load_workflows(path: Path) -> list:
     return workflows
 
 
+LEDGER_ID = r"[NEXCSFKBRD]\d+[a-z]?"
+BRANCH_PLACEHOLDER = "(list every branch of the operation's connector.yaml at the release tag)"
+UNVERIFIED_NOTE = re.compile(
+    r"(?i)\b(assum(?:e|ed|es|ing|ption)|unverified|from memory|recalled|i recall|to confirm|needs? confirm\w*|"
+    r"not (?:yet )?confirmed|confirm (?:in|against) (?:the )?source)\b"
+)
+
+
 def split_row(line: str) -> list:
     cells = [part.strip() for part in re.split(r"(?<!\\)\|", line.strip())]
     return cells[1:-1] if len(cells) >= 2 else cells
 
 
-def verify(path: Path) -> int:
-    problems, counts = [], defaultdict(int)
-    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+def verify(path: Path, is_strict: bool = False) -> int:
+    problems, counts, seen, by_section = [], defaultdict(int), set(), defaultdict(lambda: defaultdict(int))
+    text = path.read_text(encoding="utf-8")
+    # A decision is defined by a Decisions table row, or by a bullet or heading that starts with its ID.
+    decision_ids = set(re.findall(r"^(?:\|\s*|[-*]\s+(?:\*\*)?|#+\s+)(D\d+[a-z]?)\b", text, re.MULTILINE))
+    for number, line in enumerate(text.splitlines(), 1):
         if not line.startswith("|"):
             continue
         cells = split_row(line)
-        if len(cells) < 3 or not re.fullmatch(r"[NXCSF]\d+", cells[0]):
+        if len(cells) < 3 or not re.fullmatch(LEDGER_ID, cells[0]):
             continue
+        seen.add(cells[0])
         status, notes = cells[-2].lower(), cells[-1]
+        allowed = DECISION_STATUSES if cells[0].startswith("D") else STATUSES
         counts[status] += 1
-        if status not in STATUSES:
-            problems.append(f"line {number} {cells[0]}: status {status!r} is not one of {', '.join(STATUSES)}")
+        by_section[cells[0][0]][status] += 1
+        for reference in sorted(set(re.findall(r"\bD\d+[a-z]?\b", notes)) - decision_ids):
+            problems.append(f"line {number} {cells[0]}: notes cite {reference}, which is not in the Decisions table")
+        if BRANCH_PLACEHOLDER in line:
+            problems.append(f"line {number} {cells[0]}: replace the placeholder with one row per connector branch")
+        elif status not in allowed:
+            problems.append(f"line {number} {cells[0]}: status {status!r} is not one of {', '.join(allowed)}")
+        elif status == "decided" and not notes:
+            problems.append(f"line {number} {cells[0]}: decided needs the user's answer in notes")
+        elif status == "mapped" and UNVERIFIED_NOTE.search(notes):
+            problems.append(f"line {number} {cells[0]}: mapped rests on an unverified claim; cite the source or mark it blocked")
         elif status in NOTE_REQUIRED and not notes:
             problems.append(f"line {number} {cells[0]}: {status} needs notes")
+        elif status == "pending" and is_strict:
+            problems.append(f"line {number} {cells[0]}: pending awaits the user's decision")
     if not counts:
         problems.append("no ledger rows found")
+    inventory_path = path.parent / "inventory.json"
+    if inventory_path.exists():
+        try:
+            generated = json.loads(inventory_path.read_text(encoding="utf-8")).get("ledgerIds", [])
+        except (OSError, ValueError):
+            generated = []
+        for row_id in generated:
+            if row_id not in seen and not any(other.startswith(row_id) and other[len(row_id):].isalpha() for other in seen):
+                problems.append(f"{row_id}: generated row is missing from the ledger (rows may be split, never deleted)")
     summary = ", ".join(f"{count} {status}" for status, count in sorted(counts.items()))
     if problems:
         print(f"ledger incomplete ({summary}):", file=sys.stderr)
         for problem in problems:
             print(f"  {problem}", file=sys.stderr)
         return 1
-    print(f"ledger complete: {summary}")
+    pending = counts.get("pending", 0)
+    print(f"ledger complete: {summary}" + (f"; {pending} row(s) await the user's decision" if pending else ""))
+    for section, statuses in sorted(by_section.items()):
+        print(f"  {section}: " + ", ".join(f"{count} {status}" for status, count in sorted(statuses.items())))
     return 0
 
 
@@ -1196,10 +1724,11 @@ def main(argv=None) -> int:
     inventory_parser.add_argument("--catalog", type=Path, help="downloaded Dex connector catalog.yaml for the capability matrix")
     verify_parser = commands.add_parser("verify", help="check that every ledger row is resolved")
     verify_parser.add_argument("ledger", type=Path)
+    verify_parser.add_argument("--strict", action="store_true", help="also fail while any row is pending")
     arguments = parser.parse_args(argv)
 
     if arguments.command == "verify":
-        return verify(arguments.ledger)
+        return verify(arguments.ledger, arguments.strict)
 
     try:
         workflows = load_workflows(arguments.export)
@@ -1210,7 +1739,7 @@ def main(argv=None) -> int:
     if arguments.catalog is not None:
         try:
             catalog = load_catalog(arguments.catalog)
-        except OSError as error:
+        except (OSError, ValueError) as error:
             print(f"error: {error}", file=sys.stderr)
             return 2
     for index, workflow in enumerate(workflows):

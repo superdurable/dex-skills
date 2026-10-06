@@ -510,13 +510,20 @@ def check_app_builder() -> None:
         "a `blocked` row and a connector",
         "explicit request for parity",
         "Never let both send to live recipients",
+        "### Connector Step composition",
+        "An optional branch left unrouted",
+        "A claim from memory leaves the",
+        "never the working tree or",
         "n8n-semantics.md",
     ):
         if text not in workflow_import:
             fail(f"workflow import must contain: {text}")
     n8n_semantics = (references_dir / "n8n-semantics.md").read_text()
     for text in (
-        "Confirm each one at the node's exported",
+        "Confirm each one in the n8n source at the",
+        "swallows every error inside a `{{ }}` segment",
+        "A Connector Step cannot wait",
+        "Before the first node runs, n8n checks every enabled node",
         "## Node mapping",
         "## Version-dependent defaults to confirm",
         "Dex has no implicit lineage",

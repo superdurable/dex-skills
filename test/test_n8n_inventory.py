@@ -24,6 +24,18 @@ for (row of $input.item.json.rows) {
 return { html: out, setup: $('Settings').first().json.limit };"""
 
 
+def resolve_ledger(ledger):
+    """Resolve every generated row the way a finished import would."""
+    lines = []
+    for line in ledger.splitlines():
+        if line.startswith("| D") and "| todo |   |" in line:
+            line = line.replace("| todo |   |", "| decided | yes |")
+        elif line.startswith("| R") and "(list every branch" in line:
+            line = re.sub(r"\(list every branch[^|]*\)", "searched -> Render", line)
+        lines.append(line.replace("| todo |   |", "| dropped | not observable in this fixture |"))
+    return "\n".join(lines)
+
+
 def synthetic_export():
     return {
         "name": "Synthetic digest",
@@ -73,6 +85,40 @@ def synthetic_export():
             "Normalize": {"main": [[{"node": "Fetch", "type": "main", "index": 0}]]},
             "Fetch": {"main": [[{"node": "Render", "type": "main", "index": 0}]]},
             "Render": {"main": [[{"node": "Notify", "type": "main", "index": 0}]]},
+        },
+        "settings": {"executionOrder": "v1"},
+    }
+
+
+def onboarding_export():
+    """A webhook-started export with fan-out, waits, and template placeholders."""
+    return {
+        "name": "Synthetic onboarding",
+        "meta": {"templateId": "1"},
+        "triggerCount": 0,
+        "nodes": [
+            {"name": "Signup", "type": "n8n-nodes-base.webhook", "typeVersion": 1, "position": [0, 0],
+             "parameters": {"httpMethod": "POST", "path": "signup"}},
+            {"name": "Valid", "type": "n8n-nodes-base.if", "typeVersion": 2, "position": [200, 0],
+             "parameters": {"conditions": {"conditions": [
+                 {"operator": {"type": "string", "operation": "notEmpty"}, "leftValue": "={{ $json.email }}"}]}}},
+            {"name": "Welcome", "type": "n8n-nodes-base.emailSend", "typeVersion": 2.1, "position": [400, 200],
+             "parameters": {"fromEmail": "team@example.test", "toEmail": "={{ $json.body.email }}",
+                            "subject": "Welcome to [Company Name]", "text": "Hello"}},
+            {"name": "Later", "type": "n8n-nodes-base.wait", "typeVersion": 1, "position": [400, -200],
+             "parameters": {"amount": 2, "unit": "days"}},
+            {"name": "Contact", "type": "n8n-nodes-base.hubspot", "typeVersion": 2, "position": [600, -200],
+             "parameters": {"operation": "upsert", "authentication": "appToken", "email": "={{ $json.body.email }}"},
+             "credentials": {"hubspotAppToken": {"id": "7", "name": "CRM"}}},
+            {"name": "Status", "type": "n8n-nodes-base.hubspot", "typeVersion": 2, "position": [800, -200],
+             "parameters": {"operation": "update", "contactId": "={{ $json.id }}"},
+             "credentials": {"hubspotApi": {"id": "8", "name": "CRM key"}}},
+        ],
+        "connections": {
+            "Signup": {"main": [[{"node": "Valid", "type": "main", "index": 0}]]},
+            "Valid": {"main": [[{"node": "Welcome", "type": "main", "index": 0}, {"node": "Later", "type": "main", "index": 0}]]},
+            "Later": {"main": [[{"node": "Contact", "type": "main", "index": 0}]]},
+            "Contact": {"main": [[{"node": "Status", "type": "main", "index": 0}]]},
         },
         "settings": {"executionOrder": "v1"},
     }
@@ -156,10 +202,35 @@ class InventoryTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("needs notes", result.stderr)
 
-        resolved = re.sub(r"\| todo \|   \|", "| dropped | not observable in this fixture |", self.ledger)
+        resolved = resolve_ledger(self.ledger)
         ledger.write_text(resolved)
         result = self.run_script("verify", str(ledger))
         self.assertIn("ledger complete", result.stdout)
+
+        ledger.write_text(resolved.replace("| decided | yes |", "| pending | proposed: yes |", 1))
+        self.assertIn("await the user's decision", self.run_script("verify", str(ledger)).stdout)
+        strict = self.run_script("verify", str(ledger), "--strict", check=False)
+        self.assertEqual(strict.returncode, 1)
+        self.assertIn("pending awaits", strict.stderr)
+
+        without_row = "\n".join(line for line in resolved.splitlines() if not line.startswith("| E1 |"))
+        ledger.write_text(without_row)
+        result = self.run_script("verify", str(ledger), check=False)
+        self.assertIn("E1: generated row is missing", result.stderr)
+
+        split_row = resolved.replace("| E1 |", "| E1a |", 1)
+        ledger.write_text(split_row)
+        self.assertEqual(self.run_script("verify", str(ledger), check=False).returncode, 0, "sub-rows replace a split row")
+
+        unverified = re.sub(r"(\| N1 \|.*?)\| dropped \| [^|]* \|", r"\1| mapped | default assumed from memory |", resolved, count=1)
+        ledger.write_text(unverified)
+        self.assertIn("unverified claim", self.run_script("verify", str(ledger), check=False).stderr)
+
+        ledger.write_text(resolved.replace("| dropped | not observable in this fixture |", "| diverged | per D99 |", 1))
+        self.assertIn("D99", self.run_script("verify", str(ledger), check=False).stderr)
+
+        ledger.write_text(self.ledger)
+        self.assertIn("one row per connector branch", self.run_script("verify", str(ledger), check=False).stderr)
 
     def test_attached_sub_nodes_are_reachable_and_placeholders_are_not_secrets(self):
         export = synthetic_export()
@@ -202,9 +273,12 @@ class InventoryTest(unittest.TestCase):
         by_kind = {}
         for item in inventory["findings"]:
             by_kind.setdefault(item["kind"], set()).add(item["node"])
-        self.assertEqual(by_kind["missing-credential"], {"Alert"})
+        self.assertEqual(by_kind["missing-credential"], {"telegram nodes"})
         self.assertEqual(by_kind["hollow-node"], {"Alert"})
-        self.assertEqual(by_kind["community-node"], {"Publish"})
+        self.assertEqual(by_kind["community-node"], {"@vendor/n8n-nodes-vendor"})
+        self.assertIn("preflight-fails", by_kind, "a hollow node reachable from the trigger fails every execution")
+        hollow = next(item for item in inventory["findings"] if item["kind"] == "hollow-node")
+        self.assertIn("text (message content)", hollow["message"])
         self.assertIn("Publish (vendor@1)", (self.out / "ledger.md").read_text())
 
     def test_graph_matrix_and_plan_drafts(self):
@@ -272,6 +346,114 @@ connectors:
 
 
 @unittest.skipUnless(shutil.which("node"), "node is required for the golden harness")
+class DetectorTest(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+
+    def inventory(self, export, *extra):
+        path = self.root / "export.json"
+        path.write_text(json.dumps(export))
+        result = subprocess.run([sys.executable, "-B", str(INVENTORY), "inventory", str(path), "--out", str(self.root / "out"), *extra],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        inventory = json.loads((self.root / "out" / "inventory.json").read_text())
+        by_kind = {}
+        for item in inventory["findings"]:
+            by_kind.setdefault(item["kind"], []).append(item)
+        return inventory, by_kind, (self.root / "out" / "ledger.md").read_text()
+
+    def test_webhook_fan_out_and_template_findings(self):
+        _, by_kind, ledger = self.inventory(onboarding_export())
+        self.assertEqual([item["node"] for item in by_kind["webhook-output-shape"]], ["Valid"])
+        self.assertIn("$json.body.email", by_kind["webhook-output-shape"][0]["message"])
+        self.assertIn("[Company Name]", by_kind["literal-placeholder"][0]["message"])
+        self.assertIn("appToken", by_kind["inconsistent-authentication"][0]["message"])
+        order = by_kind["branch-order"][0]["message"]
+        self.assertLess(order.index("Later"), order.index("Welcome"), "v1 runs the upper branch first")
+        self.assertIn("Welcome", by_kind["branch-wait-pause"][0]["message"])
+        self.assertIn("gallery template", by_kind["provenance"][0]["message"])
+        notes = {item["node"]: item["message"] for item in by_kind["version-default"]}
+        self.assertIn("2 days", notes["Later"])
+        self.assertIn("exactly 24 hours", notes["Later"])
+        self.assertIn("verified POST", notes["Signup"])
+        self.assertIn("This email was sent automatically with n8n", notes["Welcome"])
+        self.assertIn("| E4 | Later | main | Contact | todo |", ledger)
+        self.assertIn("| S", ledger)
+        self.assertIn("meta.templateId", ledger)
+        self.assertRegex(ledger, r"\| B\d+ \| Duplicate or overlapping trigger \| Signup \|")
+        self.assertRegex(ledger, r"\| R\d+ \| Contact \|")
+        self.assertRegex(ledger, r"\| D\d+ \| webhook-output-shape \|")
+
+    def test_schedule_window_secret_and_empty_reads(self):
+        export = synthetic_export()
+        export["nodes"][5]["parameters"]["url"] += "&key={{ $('Settings').first().json.apiKey }}"
+        render = export["nodes"][6]
+        render["parameters"]["jsCode"] = "if ($input.item.json.rows.length === 0) { return { html: 'none' } }\n" + RENDER_CODE
+        _, by_kind, ledger = self.inventory(export)
+        self.assertIn("Notify", by_kind["repeated-effects"][0]["message"])
+        self.assertEqual({item["node"] for item in by_kind["secret-in-request"]}, {"Fetch"})
+        self.assertNotIn(SECRET, ledger)
+        zero = next(item for item in by_kind["zero-items-stop"] if item["node"] == "Read records")
+        self.assertIn("Render", zero["message"], "the empty-result branch in Render never runs")
+        self.assertEqual(zero["severity"], "high")
+        self.assertIn("missing-field-empty", by_kind)
+        self.assertIn("missing-field-throws", by_kind, "Code nodes still throw on a missing field")
+
+    def test_code_mode_locale_identifiers_and_credentials(self):
+        export = synthetic_export()
+        export["nodes"][6]["parameters"] = {"jsCode": "return [{json: {when: $now.toFormat('DDDD'), total: $json.n.toLocaleString()}}];"}
+        export["nodes"][2]["parameters"]["documentId"] = {"__rl": True, "value": "sheet-abc", "mode": "id"}
+        export["nodes"].append({"name": "Model", "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi", "typeVersion": 1.2,
+                                "parameters": {"model": {"__rl": True, "value": "", "mode": "list"}},
+                                "credentials": {"openAiApi": {"id": None, "name": "", "__aiGatewayManaged": True}}})
+        _, by_kind, _ = self.inventory(export)
+        self.assertEqual([item["node"] for item in by_kind["first-item-only"]], ["Render"])
+        self.assertIn("toLocaleString", by_kind["locale-dependent"][0]["message"])
+        self.assertIn("sheet-abc", by_kind["hardcoded-identifier"][0]["message"])
+        self.assertIn("__aiGatewayManaged", by_kind["managed-credential"][0]["message"])
+        self.assertIn("Model", {item["node"] for item in by_kind["hollow-node"]})
+
+    def test_joins_loops_and_open_triggers(self):
+        export = {
+            "nodes": [
+                {"name": "Chat", "type": "n8n-nodes-base.telegramTrigger", "typeVersion": 1.1, "parameters": {"updates": ["message"]}},
+                {"name": "Submit", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2,
+                 "parameters": {"method": "POST", "url": "https://jobs.example.test/submit"}},
+                {"name": "Pause", "type": "n8n-nodes-base.wait", "typeVersion": 1.1, "parameters": {"amount": 10}},
+                {"name": "Poll", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "parameters": {"url": "={{ $json.statusUrl }}"}},
+                {"name": "Done", "type": "n8n-nodes-base.if", "typeVersion": 2, "parameters": {}},
+                {"name": "Join", "type": "n8n-nodes-base.merge", "typeVersion": 3.2, "parameters": {"mode": "chooseBranch"}},
+                {"name": "Stray", "type": "n8n-nodes-base.noOp", "typeVersion": 1, "parameters": {}},
+            ],
+            "connections": {
+                "Chat": {"main": [[{"node": "Submit", "type": "main", "index": 0}]]},
+                "Submit": {"main": [[{"node": "Pause", "type": "main", "index": 0}]]},
+                "Pause": {"main": [[{"node": "Poll", "type": "main", "index": 0}]]},
+                "Poll": {"main": [[{"node": "Done", "type": "main", "index": 0}]]},
+                "Done": {"main": [[{"node": "Join", "type": "main", "index": 0}], [{"node": "Pause", "type": "main", "index": 0}]]},
+                "Stray": {"main": [[{"node": "Join", "type": "main", "index": 1}]]},
+            },
+        }
+        _, by_kind, ledger = self.inventory(export)
+        self.assertIn("Polling pattern", by_kind["wait-poll-loop"][0]["message"])
+        self.assertIn("Merge input 2", by_kind["merge-input"][0]["message"])
+        self.assertEqual([item["node"] for item in by_kind["open-trigger"]], ["Chat"])
+        self.assertIn("sleeps in place", next(item for item in by_kind["version-default"] if item["node"] == "Pause")["message"])
+        self.assertIn("Input item lacks a field", ledger)
+
+    def test_rejects_a_file_that_is_not_the_published_catalog(self):
+        catalog = self.root / "catalog.yaml"
+        catalog.write_text("apiVersion: connectors.dex.dev/v1alpha1\nkind: ConnectorCatalogSource\n")
+        path = self.root / "export.json"
+        path.write_text(json.dumps(synthetic_export()))
+        result = subprocess.run([sys.executable, "-B", str(INVENTORY), "inventory", str(path), "--catalog", str(catalog)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("not a Dex connector catalog", result.stderr)
+
+
 class GoldenHarnessTest(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -322,13 +504,40 @@ class GoldenHarnessTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         output = json.loads(result.stdout)
         self.assertEqual(output[0], {"value": "i\u0307stanbul\u0085"})
-        self.assertIn("toLowerCase", output[1]["error"])
+        self.assertTrue(output[1]["undefined"], "n8n swallows a TypeError inside an expression")
+        self.assertIn("toLowerCase", output[1]["swallowedErrors"][0])
         mixed = subprocess.run(
             ["node", str(EXPRESSION_GOLDEN), str(self.export), "Notify", "subject", str(path)],
             capture_output=True, text=True,
         )
         self.assertEqual(mixed.returncode, 0, mixed.stderr)
         self.assertIn("Normalize", json.loads(mixed.stdout)[0]["error"], "a missing upstream node is reported per item")
+
+    def test_harnesses_follow_n8n_item_and_template_rules(self):
+        export = {"nodes": [
+            {"name": "All", "type": "n8n-nodes-base.code", "typeVersion": 2,
+             "parameters": {"jsCode": "return [{json: {first: $input.item.json.n, count: $input.all().length}}];"}},
+            {"name": "Each", "type": "n8n-nodes-base.code", "typeVersion": 2,
+             "parameters": {"mode": "runOnceForEachItem", "jsCode": "return {json: {n: $input.first().json.n}};"}},
+            {"name": "Text", "type": "n8n-nodes-base.set", "typeVersion": 3.4,
+             "parameters": {"value": "=a{{ $json.missing }}b{{ 0 }}{{ false }}{{ null }}{{ {k: 1} }}{{ $json.missing.trim() }}"}},
+        ]}
+        self.export.write_text(json.dumps(export))
+        fixture = self.root / "items.json"
+        fixture.write_text(json.dumps({"items": [{"json": {"n": 1}}, {"json": {"n": 2}}]}))
+        first = subprocess.run(["node", str(GOLDEN), str(self.export), "All", str(fixture)], capture_output=True, text=True)
+        self.assertEqual(json.loads(first.stdout), [{"json": {"first": 1, "count": 2}}])
+        self.assertIn("first input item", first.stderr)
+        each = subprocess.run(["node", str(GOLDEN), str(self.export), "Each", str(fixture)], capture_output=True, text=True)
+        self.assertEqual(each.returncode, 1)
+        self.assertIn("Can't use .first() here", each.stderr)
+        text = subprocess.run(["node", str(EXPRESSION_GOLDEN), str(self.export), "Text", "value", str(fixture)], capture_output=True, text=True)
+        rendered = json.loads(text.stdout)[0]
+        self.assertEqual(rendered["value"], "ab0false[object Object]")
+        self.assertEqual(len(rendered["swallowedErrors"]), 1)
+        proposed = subprocess.run(["node", str(EXPRESSION_GOLDEN), str(self.export), "Text", "value", str(fixture),
+                                   "--expression", "={{ $json.n * 10 }}"], capture_output=True, text=True)
+        self.assertEqual(json.loads(proposed.stdout), [{"value": 10}, {"value": 20}])
 
     def test_rejects_a_non_code_node(self):
         result = self.golden({"items": []}, node="Fetch")

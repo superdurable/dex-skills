@@ -44,13 +44,22 @@ For every external integration:
 4. Inspect `<directory>/connector.yaml` at that immutable tag. Confirm the
    complete auth and configuration contract, input and output types, branches,
    idempotency, execution policy, Trigger schema, UI units, and generated Go
-   package before writing application code.
+   package before writing application code. The manifest names only the input
+   type, so also read the operation's Go input and output types and validation
+   function at the tag.
 5. Record the catalog URL, connector ID, exact capabilities, component tag, and
    immutable manifest URL in the connector capability matrix.
 
 The short Connector ID does not determine the Go module path. Copy the exact
 published module path from the immutable released manifest; it must match the
 generated factory and the FDG identity.
+
+When the web view of the tag cannot be reached, a local clone of the official
+repository may supply the immutable files: confirm the tag with
+`git tag -l <directory>/<version>`, then read each file with
+`git show <directory>/<version>:<directory>/<file>`, never from the working
+tree or `main`. Record that the files came from a local clone, and re-verify
+against the published tag before handoff.
 
 If the catalog, tag, or immutable manifest cannot be read or validated, stop
 connector-dependent implementation and report the verification blocker. Do not
@@ -105,34 +114,36 @@ credential store.
 
 ## Text generation
 
-Text generation with OpenAI, Claude, or Gemini uses the `llm` connector
-(`connectors/superdurable/llm`, package `llmrouter`). Its `generateText` Query
-runs each provider connector's released Query, and its model picker merges the
-providers' live model lists, so a new lab model needs no code or release. Use a
-provider's own connector only for a provider-native operation, a
-provider-specific setting, or a lab `llm` does not route.
+Text generation with OpenAI, Claude, Gemini, or another supported lab uses the
+`llm` connector (`connectors/superdurable/llm`, package `llm`). Its
+`generateText` Query calls the provider that the connection names, and its
+model picker lists that provider's live models, so a new lab model needs no
+code or release. Use a provider's own connector only for a provider-native
+operation, such as a stored response.
 
 | User intent | Composition |
 | --- | --- |
 | Generic, such as "summarize with an LLM" | `llm` Step with the model picker; `Model` is the Step's pick. |
-| Named model, such as "use Claude Opus" | Keep the picker and fall back in code: `cmp.Or(pick, "anthropic/<exact-model-id>")`. Take the ID from the user or the provider connector's README; never invent one. |
-| Named provider only, such as "use Claude" | `cmp.Or(pick, "anthropic")` |
-| Provider-native feature or unrouted lab | The provider's own connector. |
+| Named model, such as "use Claude Opus" | A connection for that provider, and the picker with a code fallback: `cmp.Or(pick, "<exact-model-id>")`. Take the ID from the user or the connector's README; never invent one. |
+| Named provider only, such as "use Claude" | A connection whose `provider` is that lab; a blank model uses its default model. |
+| Two providers, such as a fallback lab | One connection per provider, and a Flow branch that moves to the second connection's Step. |
+| Provider-native feature | The provider's own connector. |
 
-One `llm` connection holds every provider the application uses: in Dex Web
-**Connectors**, the user adds each provider with its own key, then picks the
-connection's default model from the added providers' live lists. A Step pick
-overrides that default, and a blank connection model uses the first added
-provider's default model. A model whose provider the connection has not added
-selects `defect` with no request.
+One `llm` connection names one provider and holds that provider's key. A model
+ID is written exactly as the provider names it and never takes a provider
+prefix, because the connection's provider selects the API. The request's
+`Model` wins, a blank one uses the connection's model, and a blank connection
+model uses the provider's default model. A model the provider does not serve,
+including one written as `provider/model`, reaches the provider and selects
+`providerRejected`.
 
-A model is `provider/model` or a provider alone; a bare model ID selects
-`defect`. Keep requests portable by leaving `Temperature` and
-`ReasoningEffort` unset and `MaxOutputTokens` zero or generous. Do not add a
-per-run model to start input unless the user asks, because anyone who can
-start the Flow could then bill any provider the connection reaches. Model
-provider failover as Flow branches. Follow the release-tagged connector README
-for the connection, key fields, and exact API.
+Keep requests portable by leaving `Temperature` and `ReasoningEffort` unset and
+`MaxOutputTokens` zero or generous. Do not add a per-run model to start input
+unless the user asks, because anyone who can start the Flow could then bill
+the connection's provider for any model. Route all six branches: `generated`,
+`truncated`, and `blocked` are outcomes, and `providerRejected`,
+`invalidResponse`, and `defect` are failures. Follow the release-tagged
+connector README for the connection, key fields, and exact API.
 
 ## UI and live state
 
