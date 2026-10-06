@@ -5,8 +5,8 @@ Dex Connector is an open-source full-stack integration layer for Dex ecosystem p
 Version 0 supports application integration only from a Go backend using the
 Dex Go SDK and Connector Go SDK. React TypeScript is supported only for optional
 connector UI and application frontend code; it is not a Connector SDK backend.
-Use the Dex Go SDK version pinned by the application's basic-process template
-unless the user explicitly requests and approves a compatible upgrade.
+Use the Dex Go SDK version the application already pins unless the user
+explicitly requests and approves a compatible upgrade.
 
 ## Capability model
 
@@ -48,14 +48,9 @@ For every external integration:
 5. Record the catalog URL, connector ID, exact capabilities, component tag, and
    immutable manifest URL in the connector capability matrix.
 
-For a hosted application, each `dex-app.yaml` Connector declaration includes the
-exact published `modulePath`, matching the generated factory and FDG identity.
-The short Connector ID does not determine the Go module path. Copy that identity
-from the immutable released manifest and declare operations and/or Trigger
-bindings. Preserve it in generated release artifacts. If a retained template's
-local validator omits or rejects this deployment field, repair that validator
-alongside the source declaration without changing SDK pins. A locally passing
-build cannot override the host's authoritative manifest schema.
+The short Connector ID does not determine the Go module path. Copy the exact
+published module path from the immutable released manifest; it must match the
+generated factory and the FDG identity.
 
 If the catalog, tag, or immutable manifest cannot be read or validated, stop
 connector-dependent implementation and report the verification blocker. Do not
@@ -171,99 +166,58 @@ rotation, and marks terminal grants such as `invalid_grant` for
 reauthorization. Deleting a local credential removes only the file record; it
 does not revoke the provider grant.
 
-## Hosted configuration and credential boundary
+## Deployed configuration and credential boundary
 
-The application release owns non-secret Connector requirements. Keep each static
-connection in `dex-app.yaml`; `make superverse-release-artifacts` emits the exact
-manifest, Connector/environment contracts and strict FDG. Auth selections,
-configuration values, API keys, OAuth tokens and webhook secrets do not belong
-in source, generated artifacts or Flow state.
+The local `connections.json` store is a plaintext development store for
+loopback `dexcli dev`. Do not copy it into an image, a deployed volume, or
+source control. Auth selections, configuration values, API keys, OAuth tokens
+and webhook secrets do not belong in source, rendered definitions or Flow state.
 
-The target's authenticated management host validates configuration against those
-exact requirements and stores ordinary settings separately from credentials.
-Standalone Dex Web remains available. A hosting platform may instead put all
-management UI in Studio and the adapted configuration/OAuth API in its existing
-Go server, with direct public SDK calls to engine-only Dex `api,interpreter`
-services. Do not require a management iframe, shared UI package, separate Dex Web
-runtime or second Go bootstrap in that platform path. Preserve the chosen host's
-scope, source revision, actor and instance admission checks. Git, Release and
-deployment lifecycle belong to the hosting platform, not the open-source engine.
-
-Use the official Connector SDK's versioned project configuration protocol. The
-[SDK v0.17.0 loader](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/environment.go)
-and [storage contract](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/README.md)
-are the authority for this boundary. This reference version does not authorize
-upgrading an application's accepted template or Connector pins; inspect its
-existing bootstrap and report a compatibility blocker if the required supported
-loader is absent.
-
-`projectconfig.LoadFromEnvironment` uses AWS's default rotating credential chain
-and reads the exact accepted ordinary snapshot without credential reads or provider
-refresh at startup. Trusted deployment configuration supplies:
-
-| Variable | Meaning |
-| --- | --- |
-| `DEX_PROJECT_ID` | Fixed project identity. |
-| `DEX_PROJECT_SCOPE` | `live` or `preview`. |
-| `DEX_PROJECT_SESSION_ID` | Required for Preview; absent for Live. |
-| `DEX_PROJECT_CONFIG_KEY` | Exact `projects/<projectID>/live/configuration/head` or `projects/<projectID>/preview/<sessionID>/configuration/head`. |
-| `DEX_PROJECT_CONFIG_VERSION` | Exact immutable object version, never latest. |
-| `DEX_PROJECT_CONFIG_DIGEST` | `sha256:<hex>` over the accepted object bytes. |
-| `DEX_PROJECT_STORAGE_BUCKET` | Private versioned bucket. |
-| `DEX_PROJECT_STORAGE_PREFIX` | Optional fixed outer environment prefix. |
-| `DEX_PROJECT_STORAGE_KMS_KEY_ARN` | Exact hosted KMS key ARN; no alias. |
-| `AWS_REGION` | Region for the default AWS configuration. |
-
-Local versioned-storage testing additionally needs
-`DEX_PROJECT_ALLOW_LOCAL_STORAGE=true` and an explicit supported local
-`DEX_PROJECT_STORAGE_ENDPOINT`; hosted deployments omit both. These variables
-are deployment identity, not user-editable application environment fields.
-Storage IAM must allow the exact configuration version, required connection
-heads/private objects, conditional credential updates and referenced application
-secrets. Credentials and KMS decrypt authority belong only to trusted host/SDK
-processes; they are never returned to browser components or business Flow code.
-There is no mounted configuration file, configuration-reader init container or
-credential broker in this protocol.
-
-Resolve the accepted application's environment through
-`LoadedProject.ResolveApplicationEnvironment`, then apply it in main before
-constructing business clients, Workers, HTTP servers or goroutines. Secret
-references pin private immutable objects by scope, key, version and digest.
-Configuration reads never load latest in place of a missing accepted version.
+A deployed Dex Server can own Connector configuration and OAuth in its project
+Connector mode. Its configuration and credentials live in a private, versioned
+object store, and the application reads them through the released Connector
+SDK `projectconfig` package rather than an application-specific loader. The
+[Connector SDK v0.17.0 loader](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/environment.go),
+its [storage contract](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/README.md),
+and the [Dex Server project configuration protocol](https://github.com/superdurable/dex/blob/server/v1.3.0/web/PROJECT_CONFIGURATION.md)
+are the authority for that boundary; see the Dex SDK
+[operations reference](../../dex-sdk/references/core/operations.md#native-hosted-project-configuration).
+This reference version does not authorize upgrading an application's existing
+Connector pins; inspect its bootstrap and report a compatibility blocker if the
+required loader is absent. Load configuration in `main` before constructing
+business clients, Workers, HTTP servers or goroutines.
 
 Connection settings and Step configuration have different identities. Decode a
-Connector's connection-level config with
-`LoadedProject.Configuration.DecodeConnectionConfiguration(ConnectionKey, &config)`;
-use `provider.LoadOperationConfiguration` only for the exact Flow/Step operation
-configuration declared in FDG. A valid Worker registration alone cannot establish
+Connector's connection-level configuration through the loaded project
+configuration, and load only the exact Flow/Step operation configuration
+declared in FDG for a Step. A valid Worker registration alone cannot establish
 that the provider client received its required connection settings. Read the
 installed Connector factory and configuration types, then verify application
-startup against the real accepted snapshot before calling a provider.
+startup against real configuration before calling a provider.
 
 Inspect the generated Connector's credential codec and the released typed
-adapter before wiring project credentials. Secret wrappers may intentionally
+adapter before wiring credentials. Secret wrappers may intentionally
 reject JSON marshaling: do not serialize public `Credentials` directly, invent
 field names, or treat a missing key as empty usable credentials. Keep any required
 typed codec at the bootstrap adapter boundary, use the manifest's exact fields,
 and let the official store own credential resolution and refresh.
 
-The official typed `projectconfig/provider` adapter resolves current connection
-credentials at actual use. Business code neither reads credential objects nor
-implements refresh, token exchange or token persistence. Refresh requires known
-expired access credentials; unknown expiry or an unclassified HTTP 401 is not
-permission to rotate. A durable CAS/fence admits one provider dispatch. Concurrent
-or restarted callers join and recover a persisted immutable result; timeout,
-lock expiry or response loss never grants a second dispatch. If a provider rotated
+The official typed adapter resolves current connection credentials at actual
+use. Business code neither reads credential objects nor implements refresh,
+token exchange or token persistence. Refresh requires known expired access
+credentials; unknown expiry or an unclassified HTTP 401 is not permission to
+rotate. A durable CAS/fence admits one provider dispatch. Concurrent or
+restarted callers join and recover a persisted immutable result; timeout, lock
+expiry or response loss never grants a second dispatch. If a provider rotated
 but no private result survived, require reauthorization instead of repeating the
 uncertain exchange. No token or raw provider failure belongs in a Flow or log.
 
-A settings edit creates another ordinary revision; existing deployments continue
-to read their accepted version until explicitly replaced. Preview and Live use
-separate scopes. Credentials remain current within one scope, so replacing a Live
-API key or OAuth connection affects subsequent same-name uses across deployed
-builds. Missing configuration, wrong digest/scope, unsupported capability or a
-terminal refresh failure surfaces deployment-blocked or reauthorization-required
-state. Verify real storage, Worker and provider behavior before handoff.
+Ordinary configuration is an exact, digest-pinned snapshot read once at
+startup, so a settings change takes effect only when the application restarts
+with the new snapshot; a credential replacement or refresh takes effect on the
+next provider call without a rebuild. Missing configuration, an unsupported capability or a terminal
+refresh failure surfaces as a configuration or reauthorization error. Verify
+real storage, Worker and provider behavior before claiming a deployment works.
 
 ## AI agents
 

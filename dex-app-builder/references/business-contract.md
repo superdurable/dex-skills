@@ -30,8 +30,9 @@ questionnaire before implementation. Identify:
   complexity or greater-than-200 concurrent-Step requirement behind it;
 - every management list, detail, action, assignment, edit, progress, and
   recovery need;
-- whether an existing host authenticates users and maps roles to trusted permissions;
-- whether the user needs any custom process UI beyond a non-business application shell.
+- what authenticates users and maps roles to trusted permissions in front of
+  a deployed Dex Web, such as an existing identity provider or reverse proxy;
+- whether the user needs any custom process UI beyond Dex Web.
 
 Produce a compact actor/role/operation/permission matrix, lifecycle proposal,
 data-lifecycle and execution-shape boundary matrices, storage decision matrix,

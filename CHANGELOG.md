@@ -1,12 +1,31 @@
 # Changelog
 
-## 0.30.1 - 2026-10-05
+## 0.31.1 - 2026-10-05
 
 - Bound every Polling wait only with the polling Step's StepOptions, which the engine enforces: the Execute method timeout is the maximum wait for one attempt, and the Execute retry total duration is the maximum wait across all attempts, measured from the first attempt and also cutting the in-flight attempt. Always set the total duration, because an omitted value uses the four-hour server default. Keep the one-minute heartbeat timeout.
 - Remove the in-code business deadline from Core, the `dex-sdk` entrypoint, and the Go, Java, Python, TypeScript, and Rust Polling guidance, including the Python advice to pass an absolute deadline as Step input. The heartbeat checkpoint holds only resume state, such as the last reported status.
 - Route an expired wait through each SDK's Execute-failure recovery option to a Step that reads the recovery error (detail and error type) and records the business failure; without that route the Flow fails. A non-duration business condition, such as an externally owned lease expiring, is still checked in the loop.
 - Add the anti-pattern of a hand-written deadline that duplicates the method timeout or the retry total duration.
-- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.30.1.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.31.1.
+
+## 0.31.0 - 2026-10-05
+
+- Make `dex-app-builder` a generic Dex application-building skill that depends only on open-source Dex: the Dex Go SDK, `dexcli` including `dexcli dev`, Dex Server, Dex Web, the FDG analyzer, and released official connectors. It discovers the business process, models Flows and FDG, implements a Go backend, uses Dex Web or builds a custom UI, and verifies locally.
+- Replace the application-template bootstrap with a generic Go stack: an existing application keeps its pins; an empty repository gets a Go module on an exact released Dex Go SDK paired with the installed `dexcli`, checked with `dexcli version check` before connecting to a remote Server.
+- Remove guidance specific to a downstream product built on Dex from App Builder and Dex SDK, including its application template contract, release and publishing semantics, and hosting-platform configuration.
+- Add local verification on one long-lived `dexcli dev` stack, packaging of validated FDG 2.0 definitions for a deployed Dex Web (definition directory or atomic `active-manifest` bundle), and an on-request deployment section for the Dex Server image behind a `trusted-header` proxy with project Connector configuration.
+- Remove the application template baseline mechanism: `TEMPLATE_BASELINE`, its scheduled update workflow, updater script and tests, and the template checks in `check-upstream-baselines.py`, `check-package.py`, and both CI workflows. Dex Server and CLI baseline checks remain.
+- Add the open-source product boundary to the repository agent rules and contributing guide, enforced by a package check, and remove downstream product wording from the changelog history.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.31.0.
+
+## 0.30.2 - 2026-10-05
+
+- Describe only Dex concepts and guarantees in the skills. Remove every Continue-As-New mention from Core, the `dex-sdk` entrypoint, the Java and TypeScript versioning guidance, App Builder's Dex Web reference, and the versioning, testing, and read-after-write guidance.
+- Stop telling developers to exclude `ContinuedAsNew` runs from application searches in Core primitives, Core operations, the `dex-sdk` entrypoint, and all five language data-handling references. Application run searches constrain FlowType.
+- Rewrite Core read-after-write as a Dex-level guarantee table: which write/read pairs are strong, which are eventual or asynchronous, and what to do for each, without backend messaging mechanisms. State once that the strong pairs hold on Temporal-backed deployments and that Cadence-backed deployments confirm with a bounded read loop and do not support locked RPCs, Step-completion waits, or Attribute-match waits.
+- Replace backend internals in application guidance with Dex behavior: RPC routing and closed-Flow rejection in Core primitives, error handling, and testing; accepted durable waits and handler generations for Step-completion and Attribute-match waits in Core and all five language references; regular Step executions in Core StepOptions; and direct-state readback in the `dex-sdk` entrypoint, App Builder handoff, and language error-handling references.
+- Add the Dex concept boundary to the repository agent rules. Deployment and operations guidance keeps naming the backend and its configuration.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.30.2.
 
 ## 0.30.0 - 2026-10-04
 
@@ -23,7 +42,7 @@
 - Require a domain Flow type name such as `ApprovalFlow`, never just `Flow`, across Core and all five language references.
 - Refresh pinned source links, example dependency versions, and the TypeScript concrete-error excerpt.
 - Advance the Dex CLI baseline from `cli-v1.4.2` to `cli-v1.5.0`, whose FDG analyzer uses the same Go type names as Go SDK v1.5.0.
-- Pair Go SDK and `dexcli` releases by naming rule, and keep template applications that pin a Go SDK before v1.5.0 on a `dexcli` before v1.5.0.
+- Pair Go SDK and `dexcli` releases by naming rule, and keep applications that pin a Go SDK before v1.5.0 on a `dexcli` before v1.5.0.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.26.
 
 ## 0.29.25
@@ -33,7 +52,7 @@
 
 - Route Go Flow rendering, Summary/Display and Action work directly to a bounded
   FDG 2.0 authoring reference with exact field/input syntax and focused diagnostics.
-- Keep one syntax reference for Studio and standalone Dex Web, avoiding parser
+- Keep one syntax reference for Dex Web, avoiding parser
   source discovery for ordinary authoring. No business-specific patterns, Flow
   lifecycle changes, database schema changes, or SDK upgrades are introduced.
 
@@ -48,7 +67,7 @@ All notable changes to Dex Skills are documented here.
 - Let a host commit tool own the final full source gate; generate API packages before module import resolution.
 
 - Advance the basic-process template baseline from `v1.9.4` to `v1.9.5`.
-- Require the released template to preserve sandbox contract revision 3 without project-local skills.
+- Require the released template to ship without project-local skills.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.24.
 
 ## 0.29.23 - 2026-10-02
@@ -56,16 +75,16 @@ All notable changes to Dex Skills are documented here.
 - Validate the one-Step ExampleFlow and require replacing starter Flows for the first business feature.
 
 - Advance the basic-process template baseline from `v1.9.3` to `v1.9.4`.
-- Require the released template to preserve sandbox contract revision 3 without project-local skills.
+- Require the released template to ship without project-local skills.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.23.
 
 ## 0.29.22 - 2026-10-02
 
 - Advance the basic-process template baseline from `v1.9.2` to `v1.9.3`.
 - Restore locked template dependencies before generation and source checks in a fresh checkout.
-- Require the exact published Connector `modulePath` consistently in hosted source declarations, local validation and emitted release artifacts.
+- Require the exact published Connector `modulePath` consistently.
 - Keep metered Query retries aligned with provider idempotency and outcome-reconciliation guarantees; unknown paid outcomes are not blindly repeated.
-- Require the released template to preserve sandbox contract revision 3 without project-local skills.
+- Require the released template to ship without project-local skills.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.22.
 
 ## 0.29.21 - 2026-10-02
@@ -73,14 +92,14 @@ All notable changes to Dex Skills are documented here.
 - Advance the basic-process template baseline from `v1.9.1` to `v1.9.2`.
 - Default application authoring to source checks and production builds without generated integration/browser suites, mocks, or test-framework dependencies.
 - Separate source readiness from configured real execution; missing private credentials remain an explicit runtime acceptance gap, not a source handoff blocker.
-- Preserve requested real acceptance, imported application tests, and the independent platform/SDK/Connector verification scope.
-- Require the released template to preserve sandbox contract revision 3 without project-local skills.
+- Preserve requested real acceptance, imported application tests, and the independent SDK/Connector verification scope.
+- Require the released template to ship without project-local skills.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.21.
 
 ## 0.29.20 - 2026-10-02
 
 - Advance the basic-process template baseline from `v1.9.0` to `v1.9.1`.
-- Require the released template to preserve sandbox contract revision 3 without project-local skills.
+- Require the released template to ship without project-local skills.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.20.
 
 ## 0.29.19 - 2026-10-01
@@ -104,7 +123,7 @@ All notable changes to Dex Skills are documented here.
 
 - Treat clear application requests and existing host choices as implementation
   authorization; ask only for missing user-owned business decisions.
-- Separate production-source verification from real hosted acceptance and keep
+- Separate production-source verification from real acceptance and keep
   both Go and frontend generation/build paths in the source gate.
 - Distinguish connection settings, operation configuration and credential codecs
   at the official project bootstrap; retain actual dependency verification.
@@ -113,8 +132,6 @@ All notable changes to Dex Skills are documented here.
 
 - Correct project-scoped application bootstrap to the released standard Connector SDK loader with trusted `DEX_PROJECT_*` scope, canonical key, exact object version/digest and AWS identity.
 - Remove obsolete mounted configuration-file and credential-broker guidance; keep tokens, actual-use refresh and uncertain exchange recovery inside the official SDK boundary.
-- Distinguish native platform Studio/Go management with engine-only Dex from the retained standalone Dex Web development path.
-- Align Live source/configure/build/deploy and Sandbox Preview handoff while preserving application template, Go/SDK and Dex release pins.
 - Synchronize all five plugin/marketplace manifests.
 
 ## 0.29.15 - 2026-10-01
@@ -206,9 +223,8 @@ All notable changes to Dex Skills are documented here.
 
 ## 0.29.0 - 2026-09-29
 
-- Advance the basic-process template baseline to `v1.8.0` and require its `dex-app.yaml` and immutable Release artifact contract.
-- Document project-level Publishing from any eligible default-branch commit, whole-application Releases, and Build/Runs-only Flow Type selection.
-- Require hosted connector configuration revisions, mounted digest-verified snapshots, workload-only broker access, and provider token isolation from application code and Flow state.
+- Advance the basic-process template baseline to `v1.8.0`.
+- Require provider token isolation from application code and Flow state.
 - Document local on-demand OAuth refresh, hosted refresh-token rotation, multi-auth selection, fail-closed readiness, and real refresh E2E evidence.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.29.0.
 
@@ -238,7 +254,7 @@ All notable changes to Dex Skills are documented here.
 ## 0.27.1 - 2026-09-28
 
 - Advance the basic-process template baseline from `v1.7.0` to `v1.7.1`.
-- Require the released template to preserve sandbox contract revision 3 without project-local skills.
+- Require the released template to ship without project-local skills.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.27.1.
 
 ## 0.27.0 - 2026-09-27
@@ -278,22 +294,21 @@ All notable changes to Dex Skills are documented here.
 ## 0.25.10 - 2026-09-27
 
 - Advance the basic-process template baseline from `v1.6.0` to `v1.6.1`.
-- Load the installed Dex Skills release through the current coding-agent host for both Superverse and external development.
-- Remove fixed-path and Coding Sandbox-only assumptions from App Builder guidance.
-- Require the released template to preserve sandbox contract revision 3 without project-local skills.
+- Load the installed Dex Skills release through the current coding-agent host.
+- Remove fixed-path assumptions from App Builder guidance.
+- Require the released template to ship without project-local skills.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.25.10.
 
 ## 0.25.9 - 2026-09-27
 
 - Advance the basic-process template baseline from `v0.2.1` to `v1.6.0`.
-- Require the released template to use Coding Sandbox contract revision 3 without project-local skills.
+- Require the released template to ship without project-local skills.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.25.9.
 
 ## 0.25.8 - 2026-09-27
 
-- Remove project-local skill-submodule guidance and make the Coding Sandbox's immutable Dex Skills release the only agent-skill authority.
+- Remove project-local skill-submodule guidance and make the coding-agent host's installed Dex Skills release the only agent-skill authority.
 - Add scheduled template-release discovery that opens a reviewed baseline pull request and prepares a matching Dex Skills release.
-- Require Superverse to advance coherent template and Dex Skills release pins together after both immutable releases exist.
 - Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.25.8.
 
 ## 0.25.7 - 2026-09-26
@@ -477,7 +492,7 @@ All notable changes to Dex Skills are documented here.
 
 - Teach Dex App Builder to separate business roles from the permissions required by human Actions.
 - Require one stable permission per Action and keep identity-to-permission authorization at the trusted application boundary.
-- Document typed Go Action registration, UI slots, Work Queue discovery, and multi-permission search for Dex AI Platform applications.
+- Document typed Go Action registration, UI slots, Work Queue discovery, and multi-permission search for Dex applications.
 - Explain Server-managed Action permission projection and remove projection-only Attribute locking from application guidance.
 - Pin SDK source guidance to `sdk-go/v0.10.2` and Dex Web v2 guidance to merged pull request 517.
 
@@ -496,7 +511,7 @@ All notable changes to Dex Skills are documented here.
 ## 0.11.0 - 2026-09-21
 
 - Rename the technical skill from `dex-developer` to `dex-sdk`.
-- Add `dex-app-builder` for business discovery, optional UI prototyping, Go backend implementation, strict Dex Web v2 rendering, local verification, and future platform handoff.
+- Add `dex-app-builder` for business discovery, optional UI prototyping, Go backend implementation, strict Dex Web v2 rendering, and local verification.
 - Publish both skills from the root of the `dex-skills` monorepo in one `superdurable-dex` plugin for Codex, Claude Code, and Cursor.
 - Remove the nested plugin wrapper, backend companion skill, vendored SDK references, and cross-repository synchronization workflow.
 

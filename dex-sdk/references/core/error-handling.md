@@ -1,6 +1,6 @@
 # Error handling design
 
-Use the [read-after-write matrix](read-after-write.md) to distinguish accepted mutations, direct-state readback and later business completion. Do not classify every Signal write as eventual. A successful direct Temporal RPC followed by a matching typed Query read needs no convergence polling; a failed or ambiguous write still needs reconciliation.
+Use the [read-after-write matrix](read-after-write.md) to distinguish accepted mutations, direct-state readback and later business completion. Do not classify every RPC write as eventual. A successful direct-state RPC write followed by a matching typed read-only RPC needs no convergence polling; a failed or ambiguous write still needs reconciliation.
 
 Use this guide before implementing a Client boundary, not only after a failure. Design the outcome of Flow starts, RPCs, cleanup, admission, waits, and external Stream writes alongside the happy path. Then read the selected language's **error-handling.md** for its actual public error model.
 
@@ -84,7 +84,7 @@ Commit-confirming API: StartFlow succeeds or deduplicates
 
 For an operation that requires an active target, a typed terminal or not-active error proves that the attempted interaction had no active target. It does not prove that the requested work succeeded. First reconcile from already loaded authoritative domain state and operation invariants. Re-inspect the Flow only when the outcome depends on distinguishing running, successfully completed, other terminal, and missing states and that distinction is not otherwise available. Do not spend a status call when every possible state has the same idempotent outcome. Interpret query-only RPC errors under the [missing query target rule](#missing-query-targets) instead.
 
-Do not assume every RPC targets only an active Flow. A query-only RPC without locks or transactional execution can read a retained terminal execution. It may succeed after closure, so use a lifecycle API when active versus terminal changes the result. If a query-path handler returns durable effects, it may run before the later Signal fails with a not-active error. Transactional, locked, and Server-forced Update paths require an active execution before the Worker handler runs.
+Do not assume every RPC targets only an active Flow. A query-only RPC without locks or transactional execution can read a retained terminal execution. It may succeed after closure, so use a lifecycle API when active versus terminal changes the result. If a non-transactional handler returns durable effects, it may run before Dex rejects those effects with a not-active error. Transactional and locked RPCs, and every RPC under a Server policy that runs RPCs transactionally, require an active execution before the Worker handler runs.
 
 A completed child may satisfy an idempotent cleanup only when successful completion guarantees the requested condition. An unsuccessful terminal or missing child should become an explicit domain failure or unknown outcome; do not retry a terminal fact indefinitely. A bounded wait that returns a running snapshot is still nonterminal.
 
@@ -112,7 +112,7 @@ At a business Get boundary whose RPC is confirmed query-only by the checks above
 
 Do not follow that missing-target error with WaitForFlow, DescribeFlow, search, history lookup, a short timeout probe, or a retry just to distinguish missing from closed. Return the missing result at the Get boundary. No readable retained execution does not prove the business entity never existed; preserve the domain contract's retention/unavailable distinction when it requires one. Keep other service and Worker failures visible rather than converting every read error to not-found.
 
-This translation belongs only to that confirmed query-only boundary. Mutating, transactional, locked, and Server-forced Update RPCs can fail because a retained execution is closed; their not-active error still needs the operation-specific interpretation above.
+This translation belongs only to that confirmed query-only boundary. Mutating, transactional, and locked RPCs, and RPCs under a Server policy that runs every RPC transactionally, can fail because a retained execution is closed; their not-active error still needs the operation-specific interpretation above.
 
 ```text
 Wrong: pure Get → FlowNotActiveOrNotFoundError → WaitForFlow with a short timeout → decide missing

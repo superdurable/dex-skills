@@ -15,8 +15,9 @@ and Cursor. Its only public skills are `dex-sdk`, `dex-app-builder`, and
   Skills.
 - All three Skills may be selected by matching natural-language descriptions.
 - `dex-app-builder` is the default end-to-end product workflow for business
-  discovery, an explicit no-custom-UI or custom-UI decision, Go backend
-  implementation, local testing, and Dex AI Platform handoff.
+  discovery, Flow and FDG modeling, an explicit no-custom-UI or custom-UI
+  decision, Go backend implementation, and local verification with open-source
+  Dex tooling.
 - `dex-sdk` is the specialist for implementing, debugging, testing, and
   operating applications through the public Dex SDK.
 - `dex-connector-contributor` is the thin bootstrap for official
@@ -33,8 +34,29 @@ and Cursor. Its only public skills are `dex-sdk`, `dex-app-builder`, and
   The target connector repository owns connector-specific implementation,
   acceptance, release, and pull-request rules; `dex-app-builder` owns
   application use of released connectors.
-- Platform constraints are stricter: Go only, strict FDG 2.0, provider effects
+- App Builder constraints are stricter: Go only, strict FDG 2.0, provider effects
   only in `Execute`, and no provider or Dex mutations in `WaitFor`.
+
+## Open-source product boundary
+
+Dex Skills is open-source Dex material and contains no information about any
+product built on Dex (no product names, template contracts or platform
+concepts). Describe only open-source Dex: the Dex SDKs, `dexcli` including
+`dexcli dev`, Dex Server, Dex Web, the FDG analyzer, and the official
+connectors. A product built on Dex keeps its own platform-specific guidance in
+its own repository; nothing here refers to it.
+
+## Dex concept boundary
+
+Skills describe Dex concepts and guarantees only. Never mention
+Continue-As-New in any skill file, including its threshold and trigger. Do not
+describe Temporal or Cadence internals (activity timeout names, Signals,
+Queries, Updates, workflow history mechanics) in application guidance; state the
+Dex behavior and guarantee instead. When a guarantee differs by backend, say so
+in Dex terms without explaining the backend mechanism. Deployment and operations
+guidance may name the backend and its configuration, such as a Temporal
+namespace or Cadence domain, Temporal Cloud index provisioning, local SQLite
+index slots, and the codec server for raw payloads.
 
 ## Packaging and release
 
@@ -47,15 +69,10 @@ Standalone installation always copies all three Skills together. Every local
 Markdown link must resolve using only those three copied directories; never
 depend on a repository-root file that an Agent Skills installer omits.
 
-The template and this plugin publish independently. The scheduled template
-baseline workflow may advance `TEMPLATE_BASELINE` only to an immutable stable
-template release; that pull request also bumps `VERSION`, changelog, and plugin
-manifests. After the matching Dex Skills release exists, Superverse must advance
-its exact template and skill pins together in one reviewed pull request. The
-template does not vendor Dex Skills, so never add a skill submodule or a floating
-branch reference to an application repository.
+Never add a skill submodule or a floating branch reference to an application
+repository; the coding-agent host supplies the installed Dex Skills release.
 
 Every skill change updates `VERSION` and `CHANGELOG.md`. Validate Dex SDK source
-excerpts against `DEX_BASELINE`, and validate Server, CLI, and the basic-process
-template against `DEX_SERVER_BASELINE`, `DEX_CLI_BASELINE`, and
-`TEMPLATE_BASELINE`. Dex Web is embedded in the Server and CLI releases.
+excerpts against `DEX_BASELINE`, and validate Server and CLI guidance against
+`DEX_SERVER_BASELINE` and `DEX_CLI_BASELINE`. Dex Web is embedded in the Server
+and CLI releases.

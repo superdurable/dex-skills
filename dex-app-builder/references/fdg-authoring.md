@@ -4,9 +4,9 @@ Use this page for Summary, Display, Start input, Actions and analyzer diagnostic
 before searching the CLI implementation. The syntax below is checked against
 [Dex CLI v1.3.0 directives](https://github.com/superdurable/dex/blob/cli-v1.3.0/cli/internal/flowviz/v2_directives.go)
 and its [typed input example](https://github.com/superdurable/dex/blob/cli-v1.3.0/cli/internal/command/testfixtures/visualization-v2-start/workflow.go).
-Keep the application's installed SDK and template pins. This is a definition
-format shared by Studio and standalone Dex Web; it does not require another Web
-server inside a hosted application.
+Keep the application's installed SDK and `dexcli` pins. The same definitions
+drive local `dexcli dev` and a deployed Dex Web; the application does not run
+its own Web server for them.
 
 ## File and registration boundaries
 
@@ -111,10 +111,12 @@ addresses, actor permissions, or engine RunIDs in business input.
 
 ## Focused verification
 
-Run the template's `make check-fdg-v2` after changing definitions. It analyzes
-all files declared in `dex-app.yaml`; it does not deploy or call providers.
-The direct equivalent is `dexcli visualize path/to/flow.go --schema-version 2.0
---json --out /tmp/flow-fdg`. Require `valid: true` and resolve blocking diagnostics.
+After changing definitions, render every Flow source file with
+`dexcli visualize path/to/flow.go --schema-version 2.0 --json --out DIRECTORY/<flow-name>`.
+Analysis does not deploy or call providers. Require `valid: true` and resolve
+blocking diagnostics; with blocking diagnostics the command still writes the
+partial JSON and exits with status 1. Keep that rendering in one project
+command so every Flow is checked, not only the one being edited.
 If analysis fails, read the bounded partial JSON diagnostic before fetching
 unrelated source. Compile first when the diagnostic reports Go syntax/types.
 
@@ -132,4 +134,4 @@ unrelated source. Compile first when the diagnostic reports Go syntax/types.
 | `connector_release_required` | Pin an exact official released module and remove local replacements before handoff. |
 
 A successful FDG check proves a definition, not an actual provider call. Keep
-source readiness separate from configured Preview/Live business acceptance.
+source readiness separate from configured real business acceptance.
