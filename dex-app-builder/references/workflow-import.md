@@ -31,10 +31,12 @@ semantics](n8n-semantics.md).
 
 ## 1. Inventory deterministically
 
-Never summarize an export by hand. From this skill's directory, run:
+Never summarize an export by hand. Download the published connector catalog,
+then, from this skill's directory, run:
 
 ```bash
-python3 scripts/n8n_inventory.py inventory /path/to/export.json --out /path/to/import
+curl -fsSL https://superdurable.github.io/dex-connectors-library/catalog.yaml -o /path/to/catalog.yaml
+python3 scripts/n8n_inventory.py inventory /path/to/export.json --out /path/to/import --catalog /path/to/catalog.yaml
 ```
 
 [`n8n_inventory.py`](../scripts/n8n_inventory.py) writes `ledger.md` and
@@ -43,8 +45,15 @@ mapping hint, every connection output with its branch label, every expression
 with the semantics to preserve, credential references, workflow settings, and
 findings: literal secrets, label-versus-rule mismatches, an absent timezone,
 unguarded field reads, unencoded query strings, dead configuration, unreachable
-nodes, inconsistent literals across nodes, version-dependent defaults, and
-placeholder integration nodes that lack credentials or required fields. An
+nodes, inconsistent literals across nodes, version-dependent defaults,
+placeholder integration nodes that lack credentials or required fields, raw
+provider text interpolated into HTML, and upstream values that can carry a line
+break into an email subject. The ledger also carries a Mermaid graph of the
+source workflow to compare with Dex Web, a draft connector capability matrix
+matched against the catalog, and a draft Dex plan in execution order that marks
+LangChain sub-nodes as configuration and per-item Connector Steps as cursor
+loops. The drafts are starting points: confirm every connector operation in its
+release-tagged `connector.yaml`. An
 export made of placeholders is a specification, not a behavior to copy: the
 user supplies the missing behavior before mapping. The
 script redacts literal secrets in both files. Keep the ledger with the
@@ -84,14 +93,24 @@ Model the Flows with [Flow modeling](../../dex-sdk/references/core/modeling.md)
 and [pattern selection](../../dex-sdk/references/core/patterns.md):
 
 - A schedule becomes a scheduler Flow on the Cron pattern in [Go
-  patterns](../../dex-sdk/references/go/patterns.md#durable-timer). An Execute
-  Step starts one run Flow per occurrence. The run's Flow ID derives from the
-  workflow key and the occurrence instant, so a repeated occurrence cannot start
-  twice. Each run has its own terminal outcome and retention, so it is an
-  independent top-level Flow, not a SubFlow.
-- Per-item processing becomes dynamic parallel Steps, bounded by the source's
-  own limits. Carry every upstream field a later Step reads in that Step's
-  input or in an AttributeMap entry keyed by the item's stable source ID.
+  patterns](../../dex-sdk/references/go/patterns.md#durable-timer). Persist the
+  next occurrence instant and arm a Timer for the remaining duration. An Execute
+  Step starts one run Flow per occurrence through a Client injected as a lazy
+  provider, because the Client is created after the Registry. Each run has its
+  own terminal outcome and retention, so it is an
+  independent top-level Flow, not a SubFlow. See
+  [n8n semantics](n8n-semantics.md#schedule-rules) for run
+  identity, lateness, and the waiting Step's retry window.
+- Per-item processing over application Steps becomes dynamic parallel Steps,
+  bounded by the source's own limits. Carry every upstream field a later Step
+  reads in that Step's input or in an AttributeMap entry keyed by the item's
+  stable source ID.
+- A Connector Step passes only its own result to the branch target, so parallel
+  branches through the same Connector Step cannot tell which item a result
+  belongs to. Process those items one at a time: persist the item list and the
+  current index in an Attribute, and let each outcome Step record the current
+  item and move to the next. The source tool also ran each node's items in
+  order.
 - Many tools stop the whole execution at the first error. Effects already
   performed remain and later items never run. Per-item Dex branches isolate
   failures, which is a `diverged` row unless the user requires
@@ -118,7 +137,14 @@ the source tool appended.
 ## 6. Port code and expressions with golden parity
 
 A request to keep the source behavior is an explicit request for parity
-tests. For each Code or Function node, capture golden output with synthetic
+tests. For each non-trivial expression, capture what the source's own
+expression returns with [`n8n_expression_golden.mjs`](../scripts/n8n_expression_golden.mjs):
+
+```bash
+node scripts/n8n_expression_golden.mjs /path/to/export.json "Node name" parameter.path fixture.json
+```
+
+For each Code or Function node, capture golden output with synthetic
 fixtures:
 
 ```bash
@@ -139,8 +165,9 @@ error exits 1, which is golden behavior too: the source node fails.
   `String.replace` with a string replaces only the first occurrence,
   optional chaining and truthiness treat `""`, `0`, and `null` alike, and
   Luxon formats and calendar arithmetic run in the source timezone.
-- Port non-trivial expressions as pure Go helpers with table tests derived from
-  the same semantics.
+- Port non-trivial expressions as pure Go helpers tested against the
+  expression goldens. Go's `strings.ToLower` and `strings.TrimSpace` differ from
+  JavaScript for `İ`, a word-final `Σ`, U+0085, and U+FEFF.
 
 ## 7. Confirm before implementation
 

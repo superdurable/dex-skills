@@ -13,6 +13,7 @@ from pathlib import Path
 SCRIPTS = Path(__file__).resolve().parents[1] / "dex-app-builder" / "scripts"
 INVENTORY = SCRIPTS / "n8n_inventory.py"
 GOLDEN = SCRIPTS / "n8n_code_golden.mjs"
+EXPRESSION_GOLDEN = SCRIPTS / "n8n_expression_golden.mjs"
 SECRET = "fixturekey0123456789abcdef"
 
 RENDER_CODE = """let out = '';
@@ -206,6 +207,64 @@ class InventoryTest(unittest.TestCase):
         self.assertEqual(by_kind["community-node"], {"Publish"})
         self.assertIn("Publish (vendor@1)", (self.out / "ledger.md").read_text())
 
+    def test_graph_matrix_and_plan_drafts(self):
+        catalog = self.root / "catalog.yaml"
+        catalog.write_text("""apiVersion: connectors.dex.dev/catalog/v1alpha1
+kind: ConnectorCatalog
+connectors:
+    - company: Google
+      id: gmail
+      name: Gmail
+      version: v0.21.0
+      directory: connectors/google/gmail
+      uiUnits: []
+      triggers:
+        - name: messageReceived
+          description: Receive a message.
+      operations:
+        - name: getMessage
+          kind: query
+          description: Read a message.
+        - name: sendMessage
+          kind: mutation
+          description: Send a message.
+    - company: Example
+      id: example-search
+      name: Example Search
+      version: v0.21.0
+      directory: connectors/example
+      uiUnits: []
+      triggers: []
+      operations:
+        - name: searchItems
+          kind: query
+          description: Search.
+""")
+        export = synthetic_export()
+        export["nodes"][5]["parameters"]["url"] = "=https://api.example.test/search?q={{ $json.topic }}"
+        export["nodes"][7]["credentials"] = {"gmailOAuth2": {"id": "1", "name": "Gmail"}}
+        export["nodes"].append({"name": "Parser", "type": "@n8n/n8n-nodes-langchain.outputParserStructured", "typeVersion": 1, "parameters": {}})
+        self.export.write_text(json.dumps(export))
+        self.run_script("inventory", str(self.export), "--out", str(self.out), "--catalog", str(catalog))
+        ledger = (self.out / "ledger.md").read_text()
+        inventory = json.loads((self.out / "inventory.json").read_text())
+        self.assertIn("```mermaid", ledger)
+        self.assertIn("-- true -->", ledger)
+        matrix = {row["node"]: row for row in inventory["connectorMatrix"]}
+        self.assertEqual(matrix["Notify"]["connector"], "gmail v0.21.0")
+        self.assertEqual(matrix["Notify"]["likelyOperation"], "sendMessage")
+        self.assertEqual(matrix["Fetch"]["connector"], "example-search v0.21.0", "an HTTP host matches a released connector by name")
+        self.assertIn("structured output", matrix["Parser"]["status"], "a LangChain sub-node is configuration, not a missing connector")
+        self.assertIn("connector contribution", matrix["Read records"]["status"])
+        plan = {row["node"]: row for row in inventory["planDraft"]}
+        self.assertEqual(plan["Notify"]["element"], "Connector Step Notify")
+        self.assertIn("persisted cursor", plan["Notify"]["notes"], "items from a read reach a Connector Step one at a time")
+        self.assertEqual(plan["Nothing"]["element"], "dropped")
+        self.assertEqual(plan["Daily at 6am"]["element"], "trigger")
+        kinds = {finding["kind"] for finding in inventory["findings"]}
+        self.assertIn("raw-html-interpolation", kinds)
+        self.assertIn("header-line-break", kinds)
+
     def test_rejects_non_workflow_input(self):
         self.export.write_text(json.dumps({"hello": "world"}))
         result = self.run_script("inventory", str(self.export), check=False)
@@ -249,6 +308,27 @@ class GoldenHarnessTest(unittest.TestCase):
         result = self.golden({"items": [{"json": {}}], "nodes": {"Settings": [{"json": {}}]}})
         self.assertEqual(result.returncode, 1)
         self.assertIn("node failed", result.stderr)
+
+    def test_expression_golden_reproduces_javascript_and_failures(self):
+        export = synthetic_export()
+        export["nodes"][4]["parameters"]["fields"]["values"][0]["stringValue"] = "={{ $json.title.toLowerCase().replace('review', '').trim() }}"
+        self.export.write_text(json.dumps(export))
+        path = self.root / "expression.json"
+        path.write_text(json.dumps({"items": [{"json": {"title": "Review \u0130stanbul\u0085"}}, {"json": {}}]}))
+        result = subprocess.run(
+            ["node", str(EXPRESSION_GOLDEN), str(self.export), "Normalize", "fields.values[0].stringValue", str(path)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        output = json.loads(result.stdout)
+        self.assertEqual(output[0], {"value": "i\u0307stanbul\u0085"})
+        self.assertIn("toLowerCase", output[1]["error"])
+        mixed = subprocess.run(
+            ["node", str(EXPRESSION_GOLDEN), str(self.export), "Notify", "subject", str(path)],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(mixed.returncode, 0, mixed.stderr)
+        self.assertIn("Normalize", json.loads(mixed.stdout)[0]["error"], "a missing upstream node is reported per item")
 
     def test_rejects_a_non_code_node(self):
         result = self.golden({"items": []}, node="Fetch")

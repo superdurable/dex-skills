@@ -3,13 +3,15 @@
 """Inventory an n8n workflow export into a Dex import fidelity ledger.
 
 Usage:
-  n8n_inventory.py inventory EXPORT.json [--out DIRECTORY]
+  n8n_inventory.py inventory EXPORT.json [--out DIRECTORY] [--catalog CATALOG.yaml]
   n8n_inventory.py verify LEDGER.md
 
 ``inventory`` enumerates every node, connection, expression, credential
 reference, literal secret, workflow setting, and known version-dependent
 default, then writes ``ledger.md`` and ``inventory.json`` (or prints the ledger
-when no directory is given). Literal secrets are redacted everywhere.
+when no directory is given). The ledger also carries a Mermaid graph of the
+workflow, a draft connector capability matrix matched against a downloaded
+Dex connector catalog, and a draft Dex plan. Literal secrets are redacted.
 
 ``verify`` fails while a ledger row is still ``todo`` or while a ``diverged``,
 ``dropped``, or ``blocked`` row has no notes.
@@ -65,7 +67,7 @@ TRIGGER_TYPES = {
     "chatTrigger",
 }
 DEX_HINTS = {
-    "scheduleTrigger": "Scheduler Flow on the Cron pattern: a Timer to the next occurrence in the source timezone starts one run Flow per occurrence, with the Flow ID derived from the occurrence instant.",
+    "scheduleTrigger": "Scheduler Flow on the Cron pattern: a Timer to the next occurrence in the source timezone starts one run Flow per occurrence, named <scheduler Flow ID>-run-<occurrence date> (Flow IDs reject /, $, and :).",
     "cron": "Scheduler Flow on the Cron pattern (legacy Cron node rules).",
     "interval": "Scheduler Flow on the Cron pattern with a fixed interval.",
     "manualTrigger": "Dex Web Start Flow with typed start input.",
@@ -107,6 +109,45 @@ LANGCHAIN_HINT = "llm connector Query or a durable Dex agent; tools become Steps
 TRIGGER_HINT = "Released connector Trigger if the catalog has it; otherwise a connector contribution."
 
 DEFAULT_RESOURCE = {"googleCalendar": "event", "gmail": "message", "slack": "message"}
+# Candidate Dex catalog connector IDs for common n8n node types; the catalog decides what is released.
+N8N_CONNECTOR_CANDIDATES = {
+    "gmail": ["gmail"], "gmailTrigger": ["gmail"], "googleCalendar": ["google-calendar"],
+    "googleSheets": ["google-sheets"], "googleDrive": ["google-drive"], "googleDocs": ["google-docs"],
+    "slack": ["slack"], "slackTrigger": ["slack"], "hubspot": ["hubspot"], "notion": ["notion"],
+    "airtable": ["airtable"], "emailSend": ["email"], "emailReadImap": ["email"], "webhook": ["webhook"],
+    "openAi": ["openai", "llm"], "lmChatOpenAi": ["llm", "openai"], "lmChatGoogleGemini": ["llm", "gemini"],
+    "lmChatAnthropic": ["llm"], "agent": ["llm"], "chainLlm": ["llm"], "jira": ["jira"], "github": ["github"],
+    "stripe": ["stripe"], "stripeTrigger": ["stripe"], "typeform": ["typeform"], "typeformTrigger": ["typeform"],
+    "linear": ["linear"], "asana": ["asana"], "trello": ["trello"], "salesforce": ["salesforce"],
+    "zendesk": ["zendesk-support"], "microsoftOutlook": ["outlook-mail", "outlook-calendar"],
+    "microsoftTeams": ["microsoft-teams"], "postgres": ["postgresql"], "mySql": ["mysql"],
+    "twilio": ["twilio-messaging"], "mailchimp": ["mailchimp"], "pipedrive": ["pipedrive"], "awsS3": ["amazon-s3"],
+}
+# n8n operation verbs and the catalog operation-name prefixes they usually correspond to.
+OPERATION_VERBS = {
+    "getall": ["list", "search"], "getmany": ["list", "search"], "search": ["search", "list"], "get": ["get", "read"],
+    "generate": ["generate", "create"], "sendmessage": ["send", "post"], "analyze": ["create", "generate"],
+    "send": ["send", "post", "reply"], "create": ["create", "upsert", "post", "add"], "update": ["update", "upsert"],
+    "upsert": ["upsert", "update"], "delete": ["delete", "cancel", "remove"], "read": ["get", "read", "list"],
+    "append": ["append", "add", "create"], "post": ["post", "send", "create"],
+}
+MULTI_ITEM_OPERATIONS = ("getall", "getmany", "search", "list", "read", "readrows")
+# n8n's default operation when a node's parameters omit it.
+DEFAULT_OPERATION = {"gmail": "send", "emailSend": "send", "telegram": "sendMessage", "slack": "post", "agent": "generate", "chainLlm": "generate"}
+# LangChain sub-nodes configure the consuming agent or chain; they are not separate provider calls.
+LANGCHAIN_SUB_NODE_PREFIXES = {
+    "lmChat": "model of the consuming agent or chain: the llm connection's provider and model",
+    "lmOpenAi": "model of the consuming agent or chain: the llm connection's provider and model",
+    "embeddings": "embedding model of the consuming chain",
+    "outputParser": "structured output (JSON Schema) of the consuming agent's llm generateText request",
+    "memory": "conversation memory: keep turns in Flow Attributes",
+    "tool": "agent tool: an application Step, or a Connector Step for a provider tool",
+    "textSplitter": "text splitting inside an application Step",
+    "documentLoader": "document loading inside an application Step",
+}
+HTML_TAG = re.compile(r"<\s*(table|tr|td|div|a|p|li|ul|span|b|i|br|img)\b", re.IGNORECASE)
+HEADER_PARAMETERS = ("subject", "title", "headers", "header")
+RECIPIENT_PARAMETERS = ("sendTo", "toEmail", "to", "toRecipients", "ccList", "bccList")
 CORE_PACKAGES = ("n8n-nodes-base", "@n8n/n8n-nodes-langchain")
 STRUCTURAL_PARAMETERS = {"resource", "operation", "authentication", "options"}
 # Fields an operation cannot run without; confirm against the n8n node source.
@@ -160,9 +201,10 @@ def cell(text, limit: int = 220) -> str:
 
 
 class Inventory:
-    def __init__(self, workflow: dict, source_name: str):
+    def __init__(self, workflow: dict, source_name: str, catalog: list | None = None):
         self.workflow = workflow
         self.source_name = source_name
+        self.catalog = catalog
         self.nodes = [node for node in workflow.get("nodes", []) if isinstance(node, dict)]
         self.by_name = {node.get("name", ""): node for node in self.nodes}
         self.secrets: set[str] = set()
@@ -339,6 +381,11 @@ class Inventory:
         for path, value in walk(parameters):
             if isinstance(value, str) and value.startswith("="):
                 self.collect_expression(node, path, value)
+            elif isinstance(value, str) and path.split(".")[-1] in RECIPIENT_PARAMETERS and "," in value:
+                self.add_finding("info", "recipient-list", name,
+                                 f"`{path}` holds a comma-separated address list; Dex email connectors take one address per entry and reject duplicates.")
+                for address in sorted(set(EMAIL.findall(value))):
+                    self.group("hardcoded-address", name, f"{address}` in `{path}")
             elif isinstance(value, str) and kind != "stickyNote" and "cachedResult" not in path:
                 for address in sorted(set(EMAIL.findall(value))):
                     self.group("hardcoded-address", name, f"{address}` in `{path}")
@@ -500,6 +547,10 @@ class Inventory:
         if UNGUARDED_METHOD.search(body):
             semantics.append("throws when the field is missing (fails the node)")
             self.group("missing-field-throws", name, path)
+        if path.split(".")[-1] in HEADER_PARAMETERS and (JSON_FIELD.search(body) or NODE_REFERENCE.search(body)):
+            semantics.append("an upstream value can carry a line break into a header")
+            self.add_finding("info", "header-line-break", name,
+                             f"`{path}` interpolates an upstream value into a header; email connectors reject CR or LF in a subject, so decide whether line breaks become spaces.")
         if path.split(".")[-1].lower() == "url" and "?" in body:
             query = body.split("?", 1)[1]
             if "{{" in query and "encodeURIComponent" not in query:
@@ -531,6 +582,9 @@ class Inventory:
                              f"{len(interpolations)} template-literal interpolation(s), such as "
                              + ", ".join(f"`{item[:60]}`" for item in interpolations[:4])
                              + "; JavaScript renders null as 'null', undefined as 'undefined', and objects as '[object Object]'. The Go port must match the golden output.")
+        if HTML_TAG.search(code) and interpolations and "escape" not in code.lower():
+            self.add_finding("medium", "raw-html-interpolation", name,
+                             "The code inserts upstream values into HTML without escaping, so provider markup renders and a stray < or & changes the page. Port it byte for byte first, then decide escaping explicitly.")
         if re.search(r"\bfor\s*\(\s*[A-Za-z_$][\w$]*\s+of\b", code):
             self.add_finding("info", "js-implicit-global", name, "A for-of loop assigns an undeclared variable (sloppy-mode implicit global); keep the harness in sloppy mode.")
         for match in NODE_REFERENCE.finditer(code):
@@ -744,6 +798,105 @@ class Inventory:
             self.add_finding("info", "pin-data", "(workflow)",
                              "pinData holds editor test data, not production behavior; it may contain personal data. Use it only to shape synthetic fixtures.")
 
+    # ----- plan drafts --------------------------------------------------
+    def connector_matrix(self) -> list[dict]:
+        """Match each integration node to candidate released connectors and operations."""
+        rows = []
+        for node in self.nodes:
+            kind = short_type(node.get("type", ""))
+            is_http = kind == "httpRequest"
+            if not (is_http or (self.is_app_node(node) and kind != "stickyNote") or "langchain" in node.get("type", "")):
+                continue
+            parameters = node.get("parameters", {}) or {}
+            operation = str(parameters.get("operation", DEFAULT_OPERATION.get(kind, "")))
+            resource = str(parameters.get("resource", DEFAULT_RESOURCE.get(kind, "")))
+            row = {"node": node.get("name", ""), "type": kind, "operation": "/".join(part for part in (resource, operation) if part),
+                   "host": "", "connector": "", "operations": [], "likelyOperation": "", "status": ""}
+            sub_node_role = langchain_sub_node_role(node)
+            if sub_node_role:
+                row["status"] = sub_node_role
+                rows.append(row)
+                continue
+            candidates = list(N8N_CONNECTOR_CANDIDATES.get(kind, []))
+            if is_http:
+                row["host"] = http_request_host(parameters.get("url", ""))
+                label = row["host"].split(".")[-2] if row["host"].count(".") >= 1 else row["host"]
+                candidates = [entry["id"] for entry in self.catalog or [] if label and label in catalog_search_text(entry)]
+            elif not candidates and self.catalog:
+                candidates = [entry["id"] for entry in self.catalog if kind.lower().replace("trigger", "") in catalog_search_text(entry)]
+            if self.catalog is None:
+                row["connector"] = ", ".join(candidates) or "-"
+                row["status"] = "catalog not provided; pass --catalog"
+            else:
+                released = [entry for candidate in candidates for entry in self.catalog if entry["id"] == candidate]
+                if released:
+                    entry = released[0]
+                    row["connector"] = f"{entry['id']} {entry['version']}"
+                    row["operations"] = [f"{name} ({op_kind})" for name, op_kind in entry["operations"]] + [f"{name} (trigger)" for name in entry["triggers"]]
+                    row["likelyOperation"] = likely_operation(operation, entry)
+                    row["status"] = "released candidate; confirm the exact operation in its connector.yaml"
+                elif is_http:
+                    row["status"] = f"no released connector for {row['host'] or 'this host'}: connector contribution (generic HTTP only for an internal service)"
+                else:
+                    row["status"] = "no released connector: connector contribution"
+            rows.append(row)
+        return rows
+
+    def plan_rows(self) -> list[dict]:
+        """Draft one Dex element per node, in execution order from the triggers."""
+        forward, _ = self.adjacency()
+        matrix = {row["node"]: row for row in self.connector_matrix()}
+        order, seen = [], set()
+        queue = deque(node.get("name", "") for node in self.nodes if is_trigger(node))
+        while queue:
+            current = queue.popleft()
+            if current in seen:
+                continue
+            seen.add(current)
+            order.append(current)
+            queue.extend(sorted(forward[current] - seen))
+        order += [node.get("name", "") for node in self.nodes if node.get("name", "") not in seen]
+        multi_item_sources = {
+            node.get("name", "") for node in self.nodes
+            if str((node.get("parameters", {}) or {}).get("operation", "")).lower() in MULTI_ITEM_OPERATIONS
+        }
+        rows = []
+        for name in order:
+            node = self.by_name.get(name, {})
+            kind = short_type(node.get("type", ""))
+            per_item = any(source in self.ancestors(name) for source in multi_item_sources)
+            if kind == "stickyNote" or kind == "noOp":
+                element, notes = "dropped", "no behavior"
+            elif is_trigger(node):
+                element, notes = "trigger", self.hint(node)
+            elif langchain_sub_node_role(node):
+                element, notes = "configuration", langchain_sub_node_role(node)
+            elif name in matrix:
+                connector = matrix[name]
+                element = f"Connector Step {pascal_case(name)}"
+                notes = f"{connector['connector'] or 'missing connector'}: {connector['likelyOperation'] or connector['status']}"
+                if per_item:
+                    notes += "; per item: loop with a persisted cursor (a Connector result carries no item context)"
+            else:
+                element = f"application Step {pascal_case(name)}"
+                notes = self.hint(node)
+            rows.append({"node": name, "type": kind, "element": element, "notes": notes})
+        return rows
+
+    def to_mermaid(self) -> list[str]:
+        ids = {}
+        lines = ["```mermaid", "flowchart LR"]
+        for index, node in enumerate(node for node in self.nodes if short_type(node.get("type", "")) != "stickyNote"):
+            ids[node.get("name", "")] = f"n{index + 1}"
+            label = (node.get("name", "") + "<br/>" + short_type(node.get("type", ""))).replace('"', "#quot;")
+            lines.append(f'  n{index + 1}["{label}"]')
+        for edge in self.edges:
+            if edge["from"] in ids and edge["to"] in ids:
+                arrow = f" -- {edge['label']} --> " if edge["label"] not in ("main",) else " --> "
+                lines.append(f"  {ids[edge['from']]}{arrow}{ids[edge['to']]}")
+        lines.append("```")
+        return lines
+
     # ----- output -------------------------------------------------------
     def to_json(self) -> dict:
         settings = self.workflow.get("settings", {}) or {}
@@ -759,6 +912,8 @@ class Inventory:
             ],
             "claims": self.claims,
             "findings": self.findings,
+            "connectorMatrix": self.connector_matrix(),
+            "planDraft": self.plan_rows(),
         }
         return json.loads(self.redact(json.dumps(data)))
 
@@ -803,6 +958,8 @@ class Inventory:
         ]
         for edge in self.edges:
             lines.append(f"| {cell(edge['from'])} | {cell(edge['label'])} | {cell(edge['to'])} |")
+        lines += ["", "Compare this graph with the Dex Web rendering of the migrated Flows.", ""]
+        lines += self.to_mermaid()
         lines += ["", "## Nodes", "", "| ID | Node | Type | Source behavior | Dex mapping hint | Status | Notes |", "| --- | --- | --- | --- | --- | --- | --- |"]
         for index, row in enumerate(self.node_rows, 1):
             lines.append(f"| N{index} | {cell(row['node'])} | {cell(row['type'])} | {cell(row['behavior'], 320)} | {cell(row['hint'])} | todo |   |")
@@ -834,6 +991,19 @@ class Inventory:
             lines.append(f"- {claim['source']}: {cell(claim['text'], 400)}")
         if not self.claims:
             lines.append("- none")
+        lines += ["", "## Connector capability matrix (draft)", "",
+                  "Confirm each candidate in the connector's release-tagged `connector.yaml` before mapping a row.", "",
+                  "| n8n node | Type and operation | Candidate connector | Likely operation | Released operations and Triggers | Status |",
+                  "| --- | --- | --- | --- | --- | --- |"]
+        for row in self.connector_matrix():
+            operation = row["operation"] + (f" ({row['host']})" if row["host"] else "")
+            lines.append(f"| {cell(row['node'])} | {cell(row['type'] + ' ' + operation)} | {cell(row['connector'] or '-')} | "
+                         f"{cell(row['likelyOperation'] or '-')} | {cell(', '.join(row['operations']) or '-', 300)} | {cell(row['status'])} |")
+        lines += ["", "## Dex plan draft", "",
+                  "A starting point in execution order. Apply the Flow-boundary, schedule, and per-item rules before coding.", "",
+                  "| Order | n8n node | Type | Proposed Dex element | Notes |", "| --- | --- | --- | --- | --- |"]
+        for index, row in enumerate(self.plan_rows(), 1):
+            lines.append(f"| {index} | {cell(row['node'])} | {cell(row['type'])} | {cell(row['element'])} | {cell(row['notes'], 320)} |")
         decisions = [item for item in self.findings if item["severity"] in ("critical", "high")]
         lines += ["", "## Decisions for the user", ""]
         for index, finding in enumerate(decisions, 1):
@@ -842,6 +1012,83 @@ class Inventory:
             lines.append("None from the inventory; add any found during the semantic review.")
         lines.append("")
         return self.redact("\n".join(lines))
+
+
+def langchain_sub_node_role(node: dict) -> str:
+    """Describe a LangChain sub-node's role in its consumer, or return an empty string."""
+    if "langchain" not in node.get("type", ""):
+        return ""
+    kind = short_type(node.get("type", ""))
+    for prefix, role in LANGCHAIN_SUB_NODE_PREFIXES.items():
+        if kind.startswith(prefix):
+            return role
+    return ""
+
+
+def http_request_host(url) -> str:
+    """Return the host of the literal part of an HTTP Request URL, or an empty string."""
+    if not isinstance(url, str):
+        return ""
+    literal = url[1:] if url.startswith("=") else url
+    match = re.match(r"\s*(?:https?://)?([A-Za-z0-9.-]+\.[A-Za-z]{2,})", literal)
+    return match.group(1).lower() if match else ""
+
+
+def catalog_search_text(entry: dict) -> str:
+    return re.sub(r"[^a-z0-9]", "", " ".join((entry["id"], entry["name"], entry["company"])).lower())
+
+
+def likely_operation(operation: str, entry: dict) -> str:
+    verb = re.sub(r"[^a-z]", "", operation.split("/")[-1].lower())
+    for prefix in OPERATION_VERBS.get(verb, [verb] if verb else []):
+        for name, _ in entry["operations"]:
+            if name.lower().startswith(prefix):
+                return name
+    return ""
+
+
+def pascal_case(name: str) -> str:
+    words = re.findall(r"[A-Za-z0-9]+", name)
+    return "".join(word[:1].upper() + word[1:] for word in words) or "Step"
+
+
+def load_catalog(path: Path) -> list:
+    """Read the published connector catalog's connector IDs, versions, Triggers, and operations.
+
+    The catalog is generated YAML with a fixed shape, so a line reader suffices and keeps the
+    script free of third-party packages.
+    """
+    entries, current, section, pending_operation = [], None, "", None
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.rstrip()
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip(" "))
+        if indent == 4 and stripped.startswith("- company:"):
+            current = {"id": "", "name": "", "company": stripped.split(":", 1)[1].strip(), "version": "", "triggers": [], "operations": []}
+            entries.append(current)
+            section, pending_operation = "", None
+            continue
+        if current is None:
+            continue
+        if indent == 6 and ":" in stripped and not stripped.startswith("- "):
+            key, value = (part.strip() for part in stripped.split(":", 1))
+            if key in ("id", "name", "version"):
+                current[key] = value
+            section = key if key in ("triggers", "operations", "uiUnits") else section if key == "" else key
+            continue
+        if indent == 8 and stripped.startswith("- name:"):
+            name = stripped.split(":", 1)[1].strip()
+            if section == "triggers":
+                current["triggers"].append(name)
+            elif section == "operations":
+                pending_operation = [name, ""]
+                current["operations"].append(pending_operation)
+            continue
+        if indent == 10 and stripped.startswith("kind:") and section == "operations" and pending_operation is not None:
+            pending_operation[1] = stripped.split(":", 1)[1].strip()
+    for entry in entries:
+        entry["operations"] = [tuple(operation) for operation in entry["operations"]]
+    return [entry for entry in entries if entry["id"]]
 
 
 def describe_schedule_rule(rule: dict) -> dict:
@@ -946,6 +1193,7 @@ def main(argv=None) -> int:
     inventory_parser = commands.add_parser("inventory", help="write the fidelity ledger for an export")
     inventory_parser.add_argument("export", type=Path)
     inventory_parser.add_argument("--out", type=Path, help="directory for ledger.md and inventory.json")
+    inventory_parser.add_argument("--catalog", type=Path, help="downloaded Dex connector catalog.yaml for the capability matrix")
     verify_parser = commands.add_parser("verify", help="check that every ledger row is resolved")
     verify_parser.add_argument("ledger", type=Path)
     arguments = parser.parse_args(argv)
@@ -958,8 +1206,15 @@ def main(argv=None) -> int:
     except (OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
+    catalog = None
+    if arguments.catalog is not None:
+        try:
+            catalog = load_catalog(arguments.catalog)
+        except OSError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
     for index, workflow in enumerate(workflows):
-        inventory = Inventory(workflow, arguments.export.name).build()
+        inventory = Inventory(workflow, arguments.export.name, catalog).build()
         if arguments.out is None:
             print(inventory.to_markdown())
             continue

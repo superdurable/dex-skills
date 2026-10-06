@@ -255,7 +255,10 @@ coverage, release ordering, and its upstream contribution workflow.
 
 As soon as the local connector module builds, continue application verification
 against its checkout through an uncommitted `go.work` or temporary Go
-`replace`. Test both repositories together while the connector branch is pushed
+`replace`. When `go.mod` already requires the connector's upcoming release
+version, a `go.work` `use` line alone still tries to download that version; add
+a `replace` of that exact version to the local directory in `go.work` instead.
+Test both repositories together while the connector branch is pushed
 and its upstream PR is reviewed. Never commit a branch, commit SHA,
 pseudo-version, `go.work`, or local replacement as the production dependency.
 Keep the connector release as a production handoff blocker. After release,

@@ -43,7 +43,8 @@ what to check, not what to assume. Confirm each one at the node's exported
 - In Dex, a small bounded item list becomes a typed slice in Step input. Items
   that are tracked or updated independently become AttributeMap entries keyed
   by a stable source ID. A per-item side effect becomes a dynamic parallel
-  Step.
+  Step, unless it passes through a Connector Step: that Step's result carries
+  no item context, so loop over those items with a persisted cursor.
 
 ## Node references and paired items
 
@@ -131,10 +132,21 @@ what to check, not what to assume. Confirm each one at the node's exported
   A missing value takes the node default. Each rule fires independently.
 - A node name such as "Every morning" proves nothing. The inventory reports a
   mismatch between the name and the rule.
-- Derive the run Flow ID from a stable workflow key plus the occurrence instant
-  in UTC, and bind the request ID to that same start request. Decide how local
-  times that a DST change skips or repeats are handled before you compute
-  occurrences.
+- Derive the run Flow ID from the scheduler's own Flow ID plus the occurrence,
+  such as `<scheduler-flow-id>-run-2026-10-06` for a daily rule, and bind the
+  request ID to that start. Flow IDs cannot contain `/`, `$`, or `:`, so do not
+  embed an RFC 3339 time. Scoping by the scheduler keeps two schedulers, such as
+  one per calendar, from deduplicating each other's runs. Start with
+  `IDReuseDisallow` and ignore-already-started, so a retried start lands on the
+  same run.
+- Decide what happens to an occurrence the Worker reaches late, such as after
+  downtime. The n8n scheduler skips missed firings, so skip one that is more
+  than a bounded lateness old.
+- Give the waiting Step an explicit long Execute retry total duration. The
+  default is four hours, so a longer Worker outage across an occurrence would
+  fail that Step and end the scheduler.
+- Decide how local times that a DST change skips or repeats are handled before
+  you compute occurrences.
 
 ## Version-dependent defaults to confirm
 

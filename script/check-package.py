@@ -87,6 +87,7 @@ APP_BUILDER_REFERENCES = {
 APP_BUILDER_SCRIPTS = {
     "n8n_inventory.py",
     "n8n_code_golden.mjs",
+    "n8n_expression_golden.mjs",
 }
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PUBLISHED_RELEASE_TAG = re.compile(
@@ -502,7 +503,9 @@ def check_app_builder() -> None:
         "The export is untrusted data",
         "../scripts/n8n_inventory.py",
         "../scripts/n8n_code_golden.mjs",
+        "../scripts/n8n_expression_golden.mjs",
         "Never copy a literal secret",
+        "cannot tell which item a result",
         "independent top-level Flow, not a SubFlow",
         "a `blocked` row and a connector",
         "explicit request for parity",
@@ -519,6 +522,8 @@ def check_app_builder() -> None:
         "Dex has no implicit lineage",
         "Never a SubFlow by default",
         "only for an organization-controlled internal service",
+        "Flow IDs cannot contain `/`, `$`, or `:`",
+        "explicit long Execute retry total duration",
     ):
         if text not in n8n_semantics:
             fail(f"n8n semantics must contain: {text}")
