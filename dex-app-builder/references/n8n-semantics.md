@@ -70,7 +70,9 @@ the n8n tags.
 Release-gated behavior to recheck once bounded: server-side activation
 validation of parameters and credentials from n8n 2.8, deduplicated scheduled
 executions from 2.19, stable schedule seconds from 2.19, and the default
-expression engine.
+expression engine: `legacy` through n8n 2.34, the isolated `vm` engine from
+2.35.0, and `quickjs` selectable from 2.43.0. `legacy` and `vm` share the rules
+below; read the `quickjs` bridge at the release before relying on them.
 
 ## Where engine behavior lives
 
@@ -84,6 +86,8 @@ n8n 1.96; earlier tags use PascalCase names):
 | Activation and publish validation | `packages/cli/src/workflows/workflow-validation.service.ts` |
 | Expression rendering and error swallowing | `packages/workflow/src/expression.ts`; the isolated engine's error handler in `packages/@n8n/expression-runtime/src/bridge/isolated-vm-bridge.ts` |
 | Default expression engine | `packages/@n8n/config/src/configs/expression-engine.config.ts` |
+| Parameter defaults filled before a node runs | `packages/workflow/src/workflow.ts` (the Workflow constructor fills declared defaults) |
+| Code task runner mode and environment | `packages/@n8n/config/src/configs/runners.config.ts`; `packages/cli/src/task-runners/task-runner-process-js.ts` |
 | IF, Filter, and Switch operators | `packages/workflow/src/node-parameters/filter-parameter.ts` |
 | Waiting executions and their resume | `packages/cli/src/wait-tracker.ts`; the short in-process wait in the Wait node or, on recent releases, `packages/core/src/execution-engine/node-execution-context/base-execute-context.ts` |
 | Schedule cron expression and stable values | `packages/nodes-base/nodes/Schedule/GenericFunctions.ts` |
@@ -122,8 +126,9 @@ n8n 1.96; earlier tags use PascalCase names):
 
 ## Execution order and failure
 
-- The editor already refuses to activate or publish a workflow whose nodes
-  show issues; only the public API or CLI could activate one. Ask how the
+- The editor already refuses to activate (1.x) or publish (2.x) a workflow
+  while a connected, enabled node shows an issue; only the public API or CLI
+  could activate one. Ask how the
   workflow was activated before recording a path that answers and then fails.
 - Before the first node runs, n8n checks every enabled node reachable from the
   starting trigger over `main` connections for parameter issues, or an unknown
@@ -132,10 +137,10 @@ n8n 1.96; earlier tags use PascalCase names):
   date-time, and resource-locator types (an empty required number, JSON,
   boolean, or collection does not block); a displayed resource-locator value
   that fails its mode's validation; missing or mistyped resource-mapper fields;
-  a value that fails the property's `validateType`; an IF, Filter, or Switch
-  condition whose literal (non-expression) value fails its type under strict
-  validation; and a fixed collection outside its minimum or maximum entry
-  count. An expression counts as filled
+  a value that fails the property's `validateType`; and a fixed collection
+  outside its minimum or maximum entry count. IF, Filter, and Switch
+  conditions add no issue here: a literal operand of the wrong type fails only
+  when the node evaluates it. An expression counts as filled
   and skips validation. If any node has an issue, the whole execution fails
   before any node runs, in every execution mode. Credentials are not part of
   this check. So an export with such an issue downstream of a trigger has no
@@ -181,7 +186,7 @@ n8n 1.96; earlier tags use PascalCase names):
   `$itemIndex`, and `$runIndex`. `$vars` and `$env` values are not in the
   export.
 - n8n's expression engine swallows every error inside a `{{ }}` segment except
-  its own `ExpressionError` and syntax errors. n8n also adds extension methods
+  its own `ExpressionError` and `ExpressionExtensionError` and syntax errors. n8n also adds extension methods
   to values, such as `.isEmpty()`, `.toNumber()`, and `.first()`, and extended
   functions such as `$ifEmpty`, so a call that would throw in plain JavaScript
   can return a value in n8n. A TypeError from calling a
@@ -260,7 +265,7 @@ n8n 1.96; earlier tags use PascalCase names):
 | Execute Workflow | Steps in the same Flow, or an independent top-level Flow under the Core boundary rules. Never a SubFlow by default. |
 | No Operation, Sticky Note | No behavior. Mark it `dropped` and check what a note claims. |
 | App node, such as Gmail, Google Calendar, or Slack | The released connector operation for the node's resource and operation. |
-| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation, or one whose finish reason the connector's wire format does not map, selects `invalidResponse`, where n8n forwards the text; `generateText` joins the text parts of an answer with no separator, and a `truncated` answer still carries the text LangChain would forward, so route it as the source did. Use a provider connector, such as a native Gemini one, only for a provider-native feature. n8n's output parser checks the answer after generation and fails the node on a mismatch, while `llm` structured output is enforced by the provider, so a schema-mismatch failure path in the source is a `diverged` row. Record every exit path of a tools agent at the release, including the max-iterations stop, whose fixed text skips the output parser. Model sub-nodes can retry inside the model client and set their own timeout: read the node's options and the LangChain library at the version n8n pins. |
+| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation, or one whose finish reason the connector's wire format does not map, selects `invalidResponse`, where n8n forwards the text; `generateText` joins the text parts of an answer with no separator, and a `truncated` answer still carries the text LangChain would forward, so route it as the source did. Use a provider connector, such as a native Gemini one, only for a provider-native feature. n8n's output parser checks the answer after generation and fails the node on a mismatch, while `llm` structured output is enforced by the provider, so a schema-mismatch failure path in the source is a `diverged` row. Record every exit path of a tools agent at the release, including the max-iterations stop (10 iterations unless `options.maxIterations` is set), whose fixed text skips the output parser. Model sub-nodes can retry inside the model client and set their own timeout: read the node's options and the LangChain library at the version n8n pins. |
 
 When the source waits for hours or days, or the port adds a long-lived Flow
 such as a scheduler, choose a versioning strategy from the Dex SDK
@@ -287,7 +292,8 @@ instead creates failed Flows, which is a `diverged` row.
   - `cronExpression` with `expression`
 
   An absent `field` means `days`, and an omitted hour or minute is 0, because
-  n8n fills declared defaults before the node runs. Each rule fires
+  n8n fills declared defaults before the node runs (`workflow.ts`), so the
+  Schedule node's own fallback for an absent minute or hour never applies. Each rule fires
   independently. The second depends on the release: 0 on early 1.x releases,
   then a random second picked at each activation, and from n8n 2.19 a stable
   second derived from the workflow and node IDs; `seconds` and cron rules are
@@ -322,7 +328,8 @@ instead creates failed Flows, which is a `diverged` row.
 - Decide what happens to an occurrence the Worker reaches late, such as after
   downtime. n8n's default scheduler never runs an occurrence missed while the
   instance was down, but a running process whose timer fires late, such as
-  after a host suspend, still runs it; skip one that is more than a bounded
+  after a blocked event loop or a host suspend, still fires one tick however
+  late, without replaying ticks missed during the stall; skip one that is more than a bounded
   lateness old and record both cases. The opt-in durable scheduler (from
   n8n 2.34) takes over only when `N8N_SCHEDULER_ENABLED` and
   `N8N_USE_WORKFLOW_PUBLICATION_SERVICE` are both on, and can run the latest
@@ -361,9 +368,9 @@ instead creates failed Flows, which is a `diverged` row.
 | Slack post or update | From 2.1, an "Automated with this n8n workflow" link is appended unless `includeLinkToWorkflow` is false. |
 | Microsoft Teams create message | From 1.1, a "Powered by this n8n workflow" link is appended, as HTML, unless `includeLinkToWorkflow` is false. |
 | Send-and-wait operations | They append an n8n attribution by default; check the release and the node. |
-| Telegram Trigger | It accepts updates from anyone. Chat and user restrictions exist from 1.2; 1.1 shows them but ignores them. |
+| Telegram Trigger | It accepts updates from anyone. Chat and user restrictions exist from 1.2; 1.1 shows them but ignores them. With the download option on, a message carrying a photo, document, or video is returned before those restrictions run, so they do not apply to media. Its restrictions and event-type filters map to the application's `TriggerFilter`. |
 | Google Calendar event `getAll` | Without `returnAll`, it returns one page of `limit` events (default 50). The order is unspecified unless `options.orderBy` is set. |
-| HTTP Request | At every version, every item's request starts at once and all are awaited together; batching options only space the starts. n8n hands the rendered URL to its HTTP client, which parses it as a URL: a `#` starts a fragment that is never sent, dropping every later query parameter, tab, CR, and LF are deleted, and unsafe characters are percent-encoded; the expression harness prints the URL actually sent. Check the redirect options at the version, since the defaults for following redirects changed. A non-2xx response fails the node after every request settles, unless `neverError` is on. From 3, without `options.timeout`, the timeout is 300,000 ms. Values concatenated into `url` are not form-encoded: spaces become `%20`, but `&`, `#`, and `+` in a value change the query. |
+| HTTP Request | At every version, every item's request starts at once and all are awaited together; batching options only space the starts. n8n hands the rendered URL to its HTTP client, which parses it as a URL: a `#` starts a fragment that is never sent, dropping every later query parameter, tab, CR, and LF are deleted, and unsafe characters are percent-encoded; the expression harness prints the URL actually sent. From v4, with `options.redirect` unset, redirects are followed up to the HTTP client's limit, and before v4.4 credentials are also sent on a cross-origin redirect; below v4, a redirect is followed only when the option is set. A non-2xx response fails the node after every request settles, unless `neverError` is on. From 3, without `options.timeout`, the timeout is 300,000 ms. Values concatenated into `url` are not form-encoded: spaces become `%20`, but `&`, `#`, and `+` in a value change the query. |
 | Webhook | `httpMethod` defaults to GET, `authentication` to none, and `responseMode` to `onReceived`, which answers 200 `{"message":"Workflow was started"}`. A JSON body is parsed into `body`; urlencoded and multipart fields land in `body` as strings, multipart files in `binary`; from 1.1 an unparsed body becomes a binary file. |
 | Wait | At 1, `amount` defaults to 1 and `unit` to hours; from 1.1, to 5 and seconds. A day is exactly 86,400 seconds, not a calendar day. |
 | IF, Filter, Switch | IF and Filter from 2, and Switch from 3: strict type validation, case sensitivity, and the AND/OR combinator come from `conditions.options` and `combinator`; see [parameter expressions](#parameter-expressions) for null handling. |

@@ -601,6 +601,27 @@ class DetectorTest(unittest.TestCase):
         self.assertRegex(ledger, r"\| B\d+ \| Cutover \|")
         self.assertIn("| expression engine |", ledger)
 
+    def test_caller_instant_and_agent_exit_findings(self):
+        _, by_kind, ledger = self.inventory(onboarding_export())
+        self.assertIn("server or a browser", by_kind["caller-type"][0]["message"])
+        export = synthetic_export()
+        export["nodes"] += [
+            {"name": "Agent", "type": "@n8n/n8n-nodes-langchain.agent", "typeVersion": 2, "parameters": {}},
+            {"name": "Parser", "type": "@n8n/n8n-nodes-langchain.outputParserStructured", "typeVersion": 1, "parameters": {}},
+            {"name": "Think", "type": "@n8n/n8n-nodes-langchain.toolThink", "typeVersion": 1, "parameters": {}},
+        ]
+        export["connections"]["Render"]["main"][0].append({"node": "Agent", "type": "main", "index": 0})
+        export["connections"]["Parser"] = {"ai_outputParser": [[{"node": "Agent", "type": "ai_outputParser", "index": 0}]]}
+        export["connections"]["Think"] = {"ai_tool": [[{"node": "Agent", "type": "ai_tool", "index": 0}]]}
+        _, by_kind, ledger = self.inventory(export)
+        self.assertIn("Fetch", by_kind["evaluation-instant"][0]["message"])
+        self.assertIn("10 iterations", by_kind["agent-exits"][0]["message"])
+        ledger_path = self.root / "out" / "ledger.md"
+        quoted = re.sub(r"(\| N1 \|.*?)\| dropped \| [^|]* \|", r"\1| mapped | the note says `assumed` but the rule is cited |", resolve_ledger(ledger), count=1)
+        ledger_path.write_text(quoted)
+        result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)], capture_output=True, text=True)
+        self.assertNotIn("unverified claim", result.stderr, "a quoted source claim is not the migrator's own wording")
+
     def test_rejects_a_file_that_is_not_the_published_catalog(self):
         catalog = self.root / "catalog.yaml"
         catalog.write_text("apiVersion: connectors.dex.dev/v1alpha1\nkind: ConnectorCatalogSource\n")

@@ -282,6 +282,8 @@ class Inventory:
         self.check_merge_inputs()
         self.check_wait_loops()
         self.check_provenance()
+        self.check_evaluation_instant()
+        self.check_agent_exits()
         self.check_release_markers()
         self.check_preflight()
         self.check_open_triggers()
@@ -331,11 +333,14 @@ class Inventory:
                 self.add_finding("medium", kind, node,
                                  f"Literal identifier(s) {listed} name one account's resources; make them configuration or typed start input.")
             elif kind == "locale-dependent":
+                runtime = ("the Code task runner's locale (en-US for an internal runner)"
+                           if short_type(self.by_name.get(node, {}).get("type", "")) in ("code", "function", "functionItem") else "the main n8n process locale")
                 self.add_finding("medium", kind, node,
-                                 f"Formats with the runtime locale or a locale-dependent macro ({listed}); the n8n instance's locale and timezone decide the text. Pin both in Go and capture goldens under the same locale.")
+                                 f"Formats with the runtime locale or a locale-dependent macro ({listed}); {runtime} and the timezone decide the text. "
+                                 "Pin both in Go and capture goldens under the same locale.")
             elif kind == "community-node":
                 self.add_finding("high", kind, node,
-                                 f"Community node(s) {listed}: behavior and defaults come from that package, not n8n core. Read the package source at the exported version, or mark the rows `pending` until the user confirms the behavior.")
+                                 f"Community node(s) {listed}: behavior and defaults come from that package, not n8n core, and the export does not record its version. Ask for the installed version and read it; until then keep the rows `blocked`.")
             elif kind == "operation-check":
                 self.add_finding("info", kind, node,
                                  f"Check each resource and operation against the node's option list at its typeVersion: {listed}. n8n never validates these values, "
@@ -648,7 +653,7 @@ class Inventory:
                     parts.append(f"{key}={self.short_value(value, 120)}")
             options = parameters.get("options")
             if isinstance(options, dict):
-                parts.append("options: " + (", ".join(sorted(options)) or "none (all defaults)"))
+                parts.append("options: " + (", ".join(sorted(options)) or "{} (an empty collection: its children are unset, so a code-level fallback for the whole collection does not apply)"))
         return "; ".join(part for part in parts if part)
 
     def short_value(self, value, limit: int = 60) -> str:
@@ -718,7 +723,9 @@ class Inventory:
             if "{{" in query and "encodeURIComponent" not in query:
                 semantics.append("interpolates into the query string without encoding")
                 self.add_finding("medium", "unencoded-query", name,
-                                 f"`{path}` concatenates values into the query string; n8n's URL parsing turns spaces into %20, while &, #, and + in a value change the query. Proper encoding in Dex is a recorded divergence.")
+                                 f"`{path}` concatenates values into the query string. n8n parses the URL as a WHATWG URL: a # drops every later parameter, tab, CR, and LF are deleted, "
+                                 "& splits the value, + stays literal, and spaces and non-ASCII are percent-encoded. Golden the sent URL with n8n_expression_golden.mjs, "
+                                 "and record proper encoding in Dex as a divergence.")
         self.expressions.append({
             "node": name,
             "parameter": path,
@@ -862,6 +869,9 @@ class Inventory:
             if not options.get("response", {}).get("response", {}).get("neverError"):
                 note = ("HTTP Request v3+: every item's request starts at once (options.batching only spaces the starts), and a non-2xx response fails the node "
                         "and the execution after all requests settle; the timeout is 300000 ms unless options.timeout is set.")
+            if version >= 4 and not (options.get("redirect") or {}):
+                note = (note + " " if note else "") + ("With options.redirect unset, v4+ follows redirects"
+                                                       + (", sending credentials on a cross-origin redirect before v4.4." if version < 4.4 else "."))
         elif (kind in ("if", "filter") and version >= 2) or (kind == "switch" and version >= 3):
             note = (f"{kind} v{version:g}: typeValidation {((parameters.get('conditions', {}) or {}).get('options', {}) or {}).get('typeValidation', 'strict')}, but null and undefined pass it; "
                     "string operators compare leftValue ?? '' and exists/notExists test null, undefined, and NaN. A TypeError inside a condition expression leaves it empty instead of failing. "
@@ -1161,7 +1171,7 @@ class Inventory:
             self.add_finding("high", "activation-blocked", "(workflow)",
                              f"From n8n 2.8 the server refuses to activate or publish a workflow while a node reachable from a trigger lacks a required credential "
                              f"({', '.join(lacking)}), so its production trigger never registers and a production webhook answers 404. "
-                             "On earlier releases those nodes fail when they run. Record the source behavior per release and execution mode.")
+                             "Before 2.8 the editor already refuses to activate it while those nodes show credential issues. Record the source behavior per release and execution mode.")
         if not failing:
             return
         scope = ("for any trigger event" if len(failing) == len(triggers)
@@ -1178,13 +1188,46 @@ class Inventory:
         for node in self.nodes:
             kind = short_type(node.get("type", ""))
             parameters = node.get("parameters", {}) or {}
+            if kind == "webhook" and not node.get("disabled"):
+                self.add_finding("high", "caller-type", node.get("name", ""),
+                                 "Is the caller a server or a browser? n8n answers CORS preflight and echoes the Origin unless options.allowedOrigins restricts it, "
+                                 "while the Dex webhook endpoint accepts only verified POST requests and sends no CORS headers; a browser cannot hold a signing secret, "
+                                 "so a browser caller needs a server-side relay or a connector capability.")
             if kind == "telegramTrigger":
                 fields = parameters.get("additionalFields", {}) or {}
                 restricted = node_version(node) >= 1.2 and (fields.get("chatIds") or fields.get("userIds"))
+                if restricted and fields.get("download"):
+                    self.add_finding("high", "open-trigger", node.get("name", ""),
+                                     "With the download option on, a message carrying a photo, document, or video is returned before the chat and user restrictions run, "
+                                     "so media messages start the workflow from anyone. Record it as source behavior.")
                 if not restricted:
                     self.add_finding("high", "open-trigger", node.get("name", ""),
                                      "The Telegram Trigger starts the workflow for anyone who messages the bot: chat and user restrictions are absent or ignored before typeVersion 1.2. "
                                      "Record the open trigger as source behavior and ask whether Dex keeps it or filters senders.")
+
+    def check_evaluation_instant(self) -> None:
+        readers = sorted({item["node"] for item in self.expressions if TIME_DEPENDENT.search(item["expression"])}
+                         | {node.get("name", "") for node in self.nodes
+                            if TIME_DEPENDENT.search(str((node.get("parameters", {}) or {}).get("jsCode", "")))})
+        if (self.schedules and readers) or len(readers) > 1:
+            self.add_finding("high", "evaluation-instant", "(workflow)",
+                             f"{', '.join(readers)} read the current time, which n8n evaluates separately in each node at run time. Replacing it with one instant, "
+                             "such as the occurrence time, is a decision unless that instant always equals the node's run time at the precision used; "
+                             "define it for manual runs, late runs, and Step retries.")
+
+    def check_agent_exits(self) -> None:
+        for node in self.nodes:
+            if not short_type(node.get("type", "")).startswith("agent"):
+                continue
+            name = node.get("name", "")
+            attached = [self.by_name.get(edge["from"], {}) for edge in self.edges if edge["to"] == name and edge["type"] != "main"]
+            has_parser = any(short_type(other.get("type", "")).startswith("outputParser") for other in attached)
+            has_tools = any(short_type(other.get("type", "")).startswith("tool") for other in attached)
+            if has_parser and has_tools:
+                limit = ((node.get("parameters", {}) or {}).get("options", {}) or {}).get("maxIterations", 10)
+                self.add_finding("medium", "agent-exits", name,
+                                 f"A tools agent with an output parser can stop after {limit} iterations and return a fixed text that skips the parser, "
+                                 "so downstream nodes receive unparsed text. Golden the downstream chain for each exit: parsed, parser failure, the max-iterations stop, and an empty finish.")
 
     def check_release_markers(self) -> None:
         """List what in the export bounds the n8n release from below."""
@@ -1678,9 +1721,15 @@ class Inventory:
             lines.append(f"| G{index} | {cell(node_name)} | {DIFFERENCE_PLACEHOLDER} | todo |   |")
         lines += ["", "## Workflow settings and export metadata", "", "| ID | Setting | Value | Status | Notes |", "| --- | --- | --- | --- | --- |"]
         setting_rows = [("n8n release", "(not in the export: ask, and bound it with the release-marker finding)"),
-                        ("expression engine", "(not in the export: N8N_EXPRESSION_ENGINE; its default changed during the 2.x line)"),
+                        ("expression engine", "(not in the export: N8N_EXPRESSION_ENGINE; legacy through 2.34, vm from 2.35.0, quickjs selectable from 2.43.0)"),
                         ("timezone", settings.get("timezone", "(absent: instance default)"))]
         setting_rows += [(key, value) for key, value in settings.items() if key != "timezone"]
+        if self.schedules:
+            setting_rows.append(("workflow ID", self.workflow.get("id") or "(absent: ask; the stable schedule second from n8n 2.19 depends on it)"))
+        if any(short_type(node.get("type", "")) in ("code", "function", "functionItem") for node in self.nodes):
+            setting_rows.append(("Code task runner mode and locale", "(not in the export: N8N_RUNNERS_MODE; an internal runner formats with en-US)"))
+        if any(item["kind"] == "locale-dependent" for item in self.findings):
+            setting_rows.append(("main process locale", "(not in the export: LANG or LC_ALL of the n8n process, used by expressions)"))
         meta = self.workflow.get("meta") or {}
         for key in ("active", "triggerCount"):
             if key in self.workflow:
@@ -1733,6 +1782,8 @@ class Inventory:
         for index, (kind, items) in enumerate(decisions.items(), 1):
             ids = ", ".join(f"F{number}" for number, _ in items)
             question = items[0][1]["message"] if len(items) == 1 else f"{len(items)} findings on {', '.join(sorted({item['node'] for _, item in items}))}: {items[0][1]['message']}"
+            if kind == "preflight-fails":
+                question = "Build the intended workflow? As exported, the source has no effect for these executions. " + question
             lines.append(f"| D{index} | {kind} | {ids} | {cell(question, 2000)} |   | todo |   |")
         if not decisions:
             lines.append("| D1 | none | - | No critical or high finding; add questions found during the semantic review. |   | todo |   |")
@@ -1995,7 +2046,7 @@ def verify(path: Path, is_strict: bool = False, inventory_path: Path | None = No
             problems.append(f"line {number} {cells[0]}: status {status!r} is not one of {', '.join(allowed)}")
         elif status == "decided" and not notes:
             problems.append(f"line {number} {cells[0]}: decided needs the user's answer in notes")
-        elif status == "mapped" and UNVERIFIED_NOTE.search(notes):
+        elif status == "mapped" and UNVERIFIED_NOTE.search(re.sub(r"`[^`]*`|\"[^\"]*\"", "", notes)):
             problems.append(f"line {number} {cells[0]}: mapped rests on an unverified claim; cite the source or mark it blocked")
         elif status in NOTE_REQUIRED and not notes:
             problems.append(f"line {number} {cells[0]}: {status} needs notes")

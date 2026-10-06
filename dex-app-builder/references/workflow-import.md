@@ -139,19 +139,25 @@ rows unless you pass `--force`.
   `packages/workflow/src/node-parameters/filter-parameter.ts`, and
   `packages/core/src/execution-engine/workflow-execute.ts` (before n8n 1.96
   the first two are `Expression.ts` and `NodeParameters/FilterParameter.ts`).
-  The default expression engine changed from `legacy` to an isolated `vm`
-  engine during the 2.x line (`N8N_EXPRESSION_ENGINE`, defaulted in
+  The default expression engine changed from `legacy` to the isolated `vm`
+  engine in n8n 2.35.0 (`N8N_EXPRESSION_ENGINE`, defaulted in
   `packages/@n8n/config/src/configs/expression-engine.config.ts`); both swallow
   native errors, the isolated one in `@n8n/expression-runtime`'s bridge. Code
   nodes run in a task runner rather than an in-process sandbox on recent
-  releases. Read the engine the release uses. [n8n
+  releases, always from n8n 2.36; in the default internal runner mode the
+  runner's environment carries the timezone but no locale variable, so locale
+  formatting in Code uses the runtime default (en-US) whatever the main
+  process locale is. Read the engine the release uses. When a default comes
+  from an options object, read to the end of the block, since later
+  assignments keyed on the typeVersion or an unset option can override it. [n8n
   semantics](n8n-semantics.md#where-engine-behavior-lives) lists the files. Behavior that lives
   in a dependency, such as a LangChain provider library or the mail composer,
   is read from that dependency at the version n8n's lockfile pins.
   Add a `K` row for every other claim, such as a template description or the
   user's summary. Read a community node from its package at the installed
   version; the export does not record it, so ask, and until then read the
-  latest release and keep that node's rows `pending`, naming the version read. The script's version notes
+  latest release and keep that node's behavior rows `blocked` with a `D` row
+  that asks for the installed version, naming the version read. The script's version notes
   are prompts to check, not authority.
 - Also ask for the instance settings that change behavior without a
   `typeVersion` change: `GENERIC_TIMEZONE`, the durable scheduler flags, the
@@ -282,8 +288,9 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   Execute-failure route through `StepOptionsOverride.ExecuteFailure`, such as
   `dex.ProceedToOnExecuteFailure(RecoveryStep{}, nil)`. An optional branch left unrouted
   fails the Flow when it is selected, so leaving one out is a recorded
-  decision justified against the source. Execute failure covers only
-  exhausted retries and timeouts.
+  decision justified against the source. A method timeout or a lost Worker
+  fails that attempt, and Dex retries it; only an exhausted attempt count or
+  retry total duration reaches the Execute-failure target.
 - To share a failure or terminal path, give each Connector Step two Steps of
   its own: an outcome Step that takes the operation's Result from the branches,
   and an Execute-failure Step typed on the Connector Step's input. Both record
@@ -379,9 +386,15 @@ that n8n pins at the source release (the `catalog` section of the root
 `pnpm-workspace.yaml` on recent releases, `packages/workflow/package.json` on
 older ones) with
 `npm install --prefix DIRECTORY luxon@VERSION`, then pass `--luxon DIRECTORY`.
-`fixture.now` fixes `$now`, `$today`, and `DateTime.now()`. n8n formats with
-the process's ICU locale, so set `fixture.locale` and `LC_ALL` to the same
-instance locale. An HTTP Request JSON body is the rendered string parsed as
+`fixture.now` fixes `$now`, `$today`, and `DateTime.now()`. n8n never sets
+Luxon's default locale, so formatting follows the ICU default of the runtime
+that evaluates it: run `n8n_code_golden.mjs` with `LC_ALL` set to the Code
+runner's locale (en-US for an internal-mode runner) and
+`n8n_expression_golden.mjs` with the main process locale, and leave
+`fixture.locale` unset or equal to that `LC_ALL`. Pass `--allow-unsupported`
+to keep exit status 0 when only some entries are unsupported, and for a `url`
+parameter the harness also prints the URL n8n sends, from which the ledger
+describes the faithful side of an encoding decision. An HTTP Request JSON body is the rendered string parsed as
 JSON, so golden it by parsing the expression golden's value; a parse error is
 the node's failure. The harness does not evaluate IF or Filter
 operators: keep hand-written predicate expectations, with the
@@ -417,7 +430,8 @@ operators: keep hand-written predicate expectations, with the
   replaces only the first occurrence, and truthiness treats `""`, `0`, and
   `null` alike. Expression ports reproduce template rendering: `null`,
   `undefined`, and empty values render as empty text, and an error other than
-  an n8n `ExpressionError` or a syntax error yields an empty value. See
+  an n8n `ExpressionError`, an `ExpressionExtensionError`, or a syntax error
+  yields an empty value. See
   [n8n semantics](n8n-semantics.md#parameter-expressions) for both. Luxon
   formats and calendar arithmetic run in the source timezone.
 - Port non-trivial expressions as pure Go helpers tested against the
