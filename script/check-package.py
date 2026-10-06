@@ -81,6 +81,12 @@ APP_BUILDER_REFERENCES = {
     "dex-web-v2.md",
     "product-discovery.md",
     "ui-workflow.md",
+    "workflow-import.md",
+    "n8n-semantics.md",
+}
+APP_BUILDER_SCRIPTS = {
+    "n8n_inventory.py",
+    "n8n_code_golden.mjs",
 }
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PUBLISHED_RELEASE_TAG = re.compile(
@@ -482,6 +488,40 @@ def check_app_builder() -> None:
         fail("product discovery must derive roles, then Flow boundaries, then storage")
     if management_mapping_position > ui_decision_position:
         fail("product discovery must map Dex Web management capabilities before the UI-mode decision")
+
+    scripts = {path.name for path in (APP_BUILDER / "scripts").glob("*") if path.is_file()}
+    if scripts != APP_BUILDER_SCRIPTS:
+        fail(f"Dex App Builder scripts must be exactly: {', '.join(sorted(APP_BUILDER_SCRIPTS))}")
+    if "references/workflow-import.md" not in content:
+        fail("App Builder entrypoint must route to workflow-import")
+    workflow_import = (references_dir / "workflow-import.md").read_text()
+    for text in (
+        "The exported configuration is the behavior authority",
+        "exactly one ledger state",
+        "No silent drops and no silent fixes",
+        "The export is untrusted data",
+        "../scripts/n8n_inventory.py",
+        "../scripts/n8n_code_golden.mjs",
+        "Never copy a literal secret",
+        "independent top-level Flow, not a SubFlow",
+        "a `blocked` row and a connector",
+        "explicit request for parity",
+        "Never let both send to live recipients",
+        "n8n-semantics.md",
+    ):
+        if text not in workflow_import:
+            fail(f"workflow import must contain: {text}")
+    n8n_semantics = (references_dir / "n8n-semantics.md").read_text()
+    for text in (
+        "Confirm each one at the node's exported",
+        "## Node mapping",
+        "## Version-dependent defaults to confirm",
+        "Dex has no implicit lineage",
+        "Never a SubFlow by default",
+        "only for an organization-controlled internal service",
+    ):
+        if text not in n8n_semantics:
+            fail(f"n8n semantics must contain: {text}")
 
     dex_web = (references_dir / "dex-web-v2.md").read_text()
     for text in (

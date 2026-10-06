@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.32.0 - 2026-10-05
+
+- Add an App Builder workflow for importing an exported workflow definition, starting with n8n JSON. The new `workflow-import.md` reference sets a fidelity contract: the exported configuration is the behavior authority, and every node, connection output, expression, credential, setting, and finding ends as `mapped`, `diverged`, `dropped`, or `blocked`, with no silent drops or fixes. It orders the work as inventory, secrets first, behavior over labels, execution-model mapping, released-connector mapping, golden parity, confirmation, and shadow-run cutover.
+- Add `n8n-semantics.md`: export anatomy, the item model and zero-item behavior, paired-item lineage, execution order and failure, expression and JavaScript coercion semantics, Luxon-to-Go time mapping, schedule rules, a node-to-Dex mapping table, version-dependent defaults to confirm, and credential mapping.
+- Add `dex-app-builder/scripts/n8n_inventory.py` (Python standard library). It writes a fidelity ledger (`ledger.md` and `inventory.json`) with redacted literal secrets, branch-labeled connections, expression semantics, schedule decoding with label checks, and findings for timezone, unguarded field reads, unencoded queries, dead configuration, unreachable nodes, inconsistent literals, and version defaults. Its `verify` command fails until every ledger row is resolved.
+- Add `dex-app-builder/scripts/n8n_code_golden.mjs` (Node standard library). It runs a Code or Function node against a synthetic fixture and prints normalized output items as golden data for a Go port.
+- Route exported-workflow requests from the App Builder entrypoint and description, and validate the new references and scripts in `check-package.py`, with unit tests on synthetic exports.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.32.0.
+
 ## 0.31.1 - 2026-10-05
 
 - Bound every Polling wait only with the polling Step's StepOptions, which the engine enforces: the Execute method timeout is the maximum wait for one attempt, and the Execute retry total duration is the maximum wait across all attempts, measured from the first attempt and also cutting the in-flight attempt. Always set the total duration, because an omitted value uses the four-hour server default. Keep the one-minute heartbeat timeout.

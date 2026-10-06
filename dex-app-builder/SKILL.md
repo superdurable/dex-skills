@@ -1,6 +1,6 @@
 ---
 name: dex-app-builder
-description: Primary entry point for designing and building Dex applications and process products with open-source Dex. Use for Dex product, application, or workflow requests, but not standalone SDK or official connector-library work. Orchestrates business discovery, Flow and FDG modeling, the Dex Web or custom UI decision, a Go backend with released connectors, and local verification with dexcli dev.
+description: Primary entry point for designing and building Dex applications and process products with open-source Dex. Use for Dex product, application, or workflow requests, including converting an exported n8n workflow, but not standalone SDK or official connector-library work. Orchestrates business discovery, Flow and FDG modeling, the Dex Web or custom UI decision, a Go backend with released connectors, and local verification with dexcli dev.
 ---
 
 # Dex App Builder
@@ -88,6 +88,7 @@ configuration. A missing module is resolved at its exact released version.
 | Decision | Reference and scope |
 | --- | --- |
 | Empty repository, stack, dependencies or local tooling | [Workspace bootstrap](references/workspace-bootstrap.md) |
+| Exported workflow from another tool, such as n8n JSON | [Workflow import](references/workflow-import.md): fidelity ledger, secrets first, golden parity, then the normal stages |
 | Missing business requirements, actors or ownership | [Business contract](references/business-contract.md); record concise decisions instead of requesting already supplied facts |
 | Participant/custom UI or management coverage | [Application surface](references/application-surface.md) and [UI workflow](references/ui-workflow.md); clear requests need no extra static-wireframe approval |
 | Go Flow rendering, Summary/Display or Work Queue Actions | [FDG authoring](references/fdg-authoring.md): exact syntax and focused diagnostics |
