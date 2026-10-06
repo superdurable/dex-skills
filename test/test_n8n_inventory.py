@@ -182,6 +182,30 @@ class InventoryTest(unittest.TestCase):
         self.assertEqual({item["node"] for item in secrets}, {"Settings"})
         self.assertIn("YOUR_BOT_TOKEN", (self.out / "ledger.md").read_text())
 
+    def test_reports_placeholder_nodes_without_credentials(self):
+        export = synthetic_export()
+        for node in export["nodes"]:
+            if node["name"] in ("Read records", "Notify"):
+                node["credentials"] = {"oauth": {"id": "1", "name": "Account"}}
+        export["nodes"] += [
+            {"name": "Alert", "type": "n8n-nodes-base.telegram", "typeVersion": 1, "parameters": {"operation": "send"}},
+            {"name": "Publish", "type": "@vendor/n8n-nodes-vendor.vendor", "typeVersion": 1,
+             "parameters": {"platform": "video"}, "credentials": {"vendorApi": {"id": "2", "name": "Vendor"}}},
+        ]
+        export["connections"]["Render"]["main"][0] += [
+            {"node": "Alert", "type": "main", "index": 0}, {"node": "Publish", "type": "main", "index": 0},
+        ]
+        self.export.write_text(json.dumps(export))
+        self.run_script("inventory", str(self.export), "--out", str(self.out))
+        inventory = json.loads((self.out / "inventory.json").read_text())
+        by_kind = {}
+        for item in inventory["findings"]:
+            by_kind.setdefault(item["kind"], set()).add(item["node"])
+        self.assertEqual(by_kind["missing-credential"], {"Alert"})
+        self.assertEqual(by_kind["hollow-node"], {"Alert"})
+        self.assertEqual(by_kind["community-node"], {"Publish"})
+        self.assertIn("Publish (vendor@1)", (self.out / "ledger.md").read_text())
+
     def test_rejects_non_workflow_input(self):
         self.export.write_text(json.dumps({"hello": "world"}))
         result = self.run_script("inventory", str(self.export), check=False)

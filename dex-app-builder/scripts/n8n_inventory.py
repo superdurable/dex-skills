@@ -107,6 +107,15 @@ LANGCHAIN_HINT = "llm connector Query or a durable Dex agent; tools become Steps
 TRIGGER_HINT = "Released connector Trigger if the catalog has it; otherwise a connector contribution."
 
 DEFAULT_RESOURCE = {"googleCalendar": "event", "gmail": "message", "slack": "message"}
+CORE_PACKAGES = ("n8n-nodes-base", "@n8n/n8n-nodes-langchain")
+STRUCTURAL_PARAMETERS = {"resource", "operation", "authentication", "options"}
+# Fields an operation cannot run without; confirm against the n8n node source.
+REQUIRED_PARAMETERS = {
+    "emailSend": ("fromEmail", "toEmail"),
+    "gmail": ("sendTo",),
+    "telegram": ("chatId",),
+    "slack": ("channelId",),
+}
 
 
 def short_type(node_type: str) -> str:
@@ -342,6 +351,7 @@ class Inventory:
             self.claims.append({"source": f"Sticky note `{name}`", "text": parameters.get("content", "").strip()})
         self.collect_settings_flags(node)
         self.collect_version_defaults(node)
+        self.check_runnable(node)
         if kind == "httpRequest" or (self.is_app_node(node) and not is_trigger(node)):
             if not node.get("retryOnFail"):
                 self.add_finding("info", "no-retry", name,
@@ -357,7 +367,35 @@ class Inventory:
     def is_app_node(self, node: dict) -> bool:
         kind = short_type(node.get("type", ""))
         package = node.get("type", "").rsplit(".", 1)[0]
-        return package == "n8n-nodes-base" and kind not in DEX_HINTS and kind not in TRIGGER_TYPES
+        if package == "@n8n/n8n-nodes-langchain":
+            return False
+        return kind not in DEX_HINTS and kind not in TRIGGER_TYPES
+
+    def check_runnable(self, node: dict) -> None:
+        """Report integration nodes that the export cannot run as written."""
+        name = node.get("name", "")
+        kind = short_type(node.get("type", ""))
+        package = node.get("type", "").rsplit(".", 1)[0]
+        parameters = node.get("parameters", {}) or {}
+        if package not in CORE_PACKAGES:
+            self.add_finding("high", "community-node", name,
+                             f"Community node from {package}: its behavior and defaults come from that package, not n8n core. Read the package source at the exported version.")
+        if not self.is_app_node(node) or node.get("disabled"):
+            return
+        if not node.get("credentials"):
+            self.add_finding("high", "missing-credential", name,
+                             "No credential is attached, so n8n cannot run this node as exported and the account it acts for is unknown. Ask which account the Dex connection authorizes.")
+        payload = set(parameters) - STRUCTURAL_PARAMETERS
+        operation = parameters.get("operation", "")
+        missing = [field for field in REQUIRED_PARAMETERS.get(kind, ()) if not parameters.get(field)]
+        if kind == "hubspot" and operation == "update" and not parameters.get("contactId"):
+            missing.append("contactId")
+        if kind == "hubspot" and operation == "create" and not parameters.get("email"):
+            missing.append("email")
+        if not payload or missing:
+            detail = f"missing {', '.join(missing)}" if missing else "only its resource and operation are set"
+            self.add_finding("high", "hollow-node", name,
+                             f"The node is a placeholder ({detail}), so n8n cannot run it as exported. Its real behavior must come from the user, not from notes or the node name.")
 
     def hint(self, node: dict) -> str:
         kind = short_type(node.get("type", ""))

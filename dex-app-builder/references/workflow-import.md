@@ -43,7 +43,10 @@ mapping hint, every connection output with its branch label, every expression
 with the semantics to preserve, credential references, workflow settings, and
 findings: literal secrets, label-versus-rule mismatches, an absent timezone,
 unguarded field reads, unencoded query strings, dead configuration, unreachable
-nodes, inconsistent literals across nodes, and version-dependent defaults. The
+nodes, inconsistent literals across nodes, version-dependent defaults, and
+placeholder integration nodes that lack credentials or required fields. An
+export made of placeholders is a specification, not a behavior to copy: the
+user supplies the missing behavior before mapping. The
 script redacts literal secrets in both files. Keep the ledger with the
 application's owning documentation.
 
