@@ -920,8 +920,12 @@ class Inventory:
                                      f"The {target} branch contains Wait node(s) {', '.join(sorted(waits))}; n8n pauses the whole execution there, so the later branches ({', '.join(ordered[index + 1:])}) run only after the wait ends.")
 
     def is_multi_item_read(self, node: dict) -> bool:
-        operation = str((node.get("parameters", {}) or {}).get("operation", "")).lower()
-        return operation in MULTI_ITEM_OPERATIONS and not node.get("disabled")
+        parameters = node.get("parameters", {}) or {}
+        operation = str(parameters.get("operation", "")).lower()
+        # A limit or returnAll parameter marks a list read even when the operation is the node default.
+        is_list = operation in MULTI_ITEM_OPERATIONS or (
+            self.is_app_node(node) and ("returnAll" in parameters or "limit" in parameters) and not is_trigger(node))
+        return is_list and not node.get("disabled") and not self.is_effect_node(node)
 
     def is_effect_node(self, node: dict) -> bool:
         kind = short_type(node.get("type", ""))
@@ -944,9 +948,12 @@ class Inventory:
             if not self.is_multi_item_read(node) or not main_children[name] or node.get("alwaysOutputData"):
                 continue
             downstream = self.descendants(name)
+            def handles_empty(code: str) -> bool:
+                # An explicit length check, or a length read with a literal default such as `|| 'None'`.
+                return bool(EMPTY_RESULT_CHECK.search(code) or (re.search(r"\.length\b", code) and re.search(r"\|\|\s*['\"`]", code)))
             fallbacks = sorted(
                 other for other in downstream
-                if EMPTY_RESULT_CHECK.search(str((self.by_name.get(other, {}).get("parameters", {}) or {}).get("jsCode", "")))
+                if handles_empty(str((self.by_name.get(other, {}).get("parameters", {}) or {}).get("jsCode", "")))
             )
             message = (f"When this read returns no items, n8n runs none of {', '.join(sorted(main_children[name]))} or anything after them, "
                        "and the execution still succeeds. A Dex Flow that continues with an empty list changes the effects; record which behavior Dex keeps.")
