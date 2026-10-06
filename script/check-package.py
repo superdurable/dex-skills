@@ -88,6 +88,7 @@ APP_BUILDER_SCRIPTS = {
     "n8n_inventory.py",
     "n8n_code_golden.mjs",
     "n8n_expression_golden.mjs",
+    "n8n_schedule_golden.mjs",
 }
 SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PUBLISHED_RELEASE_TAG = re.compile(
@@ -504,6 +505,7 @@ def check_app_builder() -> None:
         "../scripts/n8n_inventory.py",
         "../scripts/n8n_code_golden.mjs",
         "../scripts/n8n_expression_golden.mjs",
+        "../scripts/n8n_schedule_golden.mjs",
         "Never copy a literal secret",
         "cannot tell which item a result",
         "independent top-level Flow, not a SubFlow",

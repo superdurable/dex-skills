@@ -78,6 +78,12 @@ CREDENTIAL_FIELD = re.compile(
     r"(?i)(api.?key|access.?token|auth.?token|refresh.?token|bot.?token|secret|passw(or)?d|private.?key|authorization|bearer|^token$|_token$)"
 )
 NON_CREDENTIAL_FIELD = re.compile(r"(?i)(page|next|cursor|continuation|sync|count|csrf|limit)")
+# Export markers whose first release was cited from the n8n tags; extend only with cited markers.
+RELEASE_MARKERS = (
+    ("binaryMode", "settings.binaryMode first appears in n8n 2.5.0"),
+    ("recurrenceRuleSignatures", "a Schedule Trigger staticData recurrenceRuleSignatures key is written from n8n 2.29.0, so the trigger was activated on 2.29 or later"),
+    ("scheduleTrigger@1.4", "Schedule Trigger typeVersion 1.4 first ships in n8n 2.36.0"),
+)
 DAY_WINDOW = re.compile(r"\$today|startOf\(\s*['\"]day['\"]\s*\)")
 EMPTY_RESULT_CHECK = re.compile(r"\.length\s*(?:===?\s*0|<\s*1)|!\s*[\w$.]+\.length\b")
 IDENTIFIER_KEY = re.compile(
@@ -270,6 +276,7 @@ class Inventory:
         self.check_merge_inputs()
         self.check_wait_loops()
         self.check_provenance()
+        self.check_release_markers()
         self.check_preflight()
         self.check_open_triggers()
         self.check_references()
@@ -279,10 +286,12 @@ class Inventory:
         self.findings.sort(key=lambda item: SEVERITY_ORDER.index(item["severity"]))
         return self
 
-    def add_finding(self, severity: str, kind: str, node: str, message: str) -> None:
-        self.findings.append(
-            {"severity": severity, "kind": kind, "node": node, "message": message}
-        )
+    def add_finding(self, severity: str, kind: str, node: str, message: str, blocks: bool = False) -> None:
+        finding = {"severity": severity, "kind": kind, "node": node, "message": message}
+        if blocks:
+            # The node has a parameter issue that n8n's pre-execution check rejects.
+            finding["blocks"] = True
+        self.findings.append(finding)
 
     def group(self, kind: str, node: str, item: str) -> None:
         if item not in self.grouped[(kind, node)]:
@@ -476,9 +485,9 @@ class Inventory:
         if kind == "scheduleTrigger" or kind == "cron":
             self.collect_schedule(node)
         if kind == "stickyNote":
-            self.claims.append({"source": f"Sticky note `{name}`", "text": parameters.get("content", "").strip()})
+            self.claims.append({"source": f"Sticky note `{name}`", "text": redact_addresses(parameters.get("content", "").strip())})
         if str(node.get("notes") or "").strip():
-            self.claims.append({"source": f"Node note `{name}`", "text": str(node["notes"]).strip()})
+            self.claims.append({"source": f"Node note `{name}`", "text": redact_addresses(str(node["notes"]).strip())})
         self.collect_settings_flags(node)
         self.collect_version_defaults(node)
         self.check_runnable(node)
@@ -538,7 +547,14 @@ class Inventory:
                 if not selected:
                     self.add_finding("high", "hollow-node", name,
                                      "The node is a placeholder (missing required model selection), so n8n cannot run this model as exported. "
-                                     "Ask which provider and model the Dex llm connection uses.")
+                                     "Ask which provider and model the Dex llm connection uses.", blocks=True)
+        if kind_is_model(node) and not node.get("disabled"):
+            options = parameters.get("options", {}) or {}
+            exported = ", ".join(f"{key}={options[key]}" for key in ("maxRetries", "timeout") if key in options) or "no retry or timeout option set"
+            self.add_finding("medium", "model-client-retry", name,
+                             f"Model sub-nodes retry transient provider failures inside the LangChain client and apply a per-call timeout ({exported}); "
+                             "read the node's option defaults and the LangChain library n8n pins at the release, compare them with the llm operation's execution policy, "
+                             "and record a one-attempt cap as a divergence.")
         if not self.is_app_node(node) or node.get("disabled"):
             return
         resource = parameters.get("resource", DEFAULT_RESOURCE.get(kind, "(default)"))
@@ -554,12 +570,12 @@ class Inventory:
         if empty_locators:
             self.add_finding("high", "hollow-node", name,
                              f"Empty resource locator(s) {', '.join(empty_locators)}: the export does not say which account resource the node acts on. "
-                             "Ask the user; when the locator is required at this version, n8n also refuses to run executions that reach the node.")
+                             "Ask the user; when the locator is required at this version, n8n also refuses to run executions that reach the node.", blocks=True)
         if not payload or missing:
             detail = f"missing required {', '.join(missing)}" if missing else "only its resource and operation are set"
             self.add_finding("high", "hollow-node", name,
                              f"The node is a placeholder ({detail}; check the node source at typeVersion {node_version(node):g}), so the export cannot do what the node is named for. "
-                             "Its real behavior must come from the user, not from notes or the node name.")
+                             "Its real behavior must come from the user, not from notes or the node name.", blocks=bool(missing))
 
     def hint(self, node: dict) -> str:
         kind = short_type(node.get("type", ""))
@@ -577,6 +593,10 @@ class Inventory:
         parts = []
         if node.get("disabled"):
             parts.append("DISABLED (passes items through unchanged)")
+        extra = sorted(key for key in node if key not in (
+            "id", "name", "type", "typeVersion", "position", "parameters", "credentials", "disabled", "notes"))
+        if extra:
+            parts.append("node fields: " + ", ".join(extra))
         if kind == "set":
             fields = ", ".join(
                 f"{field['name']}={self.short_value(field['value'])}" for field in self.node_set_fields(node)
@@ -674,8 +694,12 @@ class Inventory:
             self.group("missing-field-empty", name, path)
         if path.split(".")[-1] in HEADER_PARAMETERS and (JSON_FIELD.search(body) or NODE_REFERENCE.search(body)):
             semantics.append("an upstream value can carry a line break into a header")
-            self.add_finding("info", "header-line-break", name,
-                             f"`{path}` interpolates an upstream value into a header; email connectors reject CR or LF in a subject, so decide whether line breaks become spaces.")
+            if short_type(node.get("type", "")) in EMAIL_NODE_TYPES:
+                message = (f"`{path}` interpolates an upstream value into a mail header. n8n's mail composer turns each line break into one space (check at the nodemailer "
+                           "version n8n pins), and the Dex email connectors reject CR or LF, so the faithful port applies the same replacement before the Connector Step.")
+            else:
+                message = f"`{path}` interpolates an upstream value into a header; decide how a line break in it is handled."
+            self.add_finding("info", "header-line-break", name, message)
         if path.split(".")[-1].lower() == "url" and "?" in body:
             query = body.split("?", 1)[1]
             if "{{" in query and "encodeURIComponent" not in query:
@@ -1081,7 +1105,7 @@ class Inventory:
 
     def check_preflight(self) -> None:
         """n8n refuses to start an execution while a main-reachable node lacks a required displayed parameter."""
-        hollow = {item["node"] for item in self.findings if item["kind"] == "hollow-node" and "missing required" in item["message"]}
+        hollow = {item["node"] for item in self.findings if item.get("blocks")}
         triggers = [node.get("name", "") for node in self.nodes if is_trigger(node) and not node.get("disabled")]
         failing = {}
         for trigger in triggers:
@@ -1089,6 +1113,21 @@ class Inventory:
             blocking = sorted(name for name in hollow & reachable if not langchain_sub_node_role(self.by_name.get(name, {})))
             if blocking:
                 failing[trigger] = blocking
+        uncredentialed = {
+            node.get("name", "") for node in self.nodes
+            if (self.is_app_node(node) or kind_is_model(node)) and not node.get("credentials") and not node.get("disabled")
+        }
+        reachable_all = set()
+        for trigger in triggers:
+            reachable_all |= {trigger} | self.descendants(trigger, "main")
+        # Sub-nodes such as chat models attach to a reachable node through non-main connections.
+        reachable_all |= {edge["from"] for edge in self.edges if edge["type"] != "main" and edge["to"] in reachable_all}
+        lacking = sorted(uncredentialed & reachable_all)
+        if lacking:
+            self.add_finding("high", "activation-blocked", "(workflow)",
+                             f"From n8n 2.8 the server refuses to activate or publish a workflow while a node reachable from a trigger lacks a required credential "
+                             f"({', '.join(lacking)}), so its production trigger never registers and a production webhook answers 404. "
+                             "On earlier releases those nodes fail when they run. Record the source behavior per release and execution mode.")
         if not failing:
             return
         scope = ("for any trigger event" if len(failing) == len(triggers)
@@ -1097,7 +1136,8 @@ class Inventory:
         self.add_finding("high", "preflight-fails", "(workflow)",
                          "Before the first node runs, n8n checks every enabled node reachable from the starting trigger for empty required parameters that are displayed at its version, "
                          f"and fails the whole execution if one is empty. If {', '.join(nodes)} lack such a parameter, the exported workflow has no effect {scope}. "
-                         "Confirm each parameter in the node source, record that effect as none, and do not offer a 'faithful' option that assumes later nodes run. Credentials are not part of this check.")
+                         "Confirm each parameter in the node source, record that effect as none, and do not offer a 'faithful' option that assumes later nodes run. Credentials are not part of this check. "
+                         "From n8n 2.8 the server also refuses to activate such a workflow, so its production trigger never registers.")
 
     def check_open_triggers(self) -> None:
         for node in self.nodes:
@@ -1110,6 +1150,23 @@ class Inventory:
                     self.add_finding("high", "open-trigger", node.get("name", ""),
                                      "The Telegram Trigger starts the workflow for anyone who messages the bot: chat and user restrictions are absent or ignored before typeVersion 1.2. "
                                      "Record the open trigger as source behavior and ask whether Dex keeps it or filters senders.")
+
+    def check_release_markers(self) -> None:
+        """List what in the export bounds the n8n release from below."""
+        highest = {}
+        for node in self.nodes:
+            kind = short_type(node.get("type", ""))
+            highest[kind] = max(highest.get(kind, 0.0), node_version(node))
+        settings = sorted((self.workflow.get("settings", {}) or {}).keys())
+        static_keys = sorted({child for value in (self.workflow.get("staticData") or {}).values() if isinstance(value, dict) for child in value})
+        known = [text for marker, text in RELEASE_MARKERS
+                 if marker in settings or marker in static_keys or (marker.startswith("scheduleTrigger@") and highest.get("scheduleTrigger", 0) >= float(marker.split("@")[1]))]
+        message = (f"Bound the n8n release from these markers (workflow-import section 3): settings keys {', '.join(settings) or 'none'}; "
+                   f"staticData keys {', '.join(static_keys) or 'none'}; highest typeVersion per node type "
+                   + ", ".join(f"{kind}@{version:g}" for kind, version in sorted(highest.items()) if kind != "stickyNote") + ".")
+        if known:
+            message += " Known markers: " + "; ".join(known) + "."
+        self.add_finding("info", "release-marker", "(workflow)", message)
 
     def check_provenance(self) -> None:
         meta = self.workflow.get("meta") or {}
@@ -1348,7 +1405,7 @@ class Inventory:
                 predecessors = {edge["from"] for edge in self.edges if edge["to"] == name and edge["type"] == "main"}
                 if any(predecessor in matrix and not langchain_sub_node_role(self.by_name.get(predecessor, {})) for predecessor in predecessors):
                     notes += "; add an application Step before it: a Connector Step receives only the previous result, so map the input and persist context there"
-                notes += "; route every branch in its connector.yaml (an unrouted optional branch fails the Flow) and an Execute-failure route; add an outcome application Step when the next Step needs more than the result"
+                notes += "; route every branch in its connector.yaml (an unrouted optional branch fails the Flow)"
                 successors = {edge["to"] for edge in self.edges if edge["from"] == name and edge["type"] == "main"}
                 if len(successors) > 1:
                     notes += "; fan-out: put an application Step after it, since only application Steps move to several Steps"
@@ -1356,6 +1413,12 @@ class Inventory:
                 element = f"application Step {pascal_case(name)}"
                 notes = self.hint(node)
             rows.append({"node": name, "type": kind, "element": element, "notes": notes})
+            if element.startswith("Connector Step"):
+                step = pascal_case(name)
+                rows.append({"node": name, "type": kind, "element": f"application Step {step}Outcome",
+                             "notes": "input: the operation's Result; target of every optional branch; records the outcome and moves on with a normalized input"})
+                rows.append({"node": name, "type": kind, "element": f"application Step {step}ExecuteFailed",
+                             "notes": f"input: {step}'s own input; StepOptionsOverride.ExecuteFailure = dex.ProceedToOnExecuteFailure({step}ExecuteFailed{{}}, nil)"})
         return rows
 
     def to_mermaid(self) -> list[str]:
@@ -1483,6 +1546,13 @@ class Inventory:
                         and row["node"] not in {item["node"] for item in self.findings if item["kind"] == "unreachable-node"}]
         for index, node_name in enumerate(branch_nodes, 1):
             lines.append(f"| R{index} | {cell(node_name)} | {BRANCH_PLACEHOLDER} | todo |   |")
+        lines += ["", "## Connector-imposed differences", "",
+                  "Replace each placeholder with one row per difference the mapped operation imposes (required inputs the source never sent, "
+                  "rejected values, identity per connection, extra connection fields, create-to-upsert, ordering, page size, encoding, and headers), "
+                  "or one `mapped` row saying none was found.", "",
+                  "| ID | n8n node | Difference | Status | Notes |", "| --- | --- | --- | --- | --- |"]
+        for index, node_name in enumerate(branch_nodes, 1):
+            lines.append(f"| G{index} | {cell(node_name)} | {DIFFERENCE_PLACEHOLDER} | todo |   |")
         lines += ["", "## Workflow settings and export metadata", "", "| ID | Setting | Value | Status | Notes |", "| --- | --- | --- | --- | --- |"]
         setting_rows = [("timezone", settings.get("timezone", "(absent: instance default)"))]
         setting_rows += [(key, value) for key, value in settings.items() if key != "timezone"]
@@ -1492,9 +1562,11 @@ class Inventory:
                 setting_rows.append((key, self.workflow[key]))
         for key, value in meta.items():
             setting_rows.append((f"meta.{key}", value if key != "instanceId" else "(present)"))
-        for key in ("pinData", "staticData"):
-            if self.workflow.get(key):
-                setting_rows.append((key, "(present: editor or trigger state, not behavior)"))
+        if self.workflow.get("pinData"):
+            setting_rows.append(("pinData", "(present: editor test data, not behavior)"))
+        for key, value in (self.workflow.get("staticData") or {}).items():
+            children = ", ".join(sorted(value)) if isinstance(value, dict) else type(value).__name__
+            setting_rows.append((f"staticData.{key}", f"(trigger state, keys only: {children})"))
         for index, (key, value) in enumerate(setting_rows, 1):
             lines.append(f"| S{index} | {cell(key)} | {cell(json.dumps(value) if not isinstance(value, str) else value)} | todo |   |")
         lines += ["", "## Findings", "", "| ID | Severity | Kind | Node | Finding | Status | Notes |", "| --- | --- | --- | --- | --- | --- | --- |"]
@@ -1575,6 +1647,12 @@ class Inventory:
                          "an expression yields undefined, and a method call on the missing value is swallowed, so the value is empty and the node continues; "
                          "a strict IF accepts null and undefined; Code nodes throw instead"))
         return rows
+
+
+def redact_addresses(text: str) -> str:
+    """Keep a note's claim but not the personal addresses it carries."""
+    count = len(EMAIL.findall(text))
+    return EMAIL.sub("‹address›", text) + (f" ({count} address(es) redacted)" if count else "")
 
 
 def kind_is_model(node: dict) -> bool:
@@ -1728,7 +1806,8 @@ def load_workflows(path: Path) -> list:
     return workflows
 
 
-LEDGER_ID = r"[NEXCSFKBRD]\d+[a-z]?"
+LEDGER_ID = r"[NEXCSFKBRGD]\d+[a-z]?"
+DIFFERENCE_PLACEHOLDER = "(list each connector-imposed difference from workflow-import section 5, or write none found)"
 BRANCH_PLACEHOLDER = "(list every branch of the operation's connector.yaml at the release tag)"
 UNVERIFIED_NOTE = re.compile(
     r"(?i)\b(from memory|unverified|not (?:yet )?verified|unconfirmed|not (?:yet )?confirmed|assum(?:ed|ing|ptions?)|"
@@ -1763,17 +1842,25 @@ def verify(path: Path, is_strict: bool = False, inventory_path: Path | None = No
     text = path.read_text(encoding="utf-8")
     # A decision is defined by a Decisions table row, or by a bullet or heading that starts with its ID.
     decision_ids = set(re.findall(r"^(?:\|\s*|[-*]\s+(?:\*\*)?|#+\s+)(D\d+[a-z]?)\b", text, re.MULTILINE))
+    pending_decisions = {cells[0] for _, cells in ledger_rows(text) if cells[0].startswith("D") and cells[-2].lower() == "pending"}
     for number, cells in ledger_rows(text):
         line = text.splitlines()[number - 1]
         seen.add(cells[0])
         status, notes = cells[-2].lower(), cells[-1]
         allowed = DECISION_STATUSES if cells[0].startswith("D") else STATUSES
-        counts[status] += 1
-        by_section[cells[0][0]][status] += 1
+        if status == "mapped" and set(re.findall(r"\bspec: (D\d+[a-z]?)\b", notes)) & pending_decisions:
+            # A row that reproduces specified, not observed, behavior waits on its decision.
+            status_label = "mapped (conditional)"
+        else:
+            status_label = status
+        counts[status_label] += 1
+        by_section[cells[0][0]][status_label] += 1
         for reference in sorted(set(re.findall(r"\bD\d+[a-z]?\b", notes)) - decision_ids):
             problems.append(f"line {number} {cells[0]}: notes cite {reference}, which is not in the Decisions table")
         if BRANCH_PLACEHOLDER in line:
             problems.append(f"line {number} {cells[0]}: replace the placeholder with one row per connector branch")
+        elif DIFFERENCE_PLACEHOLDER in line:
+            problems.append(f"line {number} {cells[0]}: replace the placeholder with the connector-imposed differences")
         elif status not in allowed:
             problems.append(f"line {number} {cells[0]}: status {status!r} is not one of {', '.join(allowed)}")
         elif status == "decided" and not notes:

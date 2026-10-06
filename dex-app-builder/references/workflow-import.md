@@ -35,7 +35,10 @@ semantics](n8n-semantics.md).
   with a `D` row that asks; `pending` is for a concrete proposal. When the
   export has no effect at all, such as when it fails n8n's pre-execution
   check for every trigger, one `D` row asks whether to build the intended
-  workflow, and the other rows describe what Dex builds if the user says yes.
+  workflow. Rows that describe what Dex builds if the user says yes reproduce
+  specified, not observed, behavior: mark them `mapped` only with
+  `spec: D<n>` in their notes, and `verify` counts them as conditional while
+  that decision is pending.
 - A `mapped` row's notes cite evidence. `verify` rejects wording that marks a
   claim as unverified (from memory, assumed, probably, unconfirmed, not
   verified, or confirm against the source), so resolve the claim or mark the
@@ -121,9 +124,18 @@ rows unless you pass `--force`.
   in a dependency, such as a LangChain provider library or the mail composer,
   is read from that dependency at the version n8n's lockfile pins.
   Add a `K` row for every other claim, such as a template description or the
-  user's summary. Read a community
-  node from its package at the exported version. The script's version notes
+  user's summary. Read a community node from its package at the installed
+  version; the export does not record it, so ask, and until then read the
+  latest release and keep that node's rows `pending`, naming the version read. The script's version notes
   are prompts to check, not authority.
+- Also ask for the instance settings that change behavior without a
+  `typeVersion` change: `GENERIC_TIMEZONE`, the durable scheduler flags, the
+  expression engine, and the Code task runner's mode and locale. Settings keys,
+  parameter names, and node-level fields in the export also bound the release
+  from below: find the first tag that declares each, and never sample a tag
+  below that bound. The inventory's release-marker finding lists them, and
+  [n8n semantics](n8n-semantics.md#release-markers) lists markers whose first
+  release is known.
 - A ledger claim that a node throws, fails the run, or uses a default cites a
   source file and line, or a recorded execution. A claim from memory leaves the
   row `blocked`, never `mapped`. When the release is unknown and the behavior
@@ -138,8 +150,10 @@ rows unless you pass `--force`.
   but never read.
 - Fill the ledger's edge-behavior rows: zero items, a missing field, an error
   response, and a duplicate trigger. Add a derived value that becomes empty
-  before a provider call, which can drop a filter and widen a query, and a
-  lookup whose response omits its collection key.
+  before a provider call, which can drop a filter and widen a query, a
+  lookup whose response omits its collection key, and one user action that the
+  provider delivers as several trigger events, such as an album of photos,
+  each starting its own execution.
 - Compare a schedule's interval with the window each execution reads. When the
   window is longer, the repeated effects are the faithful source behavior to
   record and decide on.
@@ -160,9 +174,16 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   identity, lateness, and the waiting Step's retry window.
 - A Trigger-started workflow becomes one Flow per delivery, identified by the
   Trigger's event ID. Flow IDs reject `/`, `$`, and `:`, so hash an event ID
-  that may contain them. Constants that the source set for configuration live in
+  that may contain them. Record the event ID's uniqueness scope, such as one
+  bot or account, and whether the provider reuses it; include the account
+  identity in the Flow ID, because a repeated ID within Flow retention
+  deduplicates into an old run. Constants that the source set for configuration live in
   application configuration bound at registration, or in typed start input
-  when an operator chooses them per run.
+  when an operator chooses them per run. When the source waits 65 seconds or
+  more, every configured value that a Step after the wait reads was fixed when
+  the n8n execution started; snapshot those values into start input or a
+  start-time Attribute, or record that configuration edits reach Flows already
+  waiting.
 - A fan-out from one output to distinct effects runs one branch after
   another under execution order `v1`, top to bottom on the canvas. A faithful
   port chains those Steps in that order; running them in parallel is a
@@ -177,12 +198,19 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   current index in an Attribute, and let each outcome Step record the current
   item and move to the next. Most n8n nodes also ran items in order, but HTTP
   Request sends every item's request at once; record the change
-  in request count and rate when Dex serializes those calls.
+  in request count and rate when Dex serializes those calls, including that a
+  serialized loop stopping at the first failure makes fewer calls than n8n,
+  which still sends every request.
 - Many tools stop the whole execution at the first error. Effects already
   performed remain and later items never run. Per-item Dex branches isolate
   failures, which is a `diverged` row unless the user requires
   all-or-nothing. In that case, perform every read before the first mutation
   and join before the first send.
+- Port a deterministic source failure, such as a strict-type predicate error,
+  a Code throw, or a validation stop, as an Execute that records the cause and
+  returns `dex.ForceFail`. A returned error is retried for the whole Execute
+  retry budget before the Flow fails, so return errors only for transient
+  faults.
 - Compare each operation's `execution.retry` in its `connector.yaml` with the
   source's effective attempts (`retryOnFail`, with `maxTries` clamped to 2
   through 5, see [n8n semantics](n8n-semantics.md#export-anatomy)). A released
@@ -195,9 +223,17 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   and route `uncertain`, when the operation declares it, to recovery, never to
   a blind resend. A metered Query
   gets one dispatch attempt under [Connector architecture](connector-architecture.md)
-  unless the user approves source-like retries. Record each choice.
+  unless the user approves source-like retries. A connector's retryable
+  attempt, including a rate limit with Retry-After, is a Dex Execute retry, so
+  capping `ExecuteRetry` at one attempt also fails the Step on the first rate
+  limit; read the operation's retry returns before capping. Compare per-call
+  timeouts too: an HTTP Request `options.timeout` or a model node's timeout
+  against the operation's `executeMethodTimeout` and retry total duration.
+  Record each choice.
 - Constants set for configuration become typed start input or editable scalar
   Attributes of the scheduler Flow, so an operator changes them in Dex Web.
+  List or structured configuration, such as recipients, needs a typed Action
+  that validates and writes it.
 
 ### Connector Step composition
 
@@ -221,9 +257,16 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   fails the Flow when it is selected, so leaving one out is a recorded
   decision justified against the source. Execute failure covers only
   exhausted retries and timeouts.
-- To share a failure or terminal path, give each Connector Step its own outcome
-  Step that records the branch and moves to the shared Step with a normalized
-  input.
+- To share a failure or terminal path, give each Connector Step two Steps of
+  its own: an outcome Step that takes the operation's Result from the branches,
+  and an Execute-failure Step typed on the Connector Step's input. Both record
+  what happened and move to the shared Step with one normalized input; a
+  single Step cannot take both input types.
+- When a decision replaces a source mechanism with a new provider call, such
+  as fetching bytes the source passed by URL or uploading a file, that call is
+  its own Connector Step with branch rows and an outcome Step, named after the
+  decision that introduced it. Provider effects never run inside an
+  application Step.
 
 ## 5. Map integrations to released connectors
 
@@ -239,8 +282,8 @@ the current catalog has no generic HTTP connector.
 Read, at the tag, the operation's `connector.yaml` (branches, idempotency, and
 execution policy) and its Go input and output types and validation function,
 since the manifest names those types but not their fields or validation.
-Record each connector-imposed
-difference as its own row:
+Record each connector-imposed difference as its own row in the ledger's
+connector-imposed differences section:
 
 - a required input the source never sent, such as a plain-text body, with the
   proposed derivation;
@@ -252,8 +295,13 @@ difference as its own row:
 - a source create that maps to an upsert or update: existing records get
   overwritten, so read the empty-value semantics and omit absent properties
   instead of sending empty strings, unless the user wants them cleared;
-- fixed ordering or page size, proper query encoding, and headers, footers, or
-  metadata that either side adds.
+- fixed ordering or page size, and, when the source reads one page, that page
+  membership can differ once results exceed the page size;
+- proper query encoding, and headers, footers, or metadata that either side
+  adds, including headers the source omits that the provider then fills, such
+  as an email From line with the account's display name;
+- for a connector gap, provider limits (length, count, format) that derived or
+  model-generated values can exceed, as `K` rows naming where the source fails.
 
 ## 6. Port code and expressions with golden parity
 
@@ -274,6 +322,19 @@ extension method, extended function, or global that the harness does not
 implement: supply globals such as `$execution` in `fixture.globals`, or capture
 the value from an n8n execution. `--expression` goldens a proposed fix without
 editing the export.
+
+For a schedule, capture the source's fire times, including the DST days of
+the workflow's zone, with
+[`n8n_schedule_golden.mjs`](../scripts/n8n_schedule_golden.mjs). It walks the
+`cron` package that n8n's scheduler uses, installed at the version n8n pins,
+over the cron expression the Schedule node builds at the release:
+
+```bash
+node scripts/n8n_schedule_golden.mjs "37 9 * * * *" America/New_York 2026-10-31T00:00:00Z 2026-11-03T00:00:00Z --cron DIRECTORY
+```
+
+Record the source's skipped and repeated hours as the faithful default before
+proposing other handling.
 
 For each Code or Function node, capture golden output with synthetic
 fixtures:
@@ -303,8 +364,10 @@ operators: keep hand-written predicate expectations, with the
   code reads time. Trigger fixtures follow the source item shape for their
   content type. Derive downstream fixtures from what upstream nodes can emit,
   and mark guards those inputs never reach as unreachable.
-- Push each fixture through the consuming connector's typed output before
-  claiming parity. A value the Go type cannot represent, such as null versus
+- Run every final-payload golden, including empty-collection and all-null
+  fixtures, through the consuming operation's input validation at the tag, so
+  a derived required field is never blank. Push each fixture through the
+  consuming connector's typed output before claiming parity. A value the Go type cannot represent, such as null versus
   missing versus empty, becomes a connector contribution requirement or a
   `diverged` row that states the exact difference.
 - Golden the final effect payload, not only the upstream node: read the
@@ -329,8 +392,11 @@ operators: keep hand-written predicate expectations, with the
 
 Extend the App Builder confirmation artifact with the ledger's status counts,
 the decisions table with a recommended choice for each row, and the
-source-to-Dex map of Flows, Steps, and connector capabilities. The user decides
-every divergence before implementation starts:
+source-to-Dex map of Flows, Steps, and connector capabilities. Check the
+design first: every Step named as a movement, branch, or Execute-failure target
+exists; no two Connector Steps route to the same outcome Step; every
+connector-branch row names its target; and every connector gap is used by a
+design Step. The user decides every divergence before implementation starts:
 `python3 scripts/n8n_inventory.py verify ledger.md --strict` passes only when
 no row is `pending`. Then build through the normal stages.
 

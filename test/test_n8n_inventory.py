@@ -15,6 +15,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "dex-app-builder" / "scripts"
 INVENTORY = SCRIPTS / "n8n_inventory.py"
 GOLDEN = SCRIPTS / "n8n_code_golden.mjs"
 EXPRESSION_GOLDEN = SCRIPTS / "n8n_expression_golden.mjs"
+SCHEDULE_GOLDEN = SCRIPTS / "n8n_schedule_golden.mjs"
 SECRET = "fixturekey0123456789abcdef"
 
 RENDER_CODE = """let out = '';
@@ -33,6 +34,8 @@ def resolve_ledger(ledger):
             line = line.replace("| todo |   |", "| decided | yes |")
         elif line.startswith("| R") and "(list every branch" in line:
             line = re.sub(r"\(list every branch[^|]*\)", "searched -> Render", line)
+        elif line.startswith("| G") and "(list each connector-imposed" in line:
+            line = re.sub(r"\(list each connector-imposed[^|]*\)", "none found", line)
         lines.append(line.replace("| todo |   |", "| dropped | not observable in this fixture |"))
     return "\n".join(lines)
 
@@ -331,8 +334,13 @@ connectors:
         self.assertEqual(matrix["Fetch"]["connector"], "example-search v0.21.0", "an HTTP host matches a released connector by name")
         self.assertIn("structured output", matrix["Parser"]["status"], "a LangChain sub-node is configuration, not a missing connector")
         self.assertIn("connector contribution", matrix["Read records"]["status"])
-        plan = {row["node"]: row for row in inventory["planDraft"]}
+        plan = {}
+        for row in inventory["planDraft"]:
+            plan.setdefault(row["node"], row)
         self.assertEqual(plan["Notify"]["element"], "Connector Step Notify")
+        elements = [row["element"] for row in inventory["planDraft"] if row["node"] == "Notify"]
+        self.assertEqual(elements[1:], ["application Step NotifyOutcome", "application Step NotifyExecuteFailed"],
+                         "each Connector Step gets its own outcome and Execute-failure Steps")
         self.assertIn("persisted cursor", plan["Notify"]["notes"], "items from a read reach a Connector Step one at a time")
         self.assertEqual(plan["Nothing"]["element"], "dropped")
         self.assertEqual(plan["Daily at 6am"]["element"], "trigger")
@@ -541,6 +549,28 @@ class DetectorTest(unittest.TestCase):
         self.assertEqual(rerun.returncode, 2)
         self.assertIn("--force", rerun.stderr)
 
+    def test_release_markers_activation_and_spec_rows(self):
+        export = onboarding_export()
+        export["settings"]["binaryMode"] = "separate"
+        export["nodes"][0]["notes"] = "Questions? Write to author@example.test"
+        export["nodes"].append({"name": "Model", "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi", "typeVersion": 1.2,
+                                "parameters": {"model": {"__rl": True, "value": "gpt-x", "mode": "list"}, "options": {"maxRetries": 2}}})
+        export["connections"]["Model"] = {"ai_languageModel": [[{"node": "Contact", "type": "ai_languageModel", "index": 0}]]}
+        inventory, by_kind, ledger = self.inventory(export)
+        self.assertIn("2.5.0", by_kind["release-marker"][0]["message"])
+        self.assertIn("Welcome", by_kind["activation-blocked"][0]["message"], "a node without credentials blocks activation from 2.8")
+        self.assertIn("maxRetries=2", by_kind["model-client-retry"][0]["message"])
+        self.assertNotIn("author@example.test", json.dumps(inventory["claims"]))
+        self.assertIn("‹address›", ledger)
+        self.assertRegex(ledger, r"\| G\d+ \| Contact \|")
+        ledger_path = self.root / "out" / "ledger.md"
+        resolved = resolve_ledger(ledger).replace("| decided | yes |", "| pending | proposed: build the intended workflow |", 1)
+        decision = re.search(r"^\| (D\d+) \| [^|]* \| [^|]* \| [^|]* \| pending \|", resolved, re.MULTILINE).group(1)
+        resolved = re.sub(r"(\| N1 \|.*?)\| dropped \| [^|]* \|", rf"\1| mapped | spec: {decision} |", resolved, count=1)
+        ledger_path.write_text(resolved)
+        result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)], capture_output=True, text=True)
+        self.assertIn("mapped (conditional)", result.stdout)
+
     def test_rejects_a_file_that_is_not_the_published_catalog(self):
         catalog = self.root / "catalog.yaml"
         catalog.write_text("apiVersion: connectors.dex.dev/v1alpha1\nkind: ConnectorCatalogSource\n")
@@ -692,6 +722,19 @@ class GoldenHarnessTest(unittest.TestCase):
         self.assertEqual(json.loads(legacy.stdout), [{"json": {"a": 1}}])
         each = subprocess.run(["node", str(GOLDEN), str(self.export), "Each", str(fixture)], capture_output=True, text=True)
         self.assertEqual(each.returncode, 1, "n8n matches 'all' inside callCount after the comment names .all()")
+
+    def test_schedule_harness_follows_the_cron_library(self):
+        usage = subprocess.run(["node", str(SCHEDULE_GOLDEN), "0 9 * * * *", "UTC"], capture_output=True, text=True)
+        self.assertEqual(usage.returncode, 2)
+        missing = subprocess.run(["node", str(SCHEDULE_GOLDEN), "0 9 * * * *", "UTC", "2026-01-01T00:00:00Z", "2026-01-01T03:00:00Z",
+                                  "--cron", str(self.root)], capture_output=True, text=True)
+        self.assertEqual(missing.returncode, 3, "the cron package must come from the pinned directory")
+        cron_directory = os.environ.get("N8N_GOLDEN_CRON")
+        if cron_directory:
+            fall_back = subprocess.run(["node", str(SCHEDULE_GOLDEN), "37 9 * * * *", "America/New_York",
+                                        "2026-11-01T04:00:00Z", "2026-11-01T07:00:00Z", "--cron", cron_directory], capture_output=True, text=True)
+            fires = json.loads(fall_back.stdout)
+            self.assertEqual(sum(fire.startswith("2026-11-01T01:09") for fire in fires), 2, "an hourly rule fires twice in the repeated hour")
 
     def test_rejects_a_non_code_node(self):
         result = self.golden({"items": []}, node="Fetch")

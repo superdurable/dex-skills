@@ -41,10 +41,32 @@ change between releases without a `typeVersion` change.
   to compare against. `id` is the workflow ID; exports often omit it.
 - `pinData` is editor test data, not production behavior, and may contain
   personal data. `staticData` is trigger runtime state, such as polling cursors
-  and schedule recurrence, not configuration.
+  and schedule recurrence, not configuration, but its keys are evidence: a key
+  that only a later release writes bounds the release and shows the trigger
+  was activated on it.
+- A `collection` parameter defaults to an empty object, and its children are
+  not filled with their displayed defaults, so a code-level fallback for the
+  whole collection never applies. Read how the node's code treats an unset
+  child, such as a timeout, and record the effective value.
 - A parameter value that starts with `=` is an expression. Each `{{ }}` segment
   is JavaScript, evaluated under the rules in
   [expressions](#parameter-expressions).
+
+## Release markers
+
+Each of these bounds the source release from below. Extend the table only with
+markers whose first release, and the last release without them, you cited from
+the n8n tags.
+
+| Marker | First release |
+| --- | --- |
+| `settings.binaryMode` | n8n 2.5.0 |
+| A Schedule Trigger `staticData` key `recurrenceRuleSignatures` | n8n 2.29.0, and the trigger was activated there |
+| Schedule Trigger `typeVersion` 1.4 | n8n 2.36.0 |
+
+Release-gated behavior to recheck once bounded: server-side activation
+validation of parameters and credentials from n8n 2.8, deduplicated scheduled
+executions from 2.19, and stable schedule seconds from 2.19.
 
 ## Item model
 
@@ -93,7 +115,11 @@ change between releases without a `typeVersion` change.
   this check. So an export with such an issue downstream of a trigger has no
   effect for that trigger's executions; record that as the source behavior and
   offer no "faithful" option that assumes later nodes run. A Webhook in
-  `onReceived` mode has already answered the caller.
+  `onReceived` mode has already answered the caller. From n8n 2.8 the server
+  also refuses to activate or publish a workflow whose trigger reaches a node
+  with a parameter issue or a missing required credential, so its production
+  trigger never registers (a production webhook answers 404); record the
+  source behavior per execution mode.
 - Operation and other option values are not checked against the node's option
   list, before or during the run. What an unknown value does is node-specific:
   an explicit error, a lookup that throws, an `if` chain that makes no call and
@@ -185,7 +211,7 @@ change between releases without a `typeVersion` change.
 | --- | --- |
 | Schedule Trigger, legacy Cron, Interval | A scheduler Flow on the Cron pattern. It computes each next occurrence in the workflow's IANA zone, waits on a Timer, and starts one run Flow per occurrence. See [schedule rules](#schedule-rules). |
 | Manual Trigger | Dex Web Start Flow with typed start input. |
-| Webhook, Respond to Webhook | The webhook connector Trigger. Each n8n request starts one execution with one item `{headers, params, query, body, webhookUrl, executionMode}`; the Dex Trigger accepts only authenticated POST requests with a JSON or urlencoded body up to its size limit, takes its event ID from a delivery-ID header or body pointer, else a digest of the body, and so deduplicates a byte-identical re-POST while the Flow is retained. Read its request decoding at the tag. Record each difference; the authentication change is mandatory. A synchronous response body needs a capability check. |
+| Webhook, Respond to Webhook | The webhook connector Trigger. Each n8n request starts one execution with one item `{headers, params, query, body, webhookUrl, executionMode}`; the Dex Trigger accepts only authenticated POST requests with a JSON or urlencoded body up to its size limit, takes its event ID from a delivery-ID header or body pointer, else a digest of the body, and so deduplicates a byte-identical re-POST while the Flow is retained. Read its request decoding at the tag. Record each difference; the authentication change is mandatory. Also check n8n's CORS handling (OPTIONS) and body size limit (`N8N_PAYLOAD_SIZE_MAX`) at the release, compressed and XML bodies, and repeated form keys, and ask whether the caller is a server or a browser, since a browser cannot hold a signing secret. A synchronous response body needs a capability check. |
 | App Trigger, such as Gmail Trigger | The matching released connector Trigger, with the provider event ID as the request ID. If it is missing, contribute it. A trigger that accepts anyone, such as a Telegram Trigger without chat or user restrictions, is source behavior to record. |
 | Form Trigger | A Dex Web Start Flow form, or a participant Custom UI when the form is participant-facing. |
 | Error Trigger, workflow `errorWorkflow` | An Execute-failure route to an explicit recovery Step. |
@@ -203,7 +229,7 @@ change between releases without a `typeVersion` change.
 | Execute Workflow | Steps in the same Flow, or an independent top-level Flow under the Core boundary rules. Never a SubFlow by default. |
 | No Operation, Sticky Note | No behavior. Mark it `dropped` and check what a note claims. |
 | App node, such as Gmail, Google Calendar, or Slack | The released connector operation for the node's resource and operation. |
-| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation selects `invalidResponse`, where n8n forwards empty text. |
+| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation selects `invalidResponse`, where n8n forwards empty text. n8n's output parser checks the answer after generation and fails the node on a mismatch, while `llm` structured output is enforced by the provider, so a schema-mismatch failure path in the source is a `diverged` row. Record every exit path of a tools agent at the release, including the max-iterations stop, whose fixed text skips the output parser. Model sub-nodes can retry inside the model client and set their own timeout: read the node's options and the LangChain library at the version n8n pins. |
 
 When the source waits for hours or days, choose a versioning strategy from the
 Dex SDK [versioning guide](../../dex-sdk/references/core/versioning.md) before
@@ -261,18 +287,27 @@ the first deploy, since Flows will be open across deploys.
   executions per workflow, node, and scheduled time; per-occurrence run
   identity reproduces that. Executions for different occurrences can still
   overlap.
+- When an operator can edit a field that shapes the schedule, such as the zone
+  or the time, add a reschedule Action that publishes to a Channel in the
+  waiting Step's AnyOf, so its Execute recomputes the next occurrence: an
+  Attribute edit does not wake a Timer. Use a date-only run ID only for a fixed
+  daily schedule, because a same-day edit to a later time would otherwise be
+  deduplicated into the earlier run.
 - Give the waiting Step an explicit long Execute retry total duration. The
   default is four hours, so a longer Worker outage across an occurrence would
   fail that Step and end the scheduler.
 - Decide how local times that a DST change skips or repeats are handled before
-  you compute occurrences.
+  you compute occurrences. The source's own DST behavior comes from the cron
+  library at the version n8n pins, which can fire twice in a repeated hour or
+  move a skipped time; capture it with `n8n_schedule_golden.mjs` and record it
+  as the faithful default.
 
 ## Version-dependent defaults to confirm
 
 | Node | What to confirm at the exported version |
 | --- | --- |
 | Set | Before 3.3, input fields pass through next to the set fields; from 3.3 they are dropped unless `includeOtherFields` is on. A string field that resolves to null or undefined becomes the text `null` or `undefined` at 3.0, fails the node at 3.1 unless `ignoreConversionErrors` is on, and becomes null from 3.2; a field of another type becomes null. Binary data is dropped through 3.3 unless `includeBinary` is set, and from 3.4 is kept while input fields are kept. |
-| Gmail send | From 2.1, the footer "This email was sent automatically with n8n" is appended unless `options.appendAttribution` is false; reply never appends it. `emailType` defaults to html (text before n8n 1.10), and html mail has no text/plain part at all. The message is trimmed. |
+| Gmail send | From 2.1, the footer "This email was sent automatically with n8n" is appended unless `options.appendAttribution` is false; reply never appends it. `emailType` defaults to html (text before n8n 1.10), and html mail has no text/plain part at all. The message is trimmed. The mail composer turns line breaks in the subject into spaces; check it at the nodemailer version n8n pins. |
 | Send Email | From 2.1, the same footer is appended unless `appendAttribution` is false. The Dex email connector sends plain text only, from the sender fixed on its connection, and its connection needs IMAP and SMTP hosts even for sending; read its Go types at the tag. |
 | Telegram send message | `parse_mode` is Markdown when unset, so the text is parsed as markup. From 1.1, "This message was sent automatically with n8n" is appended for Markdown or HTML unless `appendAttribution` is false; from 1.2, link previews are off by default. |
 | Slack post or update | From 2.1, an "Automated with this n8n workflow" link is appended unless `includeLinkToWorkflow` is false. |
