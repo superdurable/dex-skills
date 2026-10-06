@@ -84,7 +84,12 @@ RELEASE_MARKERS = (
     ("binaryMode", "settings.binaryMode first appears in n8n 2.5.0"),
     ("recurrenceRuleSignatures", "a Schedule Trigger staticData recurrenceRuleSignatures key is written from n8n 2.29.0, so the trigger was activated on 2.29 or later"),
     ("scheduleTrigger@1.4", "Schedule Trigger typeVersion 1.4 first ships in n8n 2.36.0"),
+    ("__aiGatewayManaged", "a credential reference marked __aiGatewayManaged first appears in n8n 2.17.0"),
 )
+# Node-level keys every release writes; anything else is a candidate release marker.
+BASELINE_NODE_KEYS = {"id", "name", "type", "typeVersion", "position", "parameters", "credentials", "disabled", "notes",
+                      "notesInFlow", "webhookId", "retryOnFail", "maxTries", "waitBetweenTries", "alwaysOutputData",
+                      "executeOnce", "onError", "continueOnFail"}
 DAY_WINDOW = re.compile(r"\$today|startOf\(\s*['\"]day['\"]\s*\)")
 EMPTY_RESULT_CHECK = re.compile(r"\.length\s*(?:===?\s*0|<\s*1)|!\s*[\w$.]+\.length\b")
 IDENTIFIER_KEY = re.compile(
@@ -282,6 +287,8 @@ class Inventory:
         self.check_open_triggers()
         self.check_references()
         self.check_dead_fields()
+        self.check_unused_code_outputs()
+        self.check_overlapping_windows()
         self.check_literal_sets()
         self.check_settings()
         self.findings.sort(key=lambda item: SEVERITY_ORDER.index(item["severity"]))
@@ -489,6 +496,11 @@ class Inventory:
             self.claims.append({"source": f"Sticky note `{name}`", "text": redact_addresses(parameters.get("content", "").strip())})
         if str(node.get("notes") or "").strip():
             self.claims.append({"source": f"Node note `{name}`", "text": redact_addresses(str(node["notes"]).strip())})
+        branch_sources = {edge["from"] for edge in self.edges if edge["to"] == name and edge["type"] == "main"
+                          and short_type(self.by_name.get(edge["from"], {}).get("type", "")) in ("if", "filter", "switch")}
+        if kind in ("noOp", "stopAndError") or branch_sources:
+            self.claims.append({"source": f"Node name `{name}`",
+                                "text": f"{name}: compare what the name asserts with the items this node receives, including the zero-item case"})
         self.collect_settings_flags(node)
         self.collect_version_defaults(node)
         self.check_runnable(node)
@@ -1182,10 +1194,15 @@ class Inventory:
             highest[kind] = max(highest.get(kind, 0.0), node_version(node))
         settings = sorted((self.workflow.get("settings", {}) or {}).keys())
         static_keys = sorted({child for value in (self.workflow.get("staticData") or {}).values() if isinstance(value, dict) for child in value})
+        credential_keys = sorted({key for node in self.nodes for reference in (node.get("credentials") or {}).values()
+                                  if isinstance(reference, dict) for key in reference if key not in ("id", "name")})
+        node_keys = sorted({key for node in self.nodes for key in node if key not in BASELINE_NODE_KEYS})
+        present = set(settings) | set(static_keys) | set(credential_keys)
         known = [text for marker, text in RELEASE_MARKERS
-                 if marker in settings or marker in static_keys or (marker.startswith("scheduleTrigger@") and highest.get("scheduleTrigger", 0) >= float(marker.split("@")[1]))]
+                 if marker in present or (marker.startswith("scheduleTrigger@") and highest.get("scheduleTrigger", 0) >= float(marker.split("@")[1]))]
         message = (f"Bound the n8n release from these markers (workflow-import section 3): settings keys {', '.join(settings) or 'none'}; "
-                   f"staticData keys {', '.join(static_keys) or 'none'}; highest typeVersion per node type "
+                   f"staticData keys {', '.join(static_keys) or 'none'}; credential reference keys {', '.join(credential_keys) or 'none'}; "
+                   f"other node keys {', '.join(node_keys) or 'none'}; highest typeVersion per node type "
                    + ", ".join(f"{kind}@{version:g}" for kind, version in sorted(highest.items()) if kind != "stickyNote") + ".")
         if known:
             message += " Known markers: " + "; ".join(known) + "."
@@ -1272,6 +1289,67 @@ class Inventory:
             if not used:
                 self.add_finding("medium", "dead-config", field["node"],
                                  f"Field `{name}` is never read explicitly downstream. Confirm that no node consumes whole items, then drop it or wire it as intended.")
+
+    def check_unused_code_outputs(self) -> None:
+        """Output keys a Code node returns that no later node reads have no observable effect."""
+        for node in self.nodes:
+            kind = short_type(node.get("type", ""))
+            code = (node.get("parameters", {}) or {}).get("jsCode") or (node.get("parameters", {}) or {}).get("functionCode") or ""
+            if kind not in ("code", "function", "functionItem") or not code:
+                continue
+            keys = set()
+            for match in re.finditer(r"(?:json\s*:|return)\s*\{", code):
+                depth, start = 0, match.end() - 1
+                for index in range(start, len(code)):
+                    if code[index] == "{":
+                        depth += 1
+                    elif code[index] == "}":
+                        depth -= 1
+                        if depth == 0:
+                            body = code[start + 1:index]
+                            keys |= {key.group(1) for key in re.finditer(r"(?:^|[,{\n])\s*([A-Za-z_$][\w$]*)\s*:", self.top_level(body))}
+                            break
+            keys -= {"json", "binary", "pairedItem"}
+            if not keys:
+                continue
+            downstream = self.descendants(node.get("name", ""))
+            texts = [expression["expression"] for expression in self.expressions if expression["node"] in downstream]
+            texts += [str((self.by_name.get(other, {}).get("parameters", {}) or {}).get("jsCode", "")) for other in downstream]
+            unused = sorted(key for key in keys if not any(re.search(r"(?:\.|\[\s*['\"])" + re.escape(key) + r"\b", text) for text in texts))
+            if unused and downstream:
+                self.add_finding("info", "unused-output-field", node.get("name", ""),
+                                 f"No later node reads the output field(s) {', '.join(f'`{key}`' for key in unused)}, so they have no observable effect: "
+                                 "mark them dropped, and their timezone or locale dependencies need no decision (check nodes that consume whole items).")
+
+    @staticmethod
+    def top_level(body: str) -> str:
+        """Blank out nested braces and brackets so only top-level object keys remain."""
+        depth, kept = 0, []
+        for character in body:
+            if character in "{[(":
+                depth += 1
+            elif character in "}])":
+                depth -= 1
+                continue
+            kept.append(character if depth == 0 else " ")
+        return "".join(kept)
+
+    def check_overlapping_windows(self) -> None:
+        """A read window longer than the schedule interval covers the same records in consecutive runs."""
+        for schedule in self.schedules:
+            interval_days = {"days": 1, "weeks": 7}.get(schedule.get("field"))
+            if not interval_days:
+                continue
+            downstream = self.descendants(schedule["node"], "main")
+            for expression in self.expressions:
+                if expression["node"] not in downstream:
+                    continue
+                for match in re.finditer(r"minus\(\s*\{\s*(days|weeks)\s*:\s*(\d+)", expression["expression"]):
+                    window = int(match.group(2)) * (7 if match.group(1) == "weeks" else 1)
+                    if window > interval_days:
+                        self.add_finding("medium", "overlapping-window", expression["node"],
+                                         f"`{expression['parameter']}` reads a {window}-day window, but the schedule fires {schedule['description']}, "
+                                         "so consecutive runs cover overlapping records and their effects repeat them. Record that as source behavior.")
 
     def check_literal_sets(self) -> None:
         forward, _ = self.adjacency()
@@ -1600,6 +1678,7 @@ class Inventory:
             lines.append(f"| G{index} | {cell(node_name)} | {DIFFERENCE_PLACEHOLDER} | todo |   |")
         lines += ["", "## Workflow settings and export metadata", "", "| ID | Setting | Value | Status | Notes |", "| --- | --- | --- | --- | --- |"]
         setting_rows = [("n8n release", "(not in the export: ask, and bound it with the release-marker finding)"),
+                        ("expression engine", "(not in the export: N8N_EXPRESSION_ENGINE; its default changed during the 2.x line)"),
                         ("timezone", settings.get("timezone", "(absent: instance default)"))]
         setting_rows += [(key, value) for key, value in settings.items() if key != "timezone"]
         meta = self.workflow.get("meta") or {}
@@ -1688,6 +1767,9 @@ class Inventory:
                     "manualTrigger": "every click starts an execution",
                 }.get(kind, "every delivered event starts its own execution unless the trigger node deduplicates; confirm in the node source")
                 rows.append(("Duplicate or overlapping trigger", node.get("name", ""), detail))
+        if self.workflow.get("active") or (self.workflow.get("triggerCount") or 0) > 0:
+            rows.append(("Cutover", "the source workflow",
+                         "the source is live, so both systems would act on the same events; disable it before the first live Dex effect and drain or cancel waiting executions"))
         if self.expressions:
             rows.append(("Input item lacks a field an expression reads", "expressions X1 onward",
                          "an expression yields undefined, and a method call on the missing value is swallowed, so the value is empty and the node continues; "
@@ -1854,7 +1936,7 @@ def load_workflows(path: Path) -> list:
 
 LEDGER_ID = r"[NEXCSFKBRGD]\d+[a-z]?"
 DIFFERENCE_PLACEHOLDER = "(list each connector-imposed difference from workflow-import section 5, or write none found)"
-BRANCH_PLACEHOLDER = "(list every branch of the operation's connector.yaml at the release tag)"
+BRANCH_PLACEHOLDER = "(list every branch of the operation's connector.yaml at the release tag; optional branches go to this Step's own Outcome Step)"
 UNVERIFIED_NOTE = re.compile(
     r"(?i)\b(from memory|unverified|not (?:yet )?verified|unconfirmed|not (?:yet )?confirmed|assum(?:ed|ing|ptions?)|"
     r"probably|i recall|to be confirmed|needs? (?:source )?verification|confirm (?:in|against|at) (?:the )?(?:n8n )?source)\b"

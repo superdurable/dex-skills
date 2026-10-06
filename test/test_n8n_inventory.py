@@ -585,6 +585,22 @@ class DetectorTest(unittest.TestCase):
         result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)], capture_output=True, text=True)
         self.assertIn("must name the D row", result.stderr)
 
+    def test_unused_outputs_windows_branch_claims_and_cutover(self):
+        export = synthetic_export()
+        export["triggerCount"] = 1
+        export["nodes"][0]["parameters"]["rule"]["interval"] = [{"field": "days", "triggerAtHour": 6}]
+        export["nodes"][5]["parameters"]["url"] = "=https://api.example.test/search?from={{ $now.minus({ days: 7 }).toISODate() }}"
+        export["nodes"][6]["parameters"]["jsCode"] = "return { json: { html: 'x', debugCount: 3, meta: { inner: 1 } } };"
+        _, by_kind, ledger = self.inventory(export)
+        unused = by_kind["unused-output-field"][0]["message"]
+        self.assertIn("`debugCount`", unused)
+        self.assertNotIn("`html`", unused, "Notify reads html")
+        self.assertNotIn("`inner`", unused, "nested keys are not output fields")
+        self.assertIn("7-day window", by_kind["overlapping-window"][0]["message"])
+        self.assertIn("Node name `Nothing`", ledger, "a node on an IF output makes a claim with its name")
+        self.assertRegex(ledger, r"\| B\d+ \| Cutover \|")
+        self.assertIn("| expression engine |", ledger)
+
     def test_rejects_a_file_that_is_not_the_published_catalog(self):
         catalog = self.root / "catalog.yaml"
         catalog.write_text("apiVersion: connectors.dex.dev/v1alpha1\nkind: ConnectorCatalogSource\n")
@@ -695,6 +711,11 @@ class GoldenHarnessTest(unittest.TestCase):
             self.assertEqual(result.returncode, 3, expression)
             self.assertIn("unsupported", json.loads(result.stdout)[0])
         self.assertEqual(json.loads(run("={{ $execution.id }}").stdout), [{"value": "e1"}])
+        url = subprocess.run(["node", str(EXPRESSION_GOLDEN), str(self.export), "Text", "url", str(fixture), "--expression",
+                              "=https://api.example.test/search?q=at#t&from={{ $json.n }}"], capture_output=True, text=True)
+        sent = json.loads(url.stdout)[0]
+        self.assertEqual(sent["sent"], "https://api.example.test/search?q=at", "a # drops every later query parameter")
+        self.assertEqual(sent["droppedFragment"], "#t&from=5")
         native = json.loads(run("={{ $json.n.toLowerCase() }}").stdout)
         self.assertTrue(native[0]["undefined"], "a native method missing on a number is swallowed, not unsupported")
         self.assertEqual(run("={{ $json.s.isEmpty() }}").returncode, 3)

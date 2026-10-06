@@ -129,7 +129,9 @@ rows unless you pass `--force`.
   tags for the node files that list it), and the latest stable release, not a
   prerelease. List tags for every major line, with the trailing dot, such as
   `gh api repos/n8n-io/n8n/git/matching-refs/tags/n8n@2. --paginate`. Read both
-  bounds, and record each behavior that differs between them as a decision. Read each node's implementation at
+  bounds, and record each behavior that differs between them as a decision. Diff each node type's implementation files between the two
+  bound tags: every change in how parameters are read, coerced, or built into
+  the payload is a release row. Read each node's implementation at
   that release's tag in the
   n8n repository (`packages/nodes-base/nodes/<Node>/`,
   `packages/@n8n/nodes-langchain/nodes/`), and engine behavior in
@@ -252,7 +254,9 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   limit; read the operation's retry returns before capping. Compare per-call
   timeouts too: an HTTP Request `options.timeout` or a model node's timeout
   against the operation's `executeMethodTimeout` and retry total duration.
-  Record each choice.
+  For a Mutation the provider does not deduplicate, a method timeout or a lost
+  Worker after the request left is also retried, so the send can repeat:
+  record that as its own row. Record each choice.
 - Constants set for configuration become typed start input or editable scalar
   Attributes of the scheduler Flow, so an operator changes them in Dex Web.
   List or structured configuration, such as recipients, needs a typed Action
@@ -322,7 +326,8 @@ connector-imposed differences section:
   membership can differ once results exceed the page size;
 - proper query encoding, and headers, footers, or metadata that either side
   adds, including headers the source omits that the provider then fills, such
-  as an email From line with the account's display name;
+  as an email From line with the account's display name, and a message body's
+  transfer encoding, line length, and Date header;
 - for a connector gap, provider limits (length, count, format) that derived or
   model-generated values can exceed, as `K` rows naming where the source fails.
 
@@ -383,7 +388,8 @@ operators: keep hand-written predicate expectations, with the
 `filter-parameter.ts` lines they come from, next to the goldens.
 
 - Use synthetic fixtures only, never production records or personal data.
-  Cover normal input, empty collections, null and missing fields, special
+  Cover normal input, empty collections, null and missing fields, null or
+  non-object elements inside collections, special
   characters such as `&`, `<`, quotes, and non-ASCII text, the source's
   configured page size and the provider's maximum, and DST transitions when the
   code reads time. Trigger fixtures follow the source item shape for their
@@ -425,8 +431,11 @@ the decisions table with a recommended choice for each row, and the
 source-to-Dex map of Flows, Steps, and connector capabilities. Check the
 design first: every Step named as a movement, branch, or Execute-failure target
 exists; no two Connector Steps route to the same outcome Step; every
-connector-branch row names its target; and every connector gap is used by a
-design Step. The user decides every divergence before implementation starts:
+connector-branch row names its target; every connector gap is used by a
+design Step; every AnyOf wake source has its own branch in the waiting Step's
+Execute; and every value produced before a Connector Step and read after it
+is carried in an Attribute written before that Step, because a Connector Step
+passes on only its Result. The user decides every divergence before implementation starts:
 `python3 scripts/n8n_inventory.py verify ledger.md --strict` passes only when
 no row is `pending`. Then build through the normal stages.
 

@@ -12,7 +12,10 @@ change between releases without a `typeVersion` change.
   community package), `typeVersion`, `parameters`, and `credentials`. The
   credentials are only a credential type with an ID and a display name, never
   the secret. A reference marked `__aiGatewayManaged` is an n8n-managed
-  credential: nothing about the account carries over. A reference that is a
+  credential: the call goes through n8n's AI gateway on a licensed instance and
+  is billed to gateway credits, so nothing about the account carries over, and
+  the Dex call to the provider with the user's own key changes the endpoint
+  and billing. A reference that is a
   plain string or has a null `id` is the legacy name-only form, which n8n
   resolves to the user's own credential of that type by display name.
 - `position` has no behavior, except that execution order `v1` runs fan-out
@@ -119,6 +122,9 @@ n8n 1.96; earlier tags use PascalCase names):
 
 ## Execution order and failure
 
+- The editor already refuses to activate or publish a workflow whose nodes
+  show issues; only the public API or CLI could activate one. Ask how the
+  workflow was activated before recording a path that answers and then fails.
 - Before the first node runs, n8n checks every enabled node reachable from the
   starting trigger over `main` connections for parameter issues, or an unknown
   node type. Parameter issues are: a required parameter displayed at the node's
@@ -126,8 +132,10 @@ n8n 1.96; earlier tags use PascalCase names):
   date-time, and resource-locator types (an empty required number, JSON,
   boolean, or collection does not block); a displayed resource-locator value
   that fails its mode's validation; missing or mistyped resource-mapper fields;
-  a value that fails the property's `validateType`; and a fixed collection
-  outside its minimum or maximum entry count. An expression counts as filled
+  a value that fails the property's `validateType`; an IF, Filter, or Switch
+  condition whose literal (non-expression) value fails its type under strict
+  validation; and a fixed collection outside its minimum or maximum entry
+  count. An expression counts as filled
   and skips validation. If any node has an issue, the whole execution fails
   before any node runs, in every execution mode. Credentials are not part of
   this check. So an export with such an issue downstream of a trigger has no
@@ -166,8 +174,9 @@ n8n 1.96; earlier tags use PascalCase names):
 
 - Expressions are JavaScript with Luxon. `$now`, and `$today` (the start of
   the day), use the workflow timezone and are evaluated separately in each
-  node, so a Dex port decides which single instant replaces them, such as the
-  occurrence time, and records it. Other globals include `DateTime`, `$json`,
+  node, so replacing them with one instant, such as the occurrence time, is a
+  `pending` row with a decision, unless that instant always equals the node's
+  run time at the precision used. Define the instant for manual and late runs. Other globals include `DateTime`, `$json`,
   `$input`, `$('Name')`, `$vars`, `$env`, `$execution`, `$workflow`,
   `$itemIndex`, and `$runIndex`. `$vars` and `$env` values are not in the
   export.
@@ -191,11 +200,13 @@ n8n 1.96; earlier tags use PascalCase names):
   its offset. Luxon macro formats such as `toFormat('DDD')` and
   `toLocaleString()` depend on the instance locale.
 - Luxon maps to Go as follows. `toFormat('yyyy-MM-dd')` is
-  `Format("2006-01-02")`. `plus` and `minus` with `days` are `AddDate` on a time
-  in the same `*time.Location`. `startOf('day')` is `time.Date` at midnight in
-  that location, except where DST skips midnight: Luxon moves forward to the
-  first valid time, while Go's `time.Date` can land on the previous day, so
-  golden the zone's transition days.
+  `Format("2006-01-02")`. Calendar arithmetic (`plus` and `minus` with days,
+  weeks, or months), `set` of an hour, and `startOf('day')` keep the wall clock
+  in the same `*time.Location`, so they map to `AddDate` and `time.Date`, except
+  where the result falls in a DST gap: Luxon moves forward by the gap, while
+  Go can normalize backward and change the date. Port through one helper that
+  shifts forward, and golden the day before, the day of, and arithmetic that
+  lands inside each transition of the source zone.
 - IF and Filter from version 2, and Switch from version 3: null and undefined
   pass strict type validation. String operators compare `leftValue ?? ''`, and `exists` and
   `notExists` test null, undefined, and NaN. Only a present value of the wrong
@@ -242,18 +253,26 @@ n8n 1.96; earlier tags use PascalCase names):
 | Split Out, Aggregate, Sort, Limit, Remove Duplicates, Date & Time | Pure Go transforms. Deduplication across executions needs durable state. |
 | Code, Function, Function Item | A pure Go function in an application Step, with golden parity tests. |
 | HTTP Request | The dedicated connector operation for that provider. A call to an organization-controlled internal service follows the [internal connector library decision](connector-architecture.md#internal-connector-library-decision); check the catalog before planning a generic HTTP connector, which the current release does not include. |
-| Wait (`resume` timeInterval) | An application Step whose WaitFor returns `dex.Until(dex.Timer(amount × unit))`, measured from when that Step starts, as n8n measures from when the Wait node runs; its Execute builds the next Step's input. A Connector Step cannot wait. Never compute or persist a deadline in WaitFor. |
+| Wait (`resume` timeInterval) | An application Step whose WaitFor returns `dex.Until(dex.Timer(amount × unit))`, measured from when that Step starts, as n8n measures from when the Wait node runs; its Execute builds the next Step's input. A Connector Step cannot wait. Never compute or persist a deadline in WaitFor. n8n resumes an overdue wait whenever the instance comes back, however late, so give the waiting Step an explicit Execute retry total duration that covers the longest tolerated Worker outage, or an Execute-failure route that records the outcome. |
 | Wait (`resume` specificTime) | An earlier application Step's Execute computes the instant from typed input in the workflow timezone; the waiting Step's Timer covers the remaining duration. |
 | Wait (`resume` webhook or form) | A Channel or typed RPC resume. Without `limitWaitTime` (off by default), n8n waits forever. |
 | Wait used as a delay before reading a submitted job's result | The Dex [Polling pattern](../../dex-sdk/references/core/patterns.md#polling): after the start Step, one long-running Step's Execute owns the whole wait, bounded only by its Execute method timeout and retry total duration, never by a Timer loop. A Connector Step makes one provider call per execution, so without a released operation that waits for the job to finish the row is `blocked` on a connector gap. |
 | Execute Workflow | Steps in the same Flow, or an independent top-level Flow under the Core boundary rules. Never a SubFlow by default. |
 | No Operation, Sticky Note | No behavior. Mark it `dropped` and check what a note claims. |
 | App node, such as Gmail, Google Calendar, or Slack | The released connector operation for the node's resource and operation. |
-| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation selects `invalidResponse`, where n8n forwards empty text; `generateText` joins the text parts of an answer with no separator, and a `truncated` answer still carries the text LangChain would forward, so route it as the source did. Use a provider connector, such as a native Gemini one, only for a provider-native feature. n8n's output parser checks the answer after generation and fails the node on a mismatch, while `llm` structured output is enforced by the provider, so a schema-mismatch failure path in the source is a `diverged` row. Record every exit path of a tools agent at the release, including the max-iterations stop, whose fixed text skips the output parser. Model sub-nodes can retry inside the model client and set their own timeout: read the node's options and the LangChain library at the version n8n pins. |
+| LangChain agent, chain, or model | The `llm` connector `generateText` Query or a durable Dex agent; each tool becomes a Step. An agent without tools is one generation: its system message maps to instructions and its `output` to the generated text; an output parser adds a formatting tool, so read the agent at the release. `generateText` takes text messages only, so image input needs a provider connector operation that accepts images. An empty finished generation, or one whose finish reason the connector's wire format does not map, selects `invalidResponse`, where n8n forwards the text; `generateText` joins the text parts of an answer with no separator, and a `truncated` answer still carries the text LangChain would forward, so route it as the source did. Use a provider connector, such as a native Gemini one, only for a provider-native feature. n8n's output parser checks the answer after generation and fails the node on a mismatch, while `llm` structured output is enforced by the provider, so a schema-mismatch failure path in the source is a `diverged` row. Record every exit path of a tools agent at the release, including the max-iterations stop, whose fixed text skips the output parser. Model sub-nodes can retry inside the model client and set their own timeout: read the node's options and the LangChain library at the version n8n pins. |
 
-When the source waits for hours or days, choose a versioning strategy from the
-Dex SDK [versioning guide](../../dex-sdk/references/core/versioning.md) before
-the first deploy, since Flows will be open across deploys.
+When the source waits for hours or days, or the port adds a long-lived Flow
+such as a scheduler, choose a versioning strategy from the Dex SDK
+[versioning guide](../../dex-sdk/references/core/versioning.md) before the
+first deploy, since Flows will be open across deploys: keep Step, RPC,
+Attribute, and Channel names and payloads additive, and treat the run Flow's
+start input as a contract the open scheduler writes.
+
+A source trigger's admission rules, such as a chat or user allow-list or the
+subscribed event types, map to the connector Trigger's `TriggerFilter`, which
+consumes a rejected event without starting a Flow. A check in the start Step
+instead creates failed Flows, which is a `diverged` row.
 
 ## Schedule rules
 
@@ -290,12 +309,21 @@ the first deploy, since Flows will be open across deploys.
   as one per calendar, from deduplicating each other's runs. Start with
   `IDReuseDisallow` and ignore-already-started, so a retried start lands on the
   same run.
-- A manual "Execute workflow" maps to a run-now Action or Start Flow with its
-  own identity, such as `<scheduler-flow-id>-run-manual-<request ID>`, so it
-  never attaches to a closed occurrence run. Record it as an added capability.
+- A manual "Execute workflow" maps to a run-now Action with its own identity,
+  such as `<scheduler-flow-id>-run-manual-<request ID>`, so it never attaches
+  to a closed occurrence run. Record it as an added capability. The Action
+  publishes a typed request carrying that request ID to a Channel in the
+  waiting Step's AnyOf, and the waiting Step's Execute reads which condition
+  fired: a Timer starts the occurrence run, a reschedule recomputes and
+  re-arms, and a run-now request starts the manual run and leaves the pending
+  occurrence untouched. RPC and Action handlers validate, write Attributes,
+  and publish; they never start a Flow. Record whether repeated requests
+  coalesce while one is queued.
 - Decide what happens to an occurrence the Worker reaches late, such as after
-  downtime. n8n's default scheduler never runs a missed occurrence, so skip one
-  that is more than a bounded lateness old. The opt-in durable scheduler (from
+  downtime. n8n's default scheduler never runs an occurrence missed while the
+  instance was down, but a running process whose timer fires late, such as
+  after a host suspend, still runs it; skip one that is more than a bounded
+  lateness old and record both cases. The opt-in durable scheduler (from
   n8n 2.34) takes over only when `N8N_SCHEDULER_ENABLED` and
   `N8N_USE_WORKFLOW_PUBLICATION_SERVICE` are both on, and can run the latest
   missed occurrence: on 2.34 and 2.35 it always does, and from Schedule Trigger
@@ -335,7 +363,7 @@ the first deploy, since Flows will be open across deploys.
 | Send-and-wait operations | They append an n8n attribution by default; check the release and the node. |
 | Telegram Trigger | It accepts updates from anyone. Chat and user restrictions exist from 1.2; 1.1 shows them but ignores them. |
 | Google Calendar event `getAll` | Without `returnAll`, it returns one page of `limit` events (default 50). The order is unspecified unless `options.orderBy` is set. |
-| HTTP Request | At every version, every item's request starts at once and all are awaited together; batching options only space the starts. A non-2xx response fails the node after every request settles, unless `neverError` is on. From 3, without `options.timeout`, the timeout is 300,000 ms. Values concatenated into `url` are not form-encoded: spaces become `%20`, but `&`, `#`, and `+` in a value change the query. |
+| HTTP Request | At every version, every item's request starts at once and all are awaited together; batching options only space the starts. n8n hands the rendered URL to its HTTP client, which parses it as a URL: a `#` starts a fragment that is never sent, dropping every later query parameter, tab, CR, and LF are deleted, and unsafe characters are percent-encoded; the expression harness prints the URL actually sent. Check the redirect options at the version, since the defaults for following redirects changed. A non-2xx response fails the node after every request settles, unless `neverError` is on. From 3, without `options.timeout`, the timeout is 300,000 ms. Values concatenated into `url` are not form-encoded: spaces become `%20`, but `&`, `#`, and `+` in a value change the query. |
 | Webhook | `httpMethod` defaults to GET, `authentication` to none, and `responseMode` to `onReceived`, which answers 200 `{"message":"Workflow was started"}`. A JSON body is parsed into `body`; urlencoded and multipart fields land in `body` as strings, multipart files in `binary`; from 1.1 an unparsed body becomes a binary file. |
 | Wait | At 1, `amount` defaults to 1 and `unit` to hours; from 1.1, to 5 and seconds. A day is exactly 86,400 seconds, not a calendar day. |
 | IF, Filter, Switch | IF and Filter from 2, and Switch from 3: strict type validation, case sensitivity, and the AND/OR combinator come from `conditions.options` and `combinator`; see [parameter expressions](#parameter-expressions) for null handling. |

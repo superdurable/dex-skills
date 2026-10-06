@@ -190,6 +190,18 @@ function evaluate(source, index, item) {
   }
 }
 
+// n8n hands a rendered URL to its HTTP client, which parses it as a WHATWG URL: a `#` starts a fragment
+// that is never sent, tab, CR, and LF are deleted, and unsafe characters are percent-encoded.
+function sentUrl(text) {
+  try {
+    const url = new URL(text);
+    const sent = { sent: url.origin + url.pathname + url.search };
+    return url.hash ? { ...sent, droppedFragment: url.hash } : sent;
+  } catch {
+    return { sent: null, note: "not a valid URL" };
+  }
+}
+
 let isUnsupported = false;
 const results = items.map((item, index) => {
   try {
@@ -222,6 +234,7 @@ const results = items.map((item, index) => {
       position = segment.index + segment[0].length;
     }
     const entry = { value: rendered + template.slice(position) };
+    if (/(^|[.\]])url$/i.test(parameterPath)) Object.assign(entry, sentUrl(entry.value));
     return swallowedErrors.length ? { ...entry, swallowedErrors } : entry;
   } catch (error) {
     return { error: String(error?.message ?? error) };
