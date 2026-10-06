@@ -44,12 +44,13 @@ func (step subFlows) WaitFor(_ dex.Context, requests []string) (*dex.Wait, error
 
 ## Polling
 
-Apply the Core [Polling pattern](../core/patterns.md#polling) to every wait on an external system: one long-running Step's `Execute` loops until a terminal status or the business deadline. Follow the [design pattern](https://docs.superdurable.io/design-patterns/polling); the pinned baseline has no runnable example of it yet.
+Apply the Core [Polling pattern](../core/patterns.md#polling) to every wait on an external system: one long-running Step's `Execute` loops until a terminal status, and its StepOptions alone bound the wait. Follow the [design pattern](https://docs.superdurable.io/design-patterns/polling); the pinned baseline has no runnable example of it yet.
 
-- **Round:** call the provider through `context.WithTimeout(ctx, 10*time.Second)`. Return a transient error wrapped with `dex.ErrorWithStack`; “not ready” stays in the loop. Return the next decision on a terminal status, or a failure decision once `ctx.FirstAttemptAt()` plus the budget has passed.
-- **Progress:** write a Stream frame when the status changes, otherwise call `ctx.RecordHeartbeat(checkpoint)`; then `time.Sleep(interval)`. Do not `select` on `ctx.Done()`. A new attempt resumes with `ctx.GetLastHeartbeatValue(&checkpoint)`.
-- **StepOptions:** `ExecuteDurability: dex.StepDurabilitySync` under an ASYNC Flow default; `ExecuteMethodTimeout` is the maximum wait plus a margin; keep `HeartbeatTimeout` at one minute with `interval + call timeout <= HeartbeatTimeout - 10s`; `ExecuteRetry` allows a few attempts with `TotalDuration` at least the maximum wait.
-- **Forbidden:** a WaitFor Timer plus `GoTo` loop, `RetryAfter` or retry policy as the loop, and `GoTo` the same Step with a page token.
+- **Round:** call the provider through `context.WithTimeout(ctx, 10*time.Second)`. Return a transient error wrapped with `dex.ErrorWithStack`; “not ready” stays in the loop. Return the next decision on a terminal status, including a business-failure decision when the provider reports a definite failure. Never compute a deadline in the loop.
+- **Progress:** write a Stream frame when the status changes, otherwise call `ctx.RecordHeartbeat(checkpoint)`; then `time.Sleep(interval)`. Do not `select` on `ctx.Done()`. A new attempt resumes with `ctx.GetLastHeartbeatValue(&checkpoint)`; the checkpoint holds resume state such as the last reported status, never a deadline.
+- **StepOptions:** `ExecuteMethodTimeout` is the maximum wait; `ExecuteRetry` allows a few attempts with `TotalDuration` equal to the maximum wait (all attempts, measured from the first); keep `HeartbeatTimeout` at one minute with `interval + call timeout <= HeartbeatTimeout - 10s`; `ExecuteDurability: dex.StepDurabilitySync` under an ASYNC Flow default.
+- **Expiry:** set `ExecuteFailure: dex.ProceedToOnExecuteFailure(recordFailureStep, nil)`. The recovery Step reads `ctx.RecoveryError()` (`Detail`, `ErrorType`) and records the business failure; without `ExecuteFailure` the Flow fails.
+- **Forbidden:** a WaitFor Timer plus `GoTo` loop, `RetryAfter` or retry policy as the loop, a hand-written deadline that duplicates `ExecuteMethodTimeout` or `TotalDuration`, and `GoTo` the same Step with a page token.
 
 ## Durable Timer
 

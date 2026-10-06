@@ -50,21 +50,22 @@ One long-running Step's Execute owns the whole wait. Each round:
 
 1. Call the external API with its own short timeout, such as 10 seconds.
 2. On a transient error, return the error so the Execute retry policy re-runs the Step.
-3. On a terminal status, return the next decision: success or a business-failure decision.
-4. When the business deadline has passed, return a failure decision. Compute it from the handler's first-attempt time plus the budget, or receive it as Step input when the SDK exposes no first-attempt time, so it is stable across attempts.
-5. Report progress: write a Stream frame when the observed status changes (each write is an implicit heartbeat); otherwise record a heartbeat with the resume checkpoint.
-6. Sleep for the interval with the language's plain sleep, then repeat.
+3. On a terminal status, return the next decision: success, or a business-failure decision for a definite business failure such as a job the provider reports as failed.
+4. Report progress: write a Stream frame when the observed status changes (each write is an implicit heartbeat); otherwise record a heartbeat with the resume checkpoint.
+5. Sleep for the interval with the language's plain sleep, then repeat.
 
 “Not ready yet” is a normal loop branch, never an error. Keep `interval + call timeout <= HeartbeatTimeout - 10s`; with the one-minute default and a 10-second call timeout, the interval is at most 40 seconds. Use a few seconds when a user is watching something they just started and tens of seconds for long jobs such as builds. Do not add cancellation-select machinery around the sleep: the call has its own timeout, and after a cancelled attempt the next call fails fast.
 
-Configure the polling Step's Execute:
+Every wait limit comes from the polling Step's Execute options, and the engine enforces each one. The Step code never computes a deadline:
 
-- **Durability**: override Execute to SYNC when the Flow default is ASYNC; the ASYNC local phase ignores heartbeat and method timeouts.
-- **Method timeout**: the maximum wait plus a margin. The server default is two hours and the server has no hard cap.
+- **Method timeout**: the maximum wait. It bounds one attempt; an omitted value uses the two-hour server default.
+- **Retry**: a few attempts with backoff for Worker crashes and transient errors, with a total duration equal to the maximum wait. The total duration is measured from the first attempt's schedule, includes every retry, and also cuts the in-flight attempt. An omitted total duration uses the four-hour server default, so always set it.
 - **Heartbeat timeout**: keep the one-minute default, so a stalled Worker is detected within a minute rather than after the whole attempt timeout.
-- **Retry**: a few attempts with backoff for Worker crashes and transient errors, with a total duration of at least the maximum wait.
+- **Durability**: override Execute to SYNC when the Flow default is ASYNC; the ASYNC local phase ignores heartbeat and method timeouts.
 
-A new attempt resumes from the last heartbeat checkpoint. Stream progress is best effort; consumers recover from durable Attributes or a snapshot RPC. Write frames only on status changes so the shared Stream budget is not flooded. Do not hold Execute lock Attributes for the whole wait; commit results that need a lock in a short following Step.
+When the method timeout or the total duration expires, the engine fails the Step with a timeout. Route Execute failure to a failure-record Step that reads the recovery error (detail and error type) and records the business failure; without an Execute-failure route the Flow fails. The last observed status is visible in the progress Stream and logs, not in the recovery error.
+
+The heartbeat checkpoint is only resume state, such as the last reported status so a new attempt does not repeat a progress frame; it never carries a deadline. A business condition that is not a fixed duration, such as stopping when a lease the Flow does not own expires, is still checked inside the loop; it is a business rule, not a polling timeout. Stream progress is best effort; consumers recover from durable Attributes or a snapshot RPC. Write frames only on status changes so the shared Stream budget is not flooded. Do not hold Execute lock Attributes for the whole wait; commit results that need a lock in a short following Step.
 
 Never:
 
@@ -72,6 +73,7 @@ Never:
 - Use retry policy, backoff, or RetryAfter as the polling loop by returning “not ready” as an error.
 - Run a long loop that never heartbeats or writes progress.
 - Call an external system without its own timeout.
+- Hand-write a deadline that duplicates the method timeout or the retry total duration, whether in the loop, the heartbeat checkpoint, or the Step input.
 - Pass a page token to the Step's next execution to iterate; the Iteration pattern is removed.
 
 ## Durable timers
