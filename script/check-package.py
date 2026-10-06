@@ -22,7 +22,6 @@ BASELINE_FILES = (
     "DEX_BASELINE",
     "DEX_SERVER_BASELINE",
     "DEX_CLI_BASELINE",
-    "TEMPLATE_BASELINE",
 )
 VERSION_CHECK_SCRIPT = ROOT / "hooks" / "version-check.mjs"
 HOOK_CONFIGS = {
@@ -96,6 +95,8 @@ SOURCE_MARKER = re.compile(r"<!-- dex-source: ([^\s]+) -->")
 FLOATING_SOURCE_LINK = re.compile(
     r"https://github\.com/superdurable/dex/(?:blob|tree)/main/"
 )
+# Dex Skills documents open-source Dex only; reject a downstream product name.
+DOWNSTREAM_PRODUCT_NAME = re.compile(r"super[\s_-]*verse", re.IGNORECASE)
 
 
 def fail(message: str) -> None:
@@ -312,7 +313,7 @@ def check_app_builder() -> None:
     guidance = content + "\n" + "\n".join(path.read_text() for path in references)
     for text in (
         "../dex-sdk/SKILL.md", "../dex-connector-contributor/SKILL.md",
-        "writable workspace", "strict FDG 2.0", "TEMPLATE_BASELINE",
+        "writable workspace", "strict FDG 2.0", "dexcli dev",
         "generated operation factory", "management UI capability mapping",
         "Summary RPC", "Display RPC", "Action RPC", "trusted server boundary",
         "public external product", "https://superdurable.github.io/dex-connectors-library/catalog.yaml",
@@ -321,16 +322,20 @@ def check_app_builder() -> None:
         "data-lifecycle and execution-shape boundary matrices",
         "Use Dex Flow state as the default durable application store",
         "Do not add an external database, cache, ORM, outbox, or shadow read model",
-        "projectconfig.LoadFromEnvironment", "DEX_PROJECT_*",
+        "`projectconfig` package", "## Version pairing",
+        "go get github.com/superdurable/dex/sdk-go@",
         "Only after the real Dex and Connector end-to-end journey passes",
         "Do not create an application-level mock server",
         "Mock evidence never replaces real Dex durability",
         "Default application authoring produces source without integration/browser test",
-        "Project release and hosted deployment handoff", "Live Publishing is project-scoped",
-        "accepted revision, object version and", "Shared environment credentials",
+        "## Local verification with dexcli dev", "## Package Flow definitions",
+        "`active-manifest`", "## Deployment, only when requested",
+        "`trusted-header` mode behind an authenticated reverse proxy",
     ):
         if text not in guidance:
             fail(f"Dex App Builder guidance must preserve: {text}")
+    if "TEMPLATE_BASELINE" in guidance:
+        fail("Dex App Builder guidance must not depend on an application template baseline")
     for name in ("workspace-bootstrap", "business-contract", "application-surface",
                  "backend-implementation", "verification-handoff"):
         if f"references/{name}.md" not in content:
@@ -349,11 +354,11 @@ def check_app_builder() -> None:
         "application state",
         "Use no images",
         "custom icons, animation, branding",
-        "npm --prefix web run dev",
-        "make generate",
+        "frontend development server",
+        "generate the Go server interfaces and TypeScript client",
         "application's business boundary",
         "generated TypeScript client calls",
-        "ignored local build artifacts",
+        "hand-edit generated code",
         "real-dependency test policy",
         "Do not add component mocks",
         "application-level mock API",
@@ -380,20 +385,17 @@ def check_app_builder() -> None:
     build_handoff = (references_dir / "build-test-handoff.md").read_text()
     for text in (
         "low-fidelity static",
-        "ignored local build outputs",
-        "Never stage",
-        "make generate",
-        "make check-fdg-v2",
-        "checkStatic",
-        "make build",
-        "production backend and frontend",
+        "never hand-edit generated Go or TypeScript clients",
+        "never stage, commit, or include it in a pull request",
+        "renders and validates every strict",
+        "Keep it as one project command",
+        "production backend and any frontend",
         "A source handoff and real business acceptance are separate milestones",
         "Generate application tests only when the user explicitly requests them",
         "Missing configuration does not make otherwise complete source blocked",
         "real-dependency policy",
         "no unit tests",
         "intercepted API responses",
-        "neither generated directory is",
         "Run real Dex and Connector",
         "before visual polish",
         "generated server interfaces",
@@ -401,12 +403,8 @@ def check_app_builder() -> None:
         "Remove an unneeded dependency when Dex meets the requirement",
         "approved discovery artifact must name the Dex Web v2 capability gap",
         "management UI capability mapping was completed before the UI-mode",
-        "`make superverse-release-artifacts` emits a valid FDG 2.0 bundle",
-        "eligible main-branch commit regardless of author",
-        "builds the whole",
-        "hosted deployment pins a READY connector configuration revision",
+        "renders to a `valid: true` FDG 2.0 definition",
         "known token expiry, concurrent calls, credential rotation",
-        "`DEX_PROJECT_*` scope, canonical key, exact version/digest",
     ):
         if text not in build_handoff:
             fail(f"build and handoff must contain: {text}")
@@ -425,12 +423,10 @@ def check_app_builder() -> None:
         "## Internal connector library decision",
         "Do not infer access to a private repository",
         "uncommitted `go.work` or temporary Go",
-        "## Hosted configuration and credential boundary",
-        "`projectconfig.LoadFromEnvironment`",
-        "`DEX_PROJECT_CONFIG_VERSION`",
-        "`DEX_PROJECT_CONFIG_DIGEST`",
+        "## Deployed configuration and credential boundary",
+        "plaintext development store",
         "Business code neither reads credential objects",
-        "existing deployments continue",
+        "exact, digest-pinned snapshot",
     ):
         if text not in connector_architecture:
             fail(f"connector architecture must contain: {text}")
@@ -494,8 +490,8 @@ def check_app_builder() -> None:
         "### QR capture hint",
         "capture:qr-code",
         "without submitting the Action",
-        "Superverse remains responsible for identity",
-        "Native project mode uses the same release-owned authorization and field UI",
+        "The embedding host remains responsible for",
+        "Project Connector mode in a deployed Dex Server uses the same release-owned",
         "browser parameters cannot override it",
         "Dex owns conditional, versioned native storage and OAuth dispatch",
         "`X-CSRF-Token` matching one nonempty trusted `X-Dex-Web-CSRF-Token`",
@@ -884,40 +880,40 @@ def check_agent_rules() -> None:
         fail("Cursor rule must contain the same repository instructions")
     normalized_agents = " ".join(agents.split())
     for required in (
-        "The template and this plugin publish independently",
-        "`TEMPLATE_BASELINE`",
-        "scheduled template baseline workflow",
-        "Superverse must advance its exact template and skill pins together",
-        "never add a skill submodule or a floating branch reference",
+        "contains no information about any product built on Dex",
+        "Never add a skill submodule or a floating branch reference",
     ):
         if required not in normalized_agents:
-            fail(f"release agent rules must contain: {required}")
+            fail(f"repository agent rules must contain: {required}")
+    for removed in ("TEMPLATE_BASELINE", "template baseline workflow"):
+        if removed in normalized_agents:
+            fail(f"repository agent rules must not restore: {removed}")
     pull_request_template = (ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md").read_text()
     if "Dex-AI-Platform-PR:" in pull_request_template:
         fail("pull request template must not require a paired repository")
     if "quick_validate.py" not in pull_request_template:
         fail("pull request template must require skill validation")
 
-    updater = (ROOT / "script" / "update-template-baseline.py").read_text()
-    for required in (
-        "minimumSandboxImageContractRevision",
-        '"dexSkill" in manifest',
-        "update_versioned_manifests",
-        "TEMPLATE_BASELINE",
+    for removed in (
+        ROOT / "TEMPLATE_BASELINE",
+        ROOT / "script" / "update-template-baseline.py",
+        ROOT / ".github" / "workflows" / "update-template-baseline.yml",
     ):
-        if required not in updater:
-            fail(f"template baseline updater must contain: {required}")
-    workflow = (ROOT / ".github" / "workflows" / "update-template-baseline.yml").read_text()
-    for required in (
-        "schedule:",
-        "workflow_dispatch:",
-        "automation/update-template-baseline",
-        "script/update-template-baseline.py",
-        "gh pr create",
-        "gh workflow run validate.yml",
-    ):
-        if required not in workflow:
-            fail(f"template baseline workflow must contain: {required}")
+        if removed.exists():
+            fail(f"application template baseline mechanism must not return: {removed.relative_to(ROOT)}")
+
+
+def check_open_source_boundary() -> None:
+    for relative_path in git_output("ls-files").splitlines():
+        path = ROOT / relative_path
+        if not path.is_file():
+            continue
+        try:
+            content = path.read_text()
+        except UnicodeDecodeError:
+            continue
+        if DOWNSTREAM_PRODUCT_NAME.search(content):
+            fail(f"{relative_path} must not describe a product built on Dex")
 
 
 def git_output(*arguments: str) -> str:
@@ -963,13 +959,11 @@ def main() -> None:
     cli_baseline = (ROOT / "DEX_CLI_BASELINE").read_text().strip()
     if PUBLISHED_CLI_RELEASE_TAG.fullmatch(cli_baseline) is None:
         fail("DEX_CLI_BASELINE must contain a published Dex CLI release tag")
-    template_baseline = (ROOT / "TEMPLATE_BASELINE").read_text().strip()
-    if PUBLISHED_RELEASE_TAG.fullmatch(template_baseline) is None:
-        fail("TEMPLATE_BASELINE must contain a published template release tag")
     check_skills(baseline)
     check_standalone_bundle(current_version)
     check_manifests(current_version)
     check_agent_rules()
+    check_open_source_boundary()
     if arguments.base_ref:
         check_release_change(arguments.base_ref, current_version)
     print(f"validated superdurable-dex {current_version} with three root skills")

@@ -9,7 +9,7 @@ publisher, while the stable plugin ID remains `superdurable-dex`.
 
 | Skill | Responsibility |
 | --- | --- |
-| `dex-app-builder` | Discover, prototype, implement, and locally verify an end-to-end Dex AI Platform product with a Go backend. |
+| `dex-app-builder` | Discover the business process, model Flows and FDG, implement a Go backend and UI, and verify locally with open-source Dex. |
 | `dex-sdk` | Implement, debug, test, and operate Dex applications in Python, Go, Java, TypeScript, or Rust. |
 | `dex-connector-contributor` | Create, verify, and upstream official connector operations, Triggers, and configuration UI units. |
 
@@ -286,108 +286,72 @@ The project dependency and lockfile remain authoritative when versions differ.
 
 ## Dex App Builder
 
-`dex-app-builder` starts with business discovery: process maintainers, managers,
-terminal users, permissions, triggers, actions, waits, approvals, recovery, and
-audit requirements. It maps management needs to Dex Web v2 before confirming
-**No custom UI** or **Custom UI**. Runs and Indexed Attributes cover list and
-search, Summary RPCs provide list fields, Display RPCs provide details and
-editable scalars, Action RPC metadata provides forms and permission-gated
+`dex-app-builder` builds a Dex application with open-source Dex only: the Dex
+Go SDK, `dexcli` (including `dexcli dev` and the FDG analyzer), Dex Server,
+the Dex Web embedded in Server and CLI, and released official connectors.
+
+It starts with business discovery: process maintainers, managers, terminal
+users, permissions, triggers, actions, waits, approvals, recovery, and audit
+requirements. It models Flows, their primitives, and their Flow Definition
+Graph (FDG) before code, and maps management needs to Dex Web v2 before
+confirming **No custom UI** or **Custom UI**. Runs and Indexed Attributes cover
+list and search, Summary RPCs provide list fields, Display RPCs provide details
+and editable scalars, Action RPC metadata provides forms and permission-gated
 operations, Work Queue discovers actionable Runs, and timeline/graph views show
-progress and failures. A request for an admin backend is not itself a reason for
-Custom UI; discovery must record a specific Dex Web v2 capability gap.
+progress and failures. A request for an admin backend is not itself a reason
+for Custom UI; discovery must record a specific Dex Web v2 capability gap.
 
-When the target repository is empty or contains only placeholders such as a
-README, App Builder first initializes it from the pinned
-`superdurable/dex-template-basic-process` release. It preserves the repository's
-Git history and intentional files, then uses the template's `make bootstrap`
-path. That release's Go module, npm lockfile, Server/CLI baselines, generators,
-directory layout, and Make targets are the default technology stack. App Builder
-does not independently select a newer Dex Go SDK, invent a TypeScript backend,
-create an ad hoc npm scaffold, or borrow SDK setup from a neighboring project.
+The backend is Go-only and must satisfy strict Dex Web v2 / FDG 2.0 rendering.
+An existing application keeps its pinned Go, Dex SDK, `dexcli`, and frontend
+versions. An effectively empty repository becomes a Go module on an exact
+released Dex Go SDK paired with the installed `dexcli`. App Builder does not
+invent a TypeScript backend or borrow SDK setup from a neighboring project.
+The `DEX_BASELINE`, `DEX_SERVER_BASELINE`, and `DEX_CLI_BASELINE` files record
+the releases the guidance was checked against; they do not authorize upgrading
+an application.
 
-No custom UI uses Dex Web v2 for every management interaction. The application
-keeps only a non-business Hello World page, one `GetApplicationInfo` OpenAPI
-operation, and the Go/OpenAPI/React generation skeleton for future evolution.
-It removes approval, display, status, list, detail, Action-proxy, mock-lifecycle,
-and other process-management surfaces. A confirmed trigger webhook may remain
-as integration ingress.
+No custom UI uses Dex Web v2 for every management interaction, so the
+application ships only its Go Worker plus any confirmed integration ingress.
+For a custom frontend, App Builder first builds only low-fidelity static pages
+when an interaction choice is unresolved, then designs the Flow, Connector
+boundaries, and application API contract together, generates the Go server
+interfaces and TypeScript client, implements the Go backend, wires the UI
+through the generated client after the real Dex and Connector paths run, and
+adds visual polish only after real E2E passes. The application does not ship a
+mock backend or mock controls.
 
-For a custom frontend, first build only low-fidelity static React pages with
-placeholder regions, inputs, buttons, and ordinary navigation links. Run the
-Vite frontend without a mock API, give the user direct links to every page, and
-confirm only the page inventory, fields, actions, and navigation. Do not add
-state, API calls, images, animation, branding, or visual polish at this stage.
-
-After that confirmation, design the Flow, Connector boundaries, and application
-OpenAPI contract together. Generate the Go server interfaces and TypeScript
-client locally before implementing the Go backend; generated directories are
-ignored build outputs and never enter commits or pull requests. Wire the static
-pages through the generated client only after the real Dex and Connector paths
-run, then complete real E2E. Component tests may mock that client, and a
-browser-only edge case may use test-local Playwright request interception, but
-the application does not ship a second mock backend or Mock Controls. Add
-imagery and visual polish only after real E2E passes, then rerun component
-tests, real E2E, and the production build.
-
-Backend implementation is Go-only, starts from
-`superdurable/dex-template-basic-process`, and must satisfy strict Dex Web v2 /
-FDG 2.0 rendering. The default stack is the exact release recorded in
-`TEMPLATE_BASELINE`, with the Dex Go SDK, Dex Server, Dex CLI, Go/Node
-dependencies, and commands pinned by that release. The independent
-`DEX_BASELINE`, `DEX_SERVER_BASELINE`, and `DEX_CLI_BASELINE` files validate the
-skill's reference guidance; they do not authorize upgrading a generated
-application. Dex Web v2 is embedded in the template-pinned Server and CLI
-artifacts. The current Connector SDK supports application integration only from
-the Go backend; TypeScript remains optional frontend code. Connector
-integrations reuse released
-dedicated connectors from `superdurable/dex-connectors-library`. Generic HTTP
-is reserved for controlled internal systems; a missing or defective
-external-provider connector routes to `dex-connector-contributor` and blocks
-production handoff until released.
-
-Connector selection starts from the canonical published
-[`catalog.yaml`](https://superdurable.github.io/dex-connectors-library/catalog.yaml),
+Connector integrations reuse released dedicated connectors from
+`superdurable/dex-connectors-library`. Selection starts from the canonical
+published [`catalog.yaml`](https://superdurable.github.io/dex-connectors-library/catalog.yaml),
 then verifies every exact Trigger, Query, Mutation, or UI capability against the
 selected component tag's immutable `connector.yaml`. If the catalog or release
 manifest cannot be verified, App Builder stops connector-dependent
 implementation instead of guessing from memory or falling back to a provider
-SDK.
+SDK. Query/Mutation factories become Connector Steps, Triggers start typed
+Flows or invoke typed RPCs, and RPC-requested provider work moves to a
+Connector Step. A missing or defective public connector capability routes to
+`dex-connector-contributor`; the application can test the local connector
+through an uncommitted Go `replace` while its upstream PR is reviewed, then
+must pin the exact release. Generic HTTP is reserved for controlled internal
+systems.
 
-Flow design prefers existing released connector capabilities throughout:
-Query/Mutation factories become Connector Steps, Triggers start typed Flows or
-invoke typed RPCs, and RPC-requested provider work moves to a Connector Step.
-When a public product has a documented API or official SDK but lacks the needed
-connector, operation, or Trigger, App Builder routes the gap to
-`dex-connector-contributor`. The application can test the local connector
-immediately through an uncommitted Go `replace` while its fork and upstream PR
-are reviewed, then must pin the exact release. For controlled internal services,
-App Builder asks whether an internal connector library already exists or should
-be created with the unified Connector SDK before falling back to generic HTTP.
+Local verification runs on one long-lived `dexcli dev` stack started as soon as
+the first Flow renders. Every Flow is rendered with
+`dexcli visualize --schema-version 2.0 --json` into the stack's
+`--flow-rendering-dir`, and the user receives the Dex Web URL right away. Dex
+Web configures released connectors in its local **Connectors** view; the
+default plaintext development store is `~/.dex/connectors/connections.json`,
+and the application starts with **DEX_CONNECTOR_CONFIG_FILE** set to the path
+Dex Web shows. The same validated definitions can be packaged for a deployed
+Dex Web, which loads them from a definition directory or an atomic definition
+bundle.
 
-For Go applications, Dex Web reads statically named Connector Steps and Trigger
-bindings from FDG 2.0. It configures released Gmail, Slack, GitHub, or other
-supported connectors in the local **Connections** view. The default plaintext
-development store is `~/.dex/connectors/connections.json`; pass
-`--connector-config-dir` to isolate a stack. Start the application with
-**DEX_CONNECTOR_CONFIG_FILE** set to the absolute path shown by Dex Web. The
-Connector SDK rereads the current credential for every provider call and uses a
-released connector's refresh driver for supported on-demand token refresh.
-
-The pinned template also owns `dex-app.yaml` and
-`make superverse-release-artifacts`. A project Release contains the app's full
-FDG 2.0 bundle plus connector and environment contracts. In hosted deployment,
-Superverse mounts a digest-verified non-secret connector snapshot and gives the
-application only a broker URL and release-bound workload identity; refresh
-tokens, service-account keys, and webhook secrets never enter application code
-or Flow state. Project Publishing selects eligible default-branch commits
-without author-based filtering and deploys the whole Release, not one Flow
-Type.
 UI test doubles validate component behavior only; they cannot prove Dex
 durability, Worker replacement, Timer, RPC, Connector, or application E2E
-semantics. The workflow finishes with local
-tests and a clean project-level Publishing handoff. A deployment claim must
-include observed Release, connector configuration revision, deployment, and
-real E2E identities rather than a mock or image-only build.
+semantics. The workflow finishes with checked source, the rendered FDG result,
+real local E2E evidence or explicit gaps, and a clean reviewable commit. A
+deployment claim must include observed identities rather than a mock or
+image-only build.
 
 ## Dex Connector Contributor
 

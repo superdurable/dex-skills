@@ -4,67 +4,58 @@ For write/read boundaries, follow the shared [SDK consistency matrix](../../dex-
 
 ## Implementation loop
 
-Use the basic-process template's stable commands. Change `openapi/openapi.yaml`,
-then regenerate; never hand-edit generated Go or TypeScript clients. The
-generated directories exist only as ignored local build outputs. Never stage,
-commit, or include them in a pull request.
+Use the project's own commands. For a Custom UI, change the API contract source,
+then regenerate; never hand-edit generated Go or TypeScript clients. Follow the
+project's convention for generated output: when it is a build output, keep it
+ignored and never stage, commit, or include it in a pull request.
 
-The released starter has one `ExampleFlow` and one `ExampleStep`. For the first
-business feature, replace that scaffold rather than retaining it alongside the
-requested Flow. Remove unused sample Steps, RPCs, registration and manifest
-entries; apply the same rule to older BasicProcessFlow templates. Preserve
-unrelated business Flows in imported or already-developed applications.
+When a repository contains starter or sample Flows, replace that scaffold for
+the first business feature rather than retaining it alongside the requested
+Flow. Remove unused sample Steps, RPCs and registrations. Preserve unrelated
+business Flows in imported or already-developed applications.
 
-Read `.superverse/template.json` for the exact command surface. In a fresh
-checkout, restore its locked dependencies through the declared bootstrap
-command before generation or checks (normally `make bootstrap`, including
-`npm --prefix web ci` and the declared Go modules). A missing generator
-executable requires dependency restoration, not repeated failing builds or a
-package upgrade. Reuse the installed dependencies until their manifests or
-lockfiles change.
+In a fresh checkout, restore locked dependencies (Go modules and, for a
+frontend, `npm ci` or the project's equivalent) before generation or checks. A
+missing generator executable requires dependency restoration, not repeated
+failing builds or a package upgrade. Reuse the installed dependencies until
+their manifests or lockfiles change.
 
-Generate ignored API packages before resolving their imports with `go mod tidy`.
+Generate API packages before resolving their imports with `go mod tidy`.
 When the host commit tool owns the full source gate, use focused checks during
-editing and avoid repeating that full gate immediately before handoff. Use the declared
-`checkStatic` source gate when available: regenerate the Go and TypeScript
-contracts, validate every strict FDG 2.0 definition, check Go, and build the
-production backend and frontend. A retained older template may require separate
-`make build` and `make check-fdg-v2` commands. Preserve its declared commands;
-do not invent a removed test target or hand-edit generated outputs.
+editing and avoid repeating that full gate immediately before handoff. The
+source gate regenerates any API contracts, renders and validates every strict
+FDG 2.0 definition, runs `gofmt`, `go vet` and `go build`, and builds the
+production backend and any frontend. Keep it as one project command; do not
+invent a test target the project does not have.
 
 A source handoff and real business acceptance are separate milestones. Default
 applications do not add integration/browser test suites, mocks, fixtures, or
-test-framework dependencies. The source-only template's full check covers
-generation, strict FDG, formatting/modules/vet, types, and production builds.
-Generate application tests only when the user explicitly requests them. When
-applying an authorized source-only migration, remove inherited template test
-scaffolding and synchronize commands, manifest, checker, docs, and unused
-dependencies. Preserve unrelated tests in imported applications.
+test-framework dependencies.
+Generate application tests only when the user explicitly requests them.
+Preserve unrelated tests in imported applications.
 
-A hosted authoring sandbox can hand off clean, pushed, source-verified code for
-Preview configuration without a private Connector key or isolated test stack.
-Missing configuration does not make otherwise complete source blocked. Record
-real execution as pending and complete the requested Preview/Live journey
-through the host; never call compilation a provider or deployment success.
-An explicitly requested executed test remains incomplete until its real
-dependencies pass. Repair actual source-gate failures before handoff. This
-default does not remove platform acceptance or Connector-library verification.
+Source that is complete and checked can be handed off without a private
+Connector key or an isolated test stack.
+Missing configuration does not make otherwise complete source blocked.
+Record real execution as pending and
+complete the requested journey once configuration exists; never call
+compilation a provider or deployment success. An explicitly requested executed
+test remains incomplete until its real dependencies pass. Repair actual
+source-gate failures before handoff. This default does not remove
+Connector-library verification.
 
-Keep the template release's `go.mod`, `go.sum`, npm lockfile, Go toolchain,
-Dex Server/CLI baselines, generators, and Make targets unchanged unless the
-user explicitly requested the corresponding stack or dependency change. A
-newer `DEX_BASELINE` in the skill repository is not an application upgrade
-instruction.
+Keep the application's `go.mod`, `go.sum`, frontend lockfile, Go toolchain,
+`dexcli` expectation, and generators unchanged unless the user explicitly
+requested the corresponding stack or dependency change. A newer `DEX_BASELINE`
+in the skill repository is not an application upgrade instruction.
 
-For **No custom UI**, reduce OpenAPI to `GetApplicationInfo` plus confirmed
-integration ingress, regenerate both clients locally, and remove
-process-management routes, mock-server routes, mock lifecycle code, Mock
-Controls, mock launch scripts, and mock E2E. Verify the Hello World page
-through the generated client. Do not run a mock approval checkpoint for an
-inert shell.
+For **No custom UI**, do not add an application API, frontend, or generated
+client beyond confirmed integration ingress, and remove process-management
+routes, mock-server routes, mock lifecycle code, mock controls, mock launch
+scripts, and mock E2E. Verify the process through Dex Web.
 
-For **Custom UI** with unresolved consequential interaction choices, use
-`npm --prefix web run dev` for the optional low-fidelity static
+For **Custom UI** with unresolved consequential interaction choices, run the
+frontend development server for the optional low-fidelity static
 checkpoint and verify only that each direct page URL and navigation path renders.
 Do not introduce a mock server, model lifecycle states, generate visual assets,
 or polish the surface before the page inventory is confirmed.
@@ -73,17 +64,17 @@ requires each custom management surface. Keep management operations covered by
 Summary RPC, Display RPC, Action RPC, Indexed Attributes, Work Queue, editable
 fields, timeline, or graph inspection out of the custom backend and UI.
 
-During Flow and Connector design, finalize `openapi/openapi.yaml`, run
-`make generate`, and implement the generated Go server interfaces before wiring
-the generated TypeScript client into the UI. Run real Dex and Connector
-journeys before visual polish; this does not require generating an
-application test suite. For explicitly requested tests, follow the repository's
-real-dependency policy: no unit tests, component mocks, fake providers, or
-intercepted API responses in the template. Trigger cases through actual APIs,
-or record the unverified invariant. Check both production artifacts after an
-API change; a successful Go compile does not prove that the frontend's generated
-imports still exist. Run relevant source checks after each edit batch and keep
-the requested real acceptance result separate from source readiness.
+During Flow and Connector design, finalize the API contract, regenerate, and
+implement the generated server interfaces before wiring the generated
+TypeScript client into the UI. Run real Dex and Connector journeys
+before visual polish; this does not require generating an application test suite. For
+explicitly requested tests, follow a real-dependency policy: no unit tests,
+component mocks, fake providers, or intercepted API responses. Trigger cases
+through actual APIs, or record the unverified invariant. Check both production
+artifacts after an API change; a successful Go compile does not prove that the
+frontend's generated imports still exist. Run relevant source checks after each
+edit batch and keep the requested real acceptance result separate from source
+readiness.
 
 Before installing a database, cache, ORM, or separate read model, review the
 storage decision matrix and name the exact query, concurrency, transaction, or
@@ -97,34 +88,22 @@ reconciliation instead of treating a successful happy-path write as proof.
 Only actual dependency calls establish Dex durability, Worker replacement,
 Timer, RPC, retry, provider or application E2E behavior.
 
-For standalone development, show Dex Web early. Once the first Flow graph renders, keep one user-facing `dexcli dev` stack running with a persistent `--flow-rendering-dir`, stable ports, and persistent state, and give the user its URL before continuing. Continue implementation and source checks; use isolated test stacks only for explicitly requested automated tests, and never let them reuse or stop the user's stack. Do not wait until verification passes to start it. Report its URL again at handoff. In a platform with native Studio management,
-use that existing surface and authenticated Go backend instead; Dex engine Pods
-need only `api,interpreter`. Do not start a second management server or infer that
-this platform boundary removes standalone Dex Web support.
+Show Dex Web early. Once the first Flow graph renders, keep one user-facing `dexcli dev` stack running with a persistent `--flow-rendering-dir`, stable ports, and persistent state, and give the user its URL before continuing. Continue implementation and source checks; use isolated test stacks only for explicitly requested automated tests, and never let them reuse or stop the user's stack. Do not wait until verification passes to start it. Report its URL again at handoff.
 
-## Baselines and local CLI
+## Local CLI
 
-Do not advance the template pins during ordinary application work. If the user
-explicitly requests a template-stack upgrade, advance these pins together;
-the template's static contract checker records its own release values, so changing only some of them fails `make check`:
+Run `dexcli version` before rendering and follow the
+[version pairing](workspace-bootstrap.md#version-pairing) rule, so the rendered
+Flow and Step type names match the Worker. Do not add or update a project-local
+skill submodule; the coding-agent host supplies the Dex Skills release.
 
-- `DEX_SERVER_BASELINE` and `DEX_CLI_BASELINE`;
-- the `github.com/superdurable/dex/sdk-go` requirement in `go.mod`;
-- the expectations in the template static contract checker.
-
-Do not add or update a project-local skill submodule. The coding-agent host
-supplies the immutable Dex Skills release independently from the application
-template.
-
-Template scripts call `dexcli` from `PATH` and do not check its version. Run `dexcli version` first and require at least `v0.14.0`. While `go.mod` pins a Go SDK before v1.5.0, also require a CLI before v1.5.0: `dexcli` v1.5.0 names Flow and Step types without the Go package, so its FDG would not match the Worker. The template's own `DEX_CLI_BASELINE` release satisfies both. When upgrading the global CLI would break other projects pinned to older Servers, install a project-local CLI and put its directory first on `PATH` for the template commands; `scripts/check-fdg-v2.sh` also honors `DEXCLI`.
-
-Validate every Flow file, not only the template's `internal/process/flow.go`; see [Dex Web v2 validation](dex-web-v2.md#validation).
+Validate every Flow file, not only the one being edited; see [Dex Web v2 validation](dex-web-v2.md#validation).
 
 ## Durable verification
 
 This section guides requested runtime acceptance, not a requirement to generate
-test scaffolding in every application. Use the host's real Preview/Live path
-when available. SDK and Connector contributors retain their own verification
+test scaffolding in every application. Use the local `dexcli dev` stack and the
+real Worker. SDK and Connector contributors retain their own verification
 requirements. Use a real Dex Server when behavior crosses a Client, Worker,
 wait, RPC, Channel, Timer, Stream, retry, provider, or process boundary.
 
@@ -156,10 +135,9 @@ Use deadline-based polling and report Flow IDs and status on failure. Do not hid
 
 Ensure:
 
-- `superverse.yaml` and `.superverse/template.json` remain valid;
-- application dependencies, runtime baselines, lockfiles, and commands still
-  match the pinned template unless an explicit user-approved deviation is
-  recorded;
+- application dependencies, the Go toolchain, lockfiles, `dexcli` pairing, and
+  commands match the recorded stack unless an explicit user-approved deviation
+  is recorded;
 - every top-level Flow is justified by its authoritative owner,
   retention/cleanup, independent waits or Timers, and terminal lifecycle;
 - parallel work remains in Steps by default, and every SubFlow has concrete
@@ -175,12 +153,13 @@ Ensure:
   decision and designs Summary, Display, Action, Indexed Attribute, Work Queue,
   and permission coverage;
 - every Custom UI surface names a specific remaining Dex Web v2 capability gap;
-- a No custom UI shell contains no business controls or management routes;
+- a No custom UI application exposes no business controls or management routes;
 - a Custom UI has an approved static page inventory, navigation, fields, and
   actions before backend work, with no early visual-polish artifacts;
-- its OpenAPI contract was designed with the Flow and Connector boundaries,
-  both generated clients and production bundles reproduce locally, neither generated directory is
-  tracked, and the Go HTTP boundary implements the generated server interfaces;
+- its API contract was designed with the Flow and Connector boundaries,
+  both generated clients and production bundles reproduce locally, generated
+  output is never hand-edited, and the Go HTTP boundary implements the
+  generated server interfaces;
 - its dynamic UI uses only the generated TypeScript client, and visual polish
   followed a passing real Dex and
   Connector end-to-end journey;
@@ -196,28 +175,14 @@ Ensure:
 - each Connector Step branch receives only its current operation result, while application Attributes retain domain context;
 - every Connector factory uses pure `MapToOperationInput` and graph-only `Annotations`;
 - each Connector Trigger binding has a static binding name, application-owned Flow ID resolver, and typed target;
-- for standalone local configuration, the displayed connection path and
+- for local configuration, the displayed connection path and
   **DEX_CONNECTOR_CONFIG_FILE** launch command work after a Dex Web restart;
-  for project-scoped configuration, exact snapshot and credential versions
-  survive management-host and Worker replacement without exposing secrets;
-- `dex-app.yaml` lists every Release Flow source and static connector
-  connection, including its exact published `modulePath`, without configuration
-  values or secrets; local source validators and generated artifacts preserve
-  the same deployment schema;
-- `make superverse-release-artifacts` emits a valid FDG 2.0 bundle, connector
-  contract, environment contract, and exact application manifest;
-- Live Publishing accepts an eligible main-branch commit regardless of author,
-  prepares its exact FDG/manifest, configures that source and builds the whole
-  application with a frozen configuration reference before deployment; a Flow
-  Type is never the deployment unit. Preview uses the current clean pushed
-  Sandbox source through Build Configuration and Preview controls;
-- a hosted deployment pins a READY connector configuration revision, exact S3
-  object version, and digest, and fails closed when any identity mismatches;
-- hosted bootstrap uses the official `projectconfig.LoadFromEnvironment` with
-  trusted `DEX_PROJECT_*` scope, canonical key, exact version/digest and scoped
-  AWS identity; it never substitutes latest, a mounted configuration file or
-  a credential broker. Resolve/apply application environment before Workers
-  start, and keep provider tokens entirely inside the official SDK boundary;
+- every Flow source file renders to a `valid: true` FDG 2.0 definition through
+  one project command, and the rendered Flow and Step type names match the
+  Worker's registrations;
+- for a deployed Dex Server, the packaged definitions, project Connector
+  configuration, and official Connector SDK loader keep credentials out of
+  application code and Flow state;
 - requested acceptance for known token expiry, concurrent calls, credential rotation,
   lost exchange responses and Worker restart records actual results or explicit
   gaps, without recreating the released Connector's test suite in the app;
@@ -228,8 +193,3 @@ Ensure:
   in the production dependency graph;
 - the repository has a clean, reviewable commit;
 - limitations and unimplemented integrations are explicit.
-
-For a requested Dex AI Platform deployment, record the observed project URL,
-source commit, Release ID, configuration revision, deployment identity, and
-real E2E result. Never substitute local mocks or an image-only build for those
-identities, and never invent an upload command, URL, or success result.
