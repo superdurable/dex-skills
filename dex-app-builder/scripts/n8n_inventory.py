@@ -93,7 +93,7 @@ TRIGGER_TYPES = {
     "chatTrigger",
 }
 DEX_HINTS = {
-    "scheduleTrigger": "Scheduler Flow on the Cron pattern: a Timer to the next occurrence in the source timezone starts one run Flow per occurrence, named <scheduler Flow ID>-run-<occurrence date> (Flow IDs reject /, $, and :).",
+    "scheduleTrigger": "Scheduler Flow on the Cron pattern: a Timer to the next occurrence in the source timezone starts one run Flow per occurrence, named <scheduler Flow ID>-run-<occurrence date> for a daily or longer rule, or -run-<UTC time to the second such as 20261006T140930Z> for a sub-daily rule (Flow IDs reject /, $, and :).",
     "cron": "Scheduler Flow on the Cron pattern (legacy Cron node rules).",
     "interval": "Scheduler Flow on the Cron pattern with a fixed interval.",
     "manualTrigger": "Dex Web Start Flow with typed start input.",
@@ -113,7 +113,7 @@ DEX_HINTS = {
     "code": "Go application Step that ports the code, verified against golden output.",
     "function": "Go application Step that ports the code, verified against golden output.",
     "functionItem": "Go application Step that ports the code, verified against golden output.",
-    "httpRequest": "Dedicated connector operation for that provider; the generic HTTP connector only for an organization-controlled internal service.",
+    "httpRequest": "Dedicated connector operation for that provider; an organization-controlled internal service follows the internal connector library decision.",
     "wait": "Timer Condition, or a Channel/RPC resume for webhook or form resumes.",
     "splitInBatches": "Bounded dynamic parallel Steps or batched Steps.",
     "executeWorkflow": "Steps in the same Flow, or an independent top-level Flow under the Core boundary rules; no SubFlow by default.",
@@ -442,9 +442,10 @@ class Inventory:
         for credential_type, reference in (node.get("credentials") or {}).items():
             label = reference.get("name", "") if isinstance(reference, dict) else str(reference)
             self.credentials[(credential_type, label)].append(name)
-            if isinstance(reference, dict) and (not reference.get("id") or any(str(key).startswith("__") for key in reference)):
+            if isinstance(reference, dict) and any(str(key).startswith("__") for key in reference):
                 self.add_finding("medium", "managed-credential", name,
-                                 f"The `{credential_type}` reference has no credential ID ({', '.join(sorted(str(key) for key in reference if str(key).startswith('__'))) or 'not exported'}): n8n manages or omits it, so nothing about the account carries over. The Dex connection uses an account and key the user supplies.")
+                                 f"The `{credential_type}` reference is n8n-managed ({', '.join(sorted(str(key) for key in reference if str(key).startswith('__')))}), so nothing about the account carries over. "
+                                 "The Dex connection uses an account and key the user supplies.")
         self.collect_identifiers(name, kind, parameters)
 
         for field in self.node_set_fields(node):
@@ -474,6 +475,8 @@ class Inventory:
             self.collect_schedule(node)
         if kind == "stickyNote":
             self.claims.append({"source": f"Sticky note `{name}`", "text": parameters.get("content", "").strip()})
+        if str(node.get("notes") or "").strip():
+            self.claims.append({"source": f"Node note `{name}`", "text": str(node["notes"]).strip()})
         self.collect_settings_flags(node)
         self.collect_version_defaults(node)
         self.check_runnable(node)
@@ -687,7 +690,8 @@ class Inventory:
             self.add_finding("high", "python-code", name,
                              "Python Code node: the golden harness runs only JavaScript; capture golden output from an n8n execution instead.")
         if "console.log" in code:
-            self.add_finding("info", "debug-logging", name, "console.log writes only n8n execution logs; drop it and record the drop.")
+            self.add_finding("info", "debug-logging", name,
+                             "console.log output is not saved with the execution (a manual run shows it in the browser console); drop it and record the drop.")
         interpolations = [" ".join(match.group(1).split()) for match in TEMPLATE_INTERPOLATION.finditer(code)]
         interpolations = sorted({item for item in interpolations if item})
         if interpolations:
@@ -752,8 +756,10 @@ class Inventory:
         if node.get("executeOnce"):
             self.add_finding("medium", "execute-once", name, "executeOnce: runs only for the first input item.")
         if node.get("retryOnFail"):
+            attempts = min(5, max(2, int(node.get("maxTries") or 3)))
+            wait = min(5000, max(0, int(node.get("waitBetweenTries") or 1000)))
             self.add_finding("info", "retry", name,
-                             f"retryOnFail: maxTries={node.get('maxTries', 3)}, waitBetweenTries={node.get('waitBetweenTries', 1000)}ms; map to the Step retry policy.")
+                             f"retryOnFail: {attempts} attempts {wait} ms apart (n8n clamps maxTries to 2 through 5 and the wait to 5000 ms); map to the Step retry policy.")
 
     def collect_version_defaults(self, node: dict) -> None:
         name = node.get("name", "")
@@ -800,7 +806,7 @@ class Inventory:
             if not options.get("response", {}).get("response", {}).get("neverError"):
                 note = ("HTTP Request v3+: every item's request starts at once (options.batching only spaces the starts), and a non-2xx response fails the node "
                         "and the execution after all requests settle; the timeout is 300000 ms unless options.timeout is set.")
-        elif kind in ("if", "filter", "switch") and version >= 2:
+        elif (kind in ("if", "filter") and version >= 2) or (kind == "switch" and version >= 3):
             note = (f"{kind} v{version:g}: typeValidation {((parameters.get('conditions', {}) or {}).get('options', {}) or {}).get('typeValidation', 'strict')}, but null and undefined pass it; "
                     "string operators compare leftValue ?? '' and exists/notExists test null, undefined, and NaN. A TypeError inside a condition expression leaves it empty instead of failing. "
                     "Only a type mismatch of a present value or an n8n ExpressionError fails the node.")
@@ -1050,7 +1056,8 @@ class Inventory:
                                      f"This Wait paces a Loop Over Items batch loop ({', '.join(cycle)}): a rate limit, not polling. Map it to batched Steps with a Timer between batches.")
                     continue
                 self.add_finding("medium", "wait-poll-loop", name,
-                                 f"This Wait sits in a loop ({', '.join(cycle)}): a fixed delay standing in for an external job finishing. Map the loop to the Dex Polling pattern with a bounded attempt count, not a Timer plus a jump back, and record the source's missing bound if it has none.")
+                                 f"This Wait sits in a loop ({', '.join(cycle)}): a fixed delay standing in for an external job finishing. Map the loop to the Dex Polling pattern, "
+                                 "one long-running Step bounded by its Execute method timeout and retry total duration, not a Timer plus a jump back, and record the source's missing bound if it has none.")
 
     def check_preflight(self) -> None:
         """n8n refuses to start an execution while a main-reachable node lacks a required displayed parameter."""
@@ -1255,7 +1262,7 @@ class Inventory:
                 elif is_http and not row["host"]:
                     row["status"] = "the URL host comes from an expression: resolve the host from upstream data before choosing a connector"
                 elif is_http:
-                    row["status"] = f"no released connector for {row['host']}: connector contribution (generic HTTP only for an internal service)"
+                    row["status"] = f"no released connector for {row['host']}: connector contribution, or the internal connector library decision for an internal service"
                 else:
                     row["status"] = "no released connector: connector contribution"
             rows.append(row)

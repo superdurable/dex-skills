@@ -528,7 +528,7 @@ def check_app_builder() -> None:
         "## Version-dependent defaults to confirm",
         "Dex has no implicit lineage",
         "Never a SubFlow by default",
-        "only for an organization-controlled internal service",
+        "internal connector library decision",
         "Flow IDs cannot contain `/`, `$`, or `:`",
         "explicit long Execute retry total duration",
     ):

@@ -50,7 +50,8 @@ python3 scripts/n8n_inventory.py inventory /path/to/export.json --out /path/to/i
 [`n8n_inventory.py`](../scripts/n8n_inventory.py) writes `ledger.md` and
 `inventory.json`. The ledger has a row for every node, connection output,
 expression, credential (including connections the export lacks), setting and
-export metadata field, claim, edge behavior, and connector branch, plus
+export metadata field, claim it can read (sticky notes, node notes, and
+schedule trigger names), edge behavior, and connector branch, plus
 findings and a decisions table. The findings cover literal secrets and
 credentials sent from workflow data, label-versus-rule mismatches, a schedule
 that repeats effects, an absent timezone, unguarded field reads, Webhook output
@@ -95,7 +96,10 @@ fields for that operation. Record which source you used.
   `packages/@n8n/nodes-langchain/nodes/`), and engine behavior in
   `packages/workflow/src/expression.ts`,
   `packages/workflow/src/node-parameters/filter-parameter.ts`, and
-  `packages/core/src/execution-engine/workflow-execute.ts`. Read a community
+  `packages/core/src/execution-engine/workflow-execute.ts` (before n8n 1.96
+  the first two are `Expression.ts` and `NodeParameters/FilterParameter.ts`).
+  Add a `K` row for every other claim, such as a template description or the
+  user's summary. Read a community
   node from its package at the exported version. The script's version notes
   are prompts to check, not authority.
 - A ledger claim that a node throws, fails the run, or uses a default cites a
@@ -145,7 +149,7 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   belongs to. Process those items one at a time: persist the item list and the
   current index in an Attribute, and let each outcome Step record the current
   item and move to the next. Most n8n nodes also ran items in order, but HTTP
-  Request from version 3 sends every item's request at once; record the change
+  Request sends every item's request at once; record the change
   in request count and rate when Dex serializes those calls.
 - Many tools stop the whole execution at the first error. Effects already
   performed remain and later items never run. Per-item Dex branches isolate
@@ -153,7 +157,9 @@ and [pattern selection](../../dex-sdk/references/core/patterns.md):
   all-or-nothing. In that case, perform every read before the first mutation
   and join before the first send.
 - Compare each operation's `execution.retry` in its `connector.yaml` with the
-  source's attempts (`retryOnFail`, `maxTries`). A released Mutation derives
+  source's effective attempts (`retryOnFail`, with `maxTries` clamped to 2
+  through 5, see [n8n semantics](n8n-semantics.md#export-anatomy)). A released
+  Mutation derives
   its idempotency key from the Connector call, which covers retries of one Step
   execution only. When the provider does not deduplicate on that key and the
   source made one attempt, decide through `StepOptionsOverride` whether to cap
@@ -193,12 +199,15 @@ Apply the [connector decision](product-discovery.md#connector-decision) and
 [Connector architecture](connector-architecture.md) to every integration node.
 Each one maps to an exact released capability. A generic HTTP request to a public
 external API is not a mapping. It is a `blocked` row and a connector
-contribution under Connector Contributor, because the generic HTTP connector is
-reserved for organization-controlled internal services.
+contribution under Connector Contributor. A request to an
+organization-controlled internal service follows the [internal connector
+library decision](connector-architecture.md#internal-connector-library-decision);
+the current catalog has no generic HTTP connector.
 
 Read, at the tag, the operation's `connector.yaml` (branches, idempotency, and
 execution policy) and its Go input and output types and validation function,
-since the manifest names only the input type. Record each connector-imposed
+since the manifest names those types but not their fields or validation.
+Record each connector-imposed
 difference as its own row:
 
 - a required input the source never sent, such as a plain-text body, with the
@@ -245,7 +254,8 @@ node scripts/n8n_code_golden.mjs /path/to/export.json "Node name" fixture.json >
 JavaScript in a fresh context with n8n's item rules and prints its normalized
 output items. A thrown error exits 1, which is golden behavior too: the source
 node fails. Code or expressions that read time need Luxon: install the version
-that n8n's `packages/workflow/package.json` pins at the source release with
+that the `catalog` section of n8n's root `pnpm-workspace.yaml` pins at the
+source release with
 `npm install --prefix DIRECTORY luxon@VERSION`, then pass `--luxon DIRECTORY`.
 
 - Use synthetic fixtures only, never production records or personal data.
@@ -270,7 +280,7 @@ that n8n's `packages/workflow/package.json` pins at the source release with
   replaces only the first occurrence, and truthiness treats `""`, `0`, and
   `null` alike. Expression ports reproduce template rendering: `null`,
   `undefined`, and empty values render as empty text, and an error other than
-  an n8n `ExpressionError` yields an empty value. See
+  an n8n `ExpressionError` or a syntax error yields an empty value. See
   [n8n semantics](n8n-semantics.md#parameter-expressions) for both. Luxon
   formats and calendar arithmetic run in the source timezone.
 - Port non-trivial expressions as pure Go helpers tested against the
@@ -288,11 +298,13 @@ no row is `pending`. Then build through the normal stages.
 
 ## 8. Accept and cut over
 
-- `python3 scripts/n8n_inventory.py verify ledger.md` passes, with
-  `--inventory` naming the generated `inventory.json` when the ledger moved: no row remains
-  `todo`, every non-`mapped` row has notes, every decision a note cites exists,
-  no `mapped` row rests on an unverified claim, and every row that
-  `inventory.json` generated is still present.
+- `python3 scripts/n8n_inventory.py verify ledger.md --strict` passes, with
+  `--inventory` naming the generated `inventory.json` when the ledger moved: no
+  row remains `todo` or `pending`, every non-`mapped` row has notes, every
+  decision a note cites exists, no `mapped` row rests on an unverified claim,
+  and every row that `inventory.json` generated is still present.
+- No row remains `blocked`. A connector gap stays a production handoff blocker
+  until the connector is released and its exact component tag is pinned.
 - The golden parity tests pass.
 - When the source has execution history, run a shadow comparison: the Dex
   application processes the same real inputs with its mutations directed to a

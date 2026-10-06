@@ -44,15 +44,15 @@ For every external integration:
 4. Inspect `<directory>/connector.yaml` at that immutable tag. Confirm the
    complete auth and configuration contract, input and output types, branches,
    idempotency, execution policy, Trigger schema, UI units, and generated Go
-   package before writing application code. The manifest names only the input
-   type, so also read the operation's Go input and output types and validation
-   function at the tag.
+   package before writing application code. The manifest names the input and
+   output types but not their fields, so also read the operation's Go input and
+   output types and validation function at the tag.
 5. Record the catalog URL, connector ID, exact capabilities, component tag, and
    immutable manifest URL in the connector capability matrix.
 
 The short Connector ID does not determine the Go module path. Copy the exact
-published module path from the immutable released manifest; it must match the
-generated factory and the FDG identity.
+published module path from the `module` line of `<directory>/go.mod` at that
+immutable tag; it must match the generated factory and the FDG identity.
 
 When the web view of the tag cannot be reached, a local clone of the official
 repository may supply the immutable files: confirm the tag with
@@ -135,7 +135,9 @@ prefix, because the connection's provider selects the API. The request's
 `Model` wins, a blank one uses the connection's model, and a blank connection
 model uses the provider's default model. A model the provider does not serve,
 including one written as `provider/model`, reaches the provider and selects
-`providerRejected`.
+`providerRejected`, except on Gemini, which puts the model in the URL path:
+there any ID other than one segment of letters, digits, `.`, `_`, and `-` selects
+`defect` with no request.
 
 Keep requests portable by leaving `Temperature` and `ReasoningEffort` unset and
 `MaxOutputTokens` zero or generous. Do not add a per-run model to start input

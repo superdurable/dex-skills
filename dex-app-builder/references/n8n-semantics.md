@@ -11,19 +11,25 @@ change between releases without a `typeVersion` change.
   The node also has a `type` (`n8n-nodes-base.<node>`, a LangChain node, or a
   community package), `typeVersion`, `parameters`, and `credentials`. The
   credentials are only a credential type with an ID and a display name, never
-  the secret. A reference without an ID, such as one marked
-  `__aiGatewayManaged`, is an n8n-managed credential: nothing about the account
-  carries over.
+  the secret. A reference marked `__aiGatewayManaged` is an n8n-managed
+  credential: nothing about the account carries over. A reference that is a
+  plain string or has a null `id` is the legacy name-only form, which n8n
+  resolves to the user's own credential of that type by display name.
 - `position` has no behavior, except that execution order `v1` runs fan-out
   branches top to bottom by it (see below).
 - Execution settings on a node: `disabled`, `retryOnFail` with `maxTries`
-  (default 3) and `waitBetweenTries` (default 1000 ms), `onError`
+  and `waitBetweenTries` (the engine makes `min(5, max(2, maxTries || 3))`
+  attempts, `min(5000, waitBetweenTries || 1000)` ms apart, so an exported 0
+  wait means 1000 ms and `maxTries` 10 means 5 attempts), `onError`
   (`stopWorkflow`, `continueRegularOutput`, or `continueErrorOutput`; the
   legacy form is `continueOnFail`), `alwaysOutputData`, and `executeOnce`.
 - `connections`: keyed by source node name, then connection type (`main`, or
   `ai_*` for LangChain sub-nodes), then output index, then targets with the
   target's input `index`. IF output 0 is true and output 1 is false. Filter
-  output 0 keeps items. Switch outputs follow rule order. Loop Over Items
+  output 0 keeps items. In Switch rules mode from version 2, output N is rule
+  N, and a version 3 `fallbackOutput` of `extra` is the last output; in
+  version 1 each rule names its own `output`, and in expression mode the
+  `output` expression picks the index. Loop Over Items
   version 3 emits done on output 0 and loop on output 1.
 - `settings`: `executionOrder`, `timezone`, `errorWorkflow`, and save and
   caller policies. When `timezone` is absent, the instance's
@@ -74,13 +80,19 @@ change between releases without a `typeVersion` change.
 ## Execution order and failure
 
 - Before the first node runs, n8n checks every enabled node reachable from the
-  start node over `main` connections for parameter issues: a required parameter
-  that is displayed at the node's version and is empty, or an unknown node
-  type. An expression counts as filled. If any node has an issue, the whole
-  execution fails before any node runs, in every execution mode. Credentials
-  are not part of this check. So an export with an empty required parameter
-  anywhere downstream has no effect at all; record that as the source behavior
-  and offer no "faithful" option that assumes later nodes run. A Webhook in
+  starting trigger over `main` connections for parameter issues, or an unknown
+  node type. Parameter issues are: a required parameter displayed at the node's
+  version that is empty, counted only for string, options, multi-options,
+  date-time, and resource-locator types (an empty required number, JSON,
+  boolean, or collection does not block); a displayed resource-locator value
+  that fails its mode's validation; missing or mistyped resource-mapper fields;
+  a value that fails the property's `validateType`; and a fixed collection
+  outside its minimum or maximum entry count. An expression counts as filled
+  and skips validation. If any node has an issue, the whole execution fails
+  before any node runs, in every execution mode. Credentials are not part of
+  this check. So an export with such an issue downstream of a trigger has no
+  effect for that trigger's executions; record that as the source behavior and
+  offer no "faithful" option that assumes later nodes run. A Webhook in
   `onReceived` mode has already answered the caller.
 - Operation and other option values are not checked against the node's option
   list, before or during the run. What an unknown value does is node-specific:
@@ -138,12 +150,14 @@ change between releases without a `typeVersion` change.
   `Format("2006-01-02")`. `plus` and `minus` with `days` are `AddDate` on a time
   in the same `*time.Location`. `startOf('day')` is `time.Date` at midnight in
   that location.
-- IF, Filter, and Switch from version 2: null and undefined pass strict type
-  validation. String operators compare `leftValue ?? ''`, and `exists` and
+- IF and Filter from version 2, and Switch from version 3: null and undefined
+  pass strict type validation. String operators compare `leftValue ?? ''`, and `exists` and
   `notExists` test null, undefined, and NaN. Only a present value of the wrong
   type fails strict validation. The golden harness does not evaluate
   operators, so write predicate expectations from `filter-parameter.ts` at the
-  release and cite the lines.
+  release and cite the lines. Switch 2 is the legacy node: it compares
+  `value1` and `value2` per `dataType` in `SwitchV2.node.ts`; port those rules
+  instead.
 
 ## Code nodes
 
@@ -160,7 +174,9 @@ change between releases without a `typeVersion` change.
   - `""`, `0`, `null`, and `undefined` are all falsy.
   - `toLowerCase`, `trim`, and `toLocaleString` differ from Go's standard
     library; port them with golden cases.
-- `console.log` writes only to the execution log. The Code node runs sloppy-mode
+- `console.log` output is not saved with the execution: a manual run sends it to
+  the browser console, and other runs discard it unless `CODE_ENABLE_STDOUT` is
+  true. The Code node runs sloppy-mode
   JavaScript, so an undeclared assignment creates a global instead of failing.
 
 ## Node mapping
@@ -176,14 +192,14 @@ change between releases without a `typeVersion` change.
 | Set (Edit Fields) | A typed Go mapping inside the consuming application Step. |
 | IF, Filter, Switch | A Go predicate in an application Step that chooses the movement. An unconnected output ends without a movement. |
 | Merge | An await-all join with a Channel count, where each branch's success and failure routes both publish, so each branch counts once. Replicate the merge mode exactly: append, combine by key or position, or choose a branch. Under execution order `v1`, choose-branch requires inputs 1 and 2, so when one never receives items the Merge and everything after it never run and the execution ends without an error; the other modes run with the missing input empty. |
-| Loop Over Items | Bounded dynamic parallel Steps, or batched Steps when the source paces a rate limit. |
+| Loop Over Items | Bounded dynamic parallel Steps when the body is application Steps, or batched Steps when the source paces a rate limit. When the body reaches a Connector Step, process items one at a time with a persisted cursor, because a Connector result carries no item context. |
 | Split Out, Aggregate, Sort, Limit, Remove Duplicates, Date & Time | Pure Go transforms. Deduplication across executions needs durable state. |
 | Code, Function, Function Item | A pure Go function in an application Step, with golden parity tests. |
-| HTTP Request | The dedicated connector operation for that provider. The generic HTTP connector is only for an organization-controlled internal service. |
+| HTTP Request | The dedicated connector operation for that provider. A call to an organization-controlled internal service follows the [internal connector library decision](connector-architecture.md#internal-connector-library-decision); check the catalog before planning a generic HTTP connector, which the current release does not include. |
 | Wait (`resume` timeInterval) | An application Step whose WaitFor returns `dex.Until(dex.Timer(amount × unit))`, measured from when that Step starts, as n8n measures from when the Wait node runs; its Execute builds the next Step's input. A Connector Step cannot wait. Never compute or persist a deadline in WaitFor. |
 | Wait (`resume` specificTime) | An earlier application Step's Execute computes the instant from typed input in the workflow timezone; the waiting Step's Timer covers the remaining duration. |
 | Wait (`resume` webhook or form) | A Channel or typed RPC resume. Without `limitWaitTime` (off by default), n8n waits forever. |
-| Wait used as a delay before reading a submitted job's result | The Polling pattern with a bounded attempt count: a start Step, a Timer, a status Query Step, and completion. One Step execution makes one Connector call, so polling never happens inside one Step; without a released status operation the row is `blocked` on a connector gap. |
+| Wait used as a delay before reading a submitted job's result | The Dex [Polling pattern](../../dex-sdk/references/core/patterns.md#polling): after the start Step, one long-running Step's Execute owns the whole wait, bounded only by its Execute method timeout and retry total duration, never by a Timer loop. A Connector Step makes one provider call per execution, so without a released operation that waits for the job to finish the row is `blocked` on a connector gap. |
 | Execute Workflow | Steps in the same Flow, or an independent top-level Flow under the Core boundary rules. Never a SubFlow by default. |
 | No Operation, Sticky Note | No behavior. Mark it `dropped` and check what a note claims. |
 | App node, such as Gmail, Google Calendar, or Slack | The released connector operation for the node's resource and operation. |
@@ -219,8 +235,9 @@ the first deploy, since Flows will be open across deploys.
 - Derive the run Flow ID from the scheduler's own Flow ID plus the occurrence,
   such as `<scheduler-flow-id>-run-2026-10-06` for a daily rule, and bind the
   request ID to that start. Flow IDs cannot contain `/`, `$`, or `:`, so do not
-  embed an RFC 3339 time; a sub-daily rule appends a colon-free UTC time, such
-  as `<scheduler-flow-id>-run-20261006T1409Z`, because a local time repeats in
+  embed an RFC 3339 time; a sub-daily rule appends a colon-free UTC time to the
+  second, such as `<scheduler-flow-id>-run-20261006T140930Z`, because a local
+  time repeats in
   the DST fall-back hour. Scoping by the scheduler keeps two schedulers, such
   as one per calendar, from deduplicating each other's runs. Start with
   `IDReuseDisallow` and ignore-already-started, so a retried start lands on the
@@ -230,9 +247,11 @@ the first deploy, since Flows will be open across deploys.
   never attaches to a closed occurrence run. Record it as an added capability.
 - Decide what happens to an occurrence the Worker reaches late, such as after
   downtime. n8n's default scheduler never runs a missed occurrence, so skip one
-  that is more than a bounded lateness old. The opt-in durable scheduler
-  (`N8N_SCHEDULER_ENABLED`, from n8n 2.34) can run the latest missed one: from
-  Schedule Trigger 1.4, `misfirePolicy` (default skip) and
+  that is more than a bounded lateness old. The opt-in durable scheduler (from
+  n8n 2.34) takes over only when `N8N_SCHEDULER_ENABLED` and
+  `N8N_USE_WORKFLOW_PUBLICATION_SERVICE` are both on, and can run the latest
+  missed occurrence: on 2.34 and 2.35 it always does, and from Schedule Trigger
+  1.4 (n8n 2.36), `misfirePolicy` (default skip) and
   `misfireGraceSeconds` (0 means the instance's `N8N_SCHEDULER_MISFIRE_GRACE`,
   default 60 seconds) decide it. A lateness bound other than the source's is a
   `diverged` row.
@@ -250,7 +269,7 @@ the first deploy, since Flows will be open across deploys.
 
 | Node | What to confirm at the exported version |
 | --- | --- |
-| Set | Before 3.3, input fields pass through next to the set fields; from 3.3 they are dropped unless `includeOtherFields` is on. A field that resolves to null or undefined becomes the text `null` or `undefined` at 3.0, fails the node at 3.1 unless `ignoreConversionErrors` is on, and becomes null from 3.2. Binary data is dropped through 3.3 unless `includeBinary` is set, and from 3.4 is kept while input fields are kept. |
+| Set | Before 3.3, input fields pass through next to the set fields; from 3.3 they are dropped unless `includeOtherFields` is on. A string field that resolves to null or undefined becomes the text `null` or `undefined` at 3.0, fails the node at 3.1 unless `ignoreConversionErrors` is on, and becomes null from 3.2; a field of another type becomes null. Binary data is dropped through 3.3 unless `includeBinary` is set, and from 3.4 is kept while input fields are kept. |
 | Gmail send | From 2.1, the footer "This email was sent automatically with n8n" is appended unless `options.appendAttribution` is false; reply never appends it. `emailType` defaults to html (text before n8n 1.10), and html mail has no text/plain part at all. The message is trimmed. |
 | Send Email | From 2.1, the same footer is appended unless `appendAttribution` is false. |
 | Telegram send message | `parse_mode` is Markdown when unset, so the text is parsed as markup. From 1.1, "This message was sent automatically with n8n" is appended for Markdown or HTML unless `appendAttribution` is false; from 1.2, link previews are off by default. |
@@ -259,10 +278,10 @@ the first deploy, since Flows will be open across deploys.
 | Send-and-wait operations | They append an n8n attribution by default; check the release and the node. |
 | Telegram Trigger | It accepts updates from anyone. Chat and user restrictions exist from 1.2; 1.1 shows them but ignores them. |
 | Google Calendar event `getAll` | Without `returnAll`, it returns one page of `limit` events (default 50). The order is unspecified unless `options.orderBy` is set. |
-| HTTP Request | From 3, every item's request starts at once and all are awaited together; `options.batching` only spaces the starts. A non-2xx response fails the node after every request settles, unless `neverError` is on. Without `options.timeout`, the timeout is 300,000 ms. Values concatenated into `url` are not form-encoded: spaces become `%20`, but `&`, `#`, and `+` in a value change the query. |
+| HTTP Request | At every version, every item's request starts at once and all are awaited together; batching options only space the starts. A non-2xx response fails the node after every request settles, unless `neverError` is on. From 3, without `options.timeout`, the timeout is 300,000 ms. Values concatenated into `url` are not form-encoded: spaces become `%20`, but `&`, `#`, and `+` in a value change the query. |
 | Webhook | `httpMethod` defaults to GET, `authentication` to none, and `responseMode` to `onReceived`, which answers 200 `{"message":"Workflow was started"}`. A JSON body is parsed into `body`; urlencoded and multipart fields land in `body` as strings, multipart files in `binary`; from 1.1 an unparsed body becomes a binary file. |
 | Wait | At 1, `amount` defaults to 1 and `unit` to hours; from 1.1, to 5 and seconds. A day is exactly 86,400 seconds, not a calendar day. |
-| IF, Filter, Switch | From 2, strict type validation, case sensitivity, and the AND/OR combinator come from `conditions.options` and `combinator`; see [parameter expressions](#parameter-expressions) for null handling. |
+| IF, Filter, Switch | IF and Filter from 2, and Switch from 3: strict type validation, case sensitivity, and the AND/OR combinator come from `conditions.options` and `combinator`; see [parameter expressions](#parameter-expressions) for null handling. |
 | Code | The default mode, and the language (`javaScript` or Python). Python output cannot be captured by the golden harness. |
 | LangChain model and option nodes | Option defaults can change between releases without a `typeVersion` change; record the release. |
 

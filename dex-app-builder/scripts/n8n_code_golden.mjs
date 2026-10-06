@@ -93,7 +93,7 @@ function loadLuxon(reason) {
       return createRequire(join(resolve(directory), "index.js"))("luxon");
     } catch {}
   }
-  fail(`${reason} reads time through Luxon, which was not found in ${directories.join(", ")}. Run \`npm install --prefix DIRECTORY luxon@VERSION\` with the Luxon version that packages/workflow/package.json pins at the source n8n release, then pass --luxon DIRECTORY`, 3);
+  fail(`${reason} reads time through Luxon, which was not found in ${directories.join(", ")}. Run \`npm install --prefix DIRECTORY luxon@VERSION\` with the Luxon version that the catalog in n8n's pnpm-workspace.yaml pins at the source release, then pass --luxon DIRECTORY`, 3);
 }
 
 let time = {};
