@@ -88,7 +88,7 @@ configuration. A missing module is resolved at its exact released version.
 | Decision | Reference and scope |
 | --- | --- |
 | Empty repository, stack, dependencies or local tooling | [Workspace bootstrap](references/workspace-bootstrap.md) |
-| Exported workflow from another tool, such as n8n JSON | [Workflow import](references/workflow-import.md): fidelity ledger, secrets first, golden parity, then the normal stages |
+| Exported workflow from another tool, such as n8n JSON | [Workflow import](references/workflow-import.md): fidelity ledger, secrets first, Dex redesign proposals with one optimize-or-exact question, golden parity, then the normal stages |
 | Missing business requirements, actors or ownership | [Business contract](references/business-contract.md); record concise decisions instead of requesting already supplied facts |
 | Participant/custom UI or management coverage | [Application surface](references/application-surface.md) and [UI workflow](references/ui-workflow.md); clear requests need no extra static-wireframe approval |
 | Go Flow rendering, Summary/Display or Work Queue Actions | [FDG authoring](references/fdg-authoring.md): exact syntax and focused diagnostics |

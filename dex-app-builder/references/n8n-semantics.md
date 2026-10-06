@@ -377,6 +377,30 @@ instead creates failed Flows, which is a `diverged` row.
 | Code | The default mode, and the language (`javaScript` or Python). Python output cannot be captured by the golden harness. |
 | LangChain model and option nodes | Option defaults can change between releases without a `typeVersion` change; record the release. |
 
+## Dex redesign patterns
+
+The inventory proposes these when it detects the n8n shape. Each one changes
+the source's structure to serve the same intent; the user adopts or defers it
+through the single mode question in [workflow import](workflow-import.md).
+
+| n8n shape | Dex design | What changes for the user |
+| --- | --- | --- |
+| A schedule that re-reads a time window and acts on what it finds | One Flow per entity, identified by the provider's entity ID and timed to the moment the intent names; the schedule or a Trigger only discovers entities | Each entity is handled once, at the intended time |
+| A read window longer than the schedule interval | The last successful run's instant in an Attribute; read only newer records | Each record is processed once |
+| A chain of long Waits | One Flow per entity whose waits are AnyOf(Timer, cancel Channel), with progress in Attributes and Actions that cancel or skip | A sequence can be cancelled and inspected per entity |
+| A fixed Wait before reading a submitted job | One Polling Step bounded by its StepOptions, or a provider callback on a Channel | Slow jobs no longer fail, and a paid submit is never repeated |
+| Send-and-wait, resume webhooks, and forms | A Dex Web Action with a permission, backed by an RPC and a Channel, with Summary and Display | Approvals are authenticated and recorded |
+| Remove Duplicates, node static data, or a table used as workflow state | Flow identity (a stable Flow ID, IDReuseDisallow, and a request ID) with Attributes and AttributeMaps | No state store to maintain; duplicates are rejected at start |
+| An error workflow, continue-on-fail, retry-on-fail, or one failure stopping a batch | StepOptions retry policies, Execute-failure recovery Steps, per-item isolation, and uncertain sends routed to recovery | One item's failure no longer stops the rest |
+| Fan-out, Merge, and Loop Over Items | Dynamic parallel Steps over an AttributeMap with a Channel-count join and an ordering stated on purpose | Independent branches run concurrently; canvas position no longer decides order |
+| An agent output parser, or Code that parses model text | `llm` structured output with typed results and every branch routed | No parse failure after a paid call |
+| Literal addresses and IDs, or a configuration Set node | Typed start input and validated Actions | Values are editable without code; no behavior change |
+| Chains of Set, IF, and Code nodes | One typed application Step per real commit boundary | Fewer, testable Steps; no behavior change |
+
+Source defects the inventory finds, such as a schedule that contradicts its
+name or unescaped provider text in HTML, are proposed as fixes in the same
+list.
+
 ## Credentials and identities
 
 - Each credential type and account becomes a connection for the matching
