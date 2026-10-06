@@ -260,7 +260,7 @@ class InventoryTest(unittest.TestCase):
             if node["name"] in ("Read records", "Notify"):
                 node["credentials"] = {"oauth": {"id": "1", "name": "Account"}}
         export["nodes"] += [
-            {"name": "Alert", "type": "n8n-nodes-base.telegram", "typeVersion": 1, "parameters": {"operation": "send"}},
+            {"name": "Alert", "type": "n8n-nodes-base.telegram", "typeVersion": 1, "parameters": {"operation": "sendMessage"}},
             {"name": "Publish", "type": "@vendor/n8n-nodes-vendor.vendor", "typeVersion": 1,
              "parameters": {"platform": "video"}, "credentials": {"vendorApi": {"id": "2", "name": "Vendor"}}},
         ]
@@ -278,7 +278,7 @@ class InventoryTest(unittest.TestCase):
         self.assertEqual(by_kind["community-node"], {"@vendor/n8n-nodes-vendor"})
         self.assertIn("preflight-fails", by_kind, "a hollow node reachable from the trigger fails every execution")
         hollow = next(item for item in inventory["findings"] if item["kind"] == "hollow-node")
-        self.assertIn("text (message content)", hollow["message"])
+        self.assertIn("missing required chatId, text", hollow["message"])
         self.assertIn("Publish (vendor@1)", (self.out / "ledger.md").read_text())
 
     def test_graph_matrix_and_plan_drafts(self):
@@ -345,7 +345,6 @@ connectors:
         self.assertEqual(result.returncode, 2)
 
 
-@unittest.skipUnless(shutil.which("node"), "node is required for the golden harness")
 class DetectorTest(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -443,6 +442,68 @@ class DetectorTest(unittest.TestCase):
         self.assertIn("sleeps in place", next(item for item in by_kind["version-default"] if item["node"] == "Pause")["message"])
         self.assertIn("Input item lacks a field", ledger)
 
+    def test_scopes_findings_to_what_actually_runs(self):
+        export = {
+            "nodes": [
+                {"name": "Hourly", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2,
+                 "parameters": {"rule": {"interval": [{"field": "hours"}]}}},
+                {"name": "Weather", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2,
+                 "parameters": {"url": "=https://api.example.test/now?pageToken={{ $json.nextPageToken }}"}},
+                {"name": "Post", "type": "n8n-nodes-base.slack", "typeVersion": 2.2,
+                 "parameters": {"text": "=Weather on {{ $today.toFormat('yyyy-MM-dd') }}: see [Dashboard](https://example.test) [INFO]",
+                                "otherOptions": {"includeLinkToWorkflow": False}}},
+                {"name": "S3", "type": "n8n-nodes-base.awsS3", "typeVersion": 2, "parameters": {"operation": "getAll"}, "disabled": True},
+                {"name": "Hook", "type": "n8n-nodes-base.webhook", "typeVersion": 2, "parameters": {"httpMethod": "POST"}},
+                {"name": "Alert", "type": "n8n-nodes-base.gmail", "typeVersion": 2.1,
+                 "parameters": {"subject": "=Welcome to [Company Name], {{ $json.body.name }}"}},
+                {"name": "Batches", "type": "n8n-nodes-base.splitInBatches", "typeVersion": 3, "parameters": {}},
+                {"name": "Pace", "type": "n8n-nodes-base.wait", "typeVersion": 1.1, "parameters": {"amount": 1}},
+            ],
+            "connections": {
+                "Hourly": {"main": [[{"node": "Weather", "type": "main", "index": 0}]]},
+                "Weather": {"main": [[{"node": "S3", "type": "main", "index": 0}]]},
+                "S3": {"main": [[{"node": "Post", "type": "main", "index": 0}]]},
+                "Hook": {"main": [[{"node": "Alert", "type": "main", "index": 0}]]},
+                "Alert": {"main": [[{"node": "Batches", "type": "main", "index": 0}]]},
+                "Batches": {"main": [[], [{"node": "Pace", "type": "main", "index": 0}]]},
+                "Pace": {"main": [[{"node": "Batches", "type": "main", "index": 0}]]},
+            },
+        }
+        _, by_kind, ledger = self.inventory(export)
+        self.assertNotIn("repeated-effects", by_kind, "printing today's date is not a whole-day read")
+        self.assertNotIn("secret-in-request", by_kind, "a page token is not a credential")
+        self.assertNotIn("zero-items-stop", by_kind, "a disabled read never runs")
+        self.assertIn("for executions started by Hook", by_kind["preflight-fails"][0]["message"])
+        self.assertEqual([item["node"] for item in by_kind["wait-rate-limit"]], ["Pace"])
+        self.assertNotIn("wait-poll-loop", by_kind)
+        placeholders = " ".join(item["message"] for item in by_kind["literal-placeholder"])
+        self.assertIn("[Company Name]", placeholders)
+        self.assertNotIn("[Dashboard]", placeholders)
+        self.assertNotIn("[INFO]", placeholders)
+        self.assertFalse(any(item["node"] == "Post" for item in by_kind["version-default"]), "the workflow link is turned off")
+        ledger_path = self.root / "out" / "ledger.md"
+        resolved = resolve_ledger(ledger)
+        ledger_path.write_text(resolved)
+        result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, "a node named like a ledger ID is not a ledger row: " + result.stderr)
+
+    def test_verify_flags_unverified_wording_only(self):
+        _, _, ledger = self.inventory(onboarding_export())
+        ledger_path = self.root / "out" / "ledger.md"
+        resolved = resolve_ledger(ledger)
+        for note, is_flagged in (("sends an email to confirm the order", False), ("lists recalled products", False),
+                                 ("default taken from memory", True), ("unconfirmed default", True), ("based on assumptions", True)):
+            ledger_path.write_text(re.sub(r"(\| N1 \|.*?)\| dropped \| [^|]* \|", rf"\1| mapped | {note} |", resolved, count=1))
+            result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(ledger_path)], capture_output=True, text=True)
+            self.assertEqual("unverified claim" in result.stderr, is_flagged, note)
+        moved = self.root / "elsewhere.md"
+        moved.write_text(resolved)
+        result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(moved)], capture_output=True, text=True)
+        self.assertIn("not found", result.stderr)
+        result = subprocess.run([sys.executable, "-B", str(INVENTORY), "verify", str(moved), "--inventory", str(self.root / "out" / "inventory.json")],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_rejects_a_file_that_is_not_the_published_catalog(self):
         catalog = self.root / "catalog.yaml"
         catalog.write_text("apiVersion: connectors.dex.dev/v1alpha1\nkind: ConnectorCatalogSource\n")
@@ -454,6 +515,7 @@ class DetectorTest(unittest.TestCase):
         self.assertIn("not a Dex connector catalog", result.stderr)
 
 
+@unittest.skipUnless(shutil.which("node"), "node is required for the golden harness")
 class GoldenHarnessTest(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -538,6 +600,42 @@ class GoldenHarnessTest(unittest.TestCase):
         proposed = subprocess.run(["node", str(EXPRESSION_GOLDEN), str(self.export), "Text", "value", str(fixture),
                                    "--expression", "={{ $json.n * 10 }}"], capture_output=True, text=True)
         self.assertEqual(json.loads(proposed.stdout), [{"value": 10}, {"value": 20}])
+
+    def test_harness_refuses_values_it_cannot_reproduce(self):
+        export = {"nodes": [{"name": "Text", "type": "n8n-nodes-base.set", "typeVersion": 3.4, "parameters": {"value": "={{ $json.n }}"}}]}
+        self.export.write_text(json.dumps(export))
+        fixture = self.root / "items.json"
+        fixture.write_text(json.dumps({"items": [{"json": {"n": 5, "s": ""}}], "globals": {"$execution": {"id": "e1"}}}))
+        def run(expression):
+            return subprocess.run(["node", str(EXPRESSION_GOLDEN), str(self.export), "Text", "value", str(fixture), "--expression", expression],
+                                  capture_output=True, text=True)
+        for expression in ("={{ $json.s.isEmpty() }}", "={{ $ifEmpty($json.s, 'x') }}", "=n={{ $json.n.toString().toNumber() }}"):
+            result = run(expression)
+            self.assertEqual(result.returncode, 3, expression)
+            self.assertIn("unsupported", json.loads(result.stdout)[0])
+        self.assertEqual(json.loads(run("={{ $execution.id }}").stdout), [{"value": "e1"}])
+        self.assertEqual(json.loads(run("={{ $json.n; }}").stdout), [{"value": 5}])
+        self.assertEqual(json.loads(run("={{ $json.n }} ").stdout), [{"value": "5 "}])
+        self.assertEqual(json.loads(run("={{ $json.s.trim }}").stdout), [{"error": "this is a function, please add ()"}])
+        self.assertEqual(run("={{ $now.toISO() }}").returncode, 3, "time needs Luxon and fixture.now")
+        missing = subprocess.run(["node", str(EXPRESSION_GOLDEN), str(self.export), "Text", "value", str(fixture), "extra"],
+                                 capture_output=True, text=True)
+        self.assertEqual(missing.returncode, 2)
+
+    def test_function_node_and_per_item_check_follow_n8n(self):
+        export = {"nodes": [
+            {"name": "Legacy", "type": "n8n-nodes-base.function", "typeVersion": 1,
+             "parameters": {"functionCode": "return [{json: {a: $json.n}}];"}},
+            {"name": "Each", "type": "n8n-nodes-base.code", "typeVersion": 2, "parameters": {
+                "mode": "runOnceForEachItem", "jsCode": "// earlier code used $input.all() here\nreturn {json: {total: $json.callCount}};"}},
+        ]}
+        self.export.write_text(json.dumps(export))
+        fixture = self.root / "items.json"
+        fixture.write_text(json.dumps({"items": [{"json": {"n": 1, "callCount": 2}}, {"json": {"n": 2, "callCount": 3}}]}))
+        legacy = subprocess.run(["node", str(GOLDEN), str(self.export), "Legacy", str(fixture)], capture_output=True, text=True)
+        self.assertEqual(json.loads(legacy.stdout), [{"json": {"a": 1}}])
+        each = subprocess.run(["node", str(GOLDEN), str(self.export), "Each", str(fixture)], capture_output=True, text=True)
+        self.assertEqual(each.returncode, 1, "n8n matches 'all' inside callCount after the comment names .all()")
 
     def test_rejects_a_non_code_node(self):
         result = self.golden({"items": []}, node="Fetch")

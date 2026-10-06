@@ -34,7 +34,8 @@ STATUSES = ("mapped", "diverged", "dropped", "blocked", "pending")
 DECISION_STATUSES = ("decided", "pending")
 NOTE_REQUIRED = ("diverged", "dropped", "blocked", "pending")
 WEBHOOK_OUTPUT_FIELDS = {"headers", "params", "query", "body", "webhookUrl", "executionMode"}
-INLINE_PLACEHOLDER = re.compile(r"\[[A-Z][A-Za-z0-9 ]{1,40}\]")
+# Template placeholders such as [Company Name]; not Markdown link text and not all-caps log tags.
+INLINE_PLACEHOLDER = re.compile(r"\[(?=[^\]]*[a-z])[A-Z][A-Za-z0-9 ]{1,40}\](?!\()")
 SEVERITY_ORDER = ("critical", "high", "medium", "info")
 
 SECRET_NAME = re.compile(
@@ -72,6 +73,11 @@ UNGUARDED_CODE_READ = re.compile(
 LOCALE_DEPENDENT = re.compile(
     r"toLocale(?:String|DateString|TimeString)\(|\bIntl\.|toFormat\(\s*['\"](?:D{1,4}|t{1,4}|f{1,4}|F{1,4}|DD{0,3}\s*t{1,4})['\"]"
 )
+# Field names that hold a credential, as opposed to a pagination cursor or a counter.
+CREDENTIAL_FIELD = re.compile(
+    r"(?i)(api.?key|access.?token|auth.?token|refresh.?token|bot.?token|secret|passw(or)?d|private.?key|authorization|bearer|^token$|_token$)"
+)
+NON_CREDENTIAL_FIELD = re.compile(r"(?i)(page|next|cursor|continuation|sync|count|csrf|limit)")
 DAY_WINDOW = re.compile(r"\$today|startOf\(\s*['\"]day['\"]\s*\)")
 EMPTY_RESULT_CHECK = re.compile(r"\.length\s*(?:===?\s*0|<\s*1)|!\s*[\w$.]+\.length\b")
 IDENTIFIER_KEY = re.compile(
@@ -128,7 +134,7 @@ APP_HINT = "Released connector operation that matches this resource and operatio
 LANGCHAIN_HINT = "llm connector Query or a durable Dex agent; tools become Steps."
 TRIGGER_HINT = "Released connector Trigger if the catalog has it; otherwise a connector contribution."
 
-DEFAULT_RESOURCE = {"googleCalendar": "event", "gmail": "message", "slack": "message"}
+DEFAULT_RESOURCE = {"googleCalendar": "event", "gmail": "message", "slack": "message", "telegram": "message"}
 # Candidate Dex catalog connector IDs for common n8n node types; the catalog decides what is released.
 N8N_CONNECTOR_CANDIDATES = {
     "gmail": ["gmail"], "gmailTrigger": ["gmail"], "googleCalendar": ["google-calendar"],
@@ -173,14 +179,12 @@ LANGCHAIN_ROOT_PREFIXES = ("agent", "chain", "openAi", "anthropic", "googleGemin
 RECIPIENT_PARAMETERS = ("sendTo", "toEmail", "to", "toRecipients", "ccList", "bccList")
 CORE_PACKAGES = ("n8n-nodes-base", "@n8n/n8n-nodes-langchain")
 STRUCTURAL_PARAMETERS = {"resource", "operation", "authentication", "options"}
-# Fields an operation cannot run without; confirm against the n8n node source.
-# Message content an operation cannot run without: at least one of these fields.
-REQUIRED_CONTENT = {"emailSend": ("text", "html"), "gmail": ("message",), "telegram": ("text",)}
+# Required fields of common send operations, keyed by (node, resource, operation) with n8n's defaults
+# filled in; confirm each against the n8n node source at the exported version.
 REQUIRED_PARAMETERS = {
-    "emailSend": ("fromEmail", "toEmail"),
-    "gmail": ("sendTo",),
-    "telegram": ("chatId",),
-    "slack": ("channelId",),
+    ("emailSend", "", "send"): ("fromEmail", "toEmail"),
+    ("gmail", "message", "send"): ("sendTo", "message"),
+    ("telegram", "message", "sendMessage"): ("chatId", "text"),
 }
 
 
@@ -313,6 +317,10 @@ class Inventory:
             elif kind == "community-node":
                 self.add_finding("high", kind, node,
                                  f"Community node(s) {listed}: behavior and defaults come from that package, not n8n core. Read the package source at the exported version, or mark the rows `pending` until the user confirms the behavior.")
+            elif kind == "operation-check":
+                self.add_finding("info", kind, node,
+                                 f"Check each resource and operation against the node's option list at its typeVersion: {listed}. n8n never validates these values, "
+                                 "and an unknown one does something node-specific, from an error to an empty item with no provider call.")
             elif kind == "literal-placeholder":
                 self.add_finding("medium", kind, node,
                                  f"Literal template placeholder(s) {listed} would be sent as written; ask for the real value or a field to fill it.")
@@ -446,6 +454,9 @@ class Inventory:
                                  f"Field `{field['name']}` is a number field holding the string {field['value']!r}; n8n coerces it to a number.")
 
         for path, value in walk(parameters):
+            if isinstance(value, str) and kind not in ("stickyNote", "code", "function", "functionItem") and "cachedResult" not in path:
+                for placeholder in sorted(set(INLINE_PLACEHOLDER.findall(literal_text(value)))):
+                    self.group("literal-placeholder", name, f"{placeholder}` in `{path}")
             if isinstance(value, str) and value.startswith("="):
                 self.collect_expression(node, path, value)
             elif isinstance(value, str) and path.split(".")[-1] in RECIPIENT_PARAMETERS and "," in value:
@@ -454,8 +465,6 @@ class Inventory:
                 for address in sorted(set(EMAIL.findall(value))):
                     self.group("hardcoded-address", name, f"{address}` in `{path}")
             elif isinstance(value, str) and kind != "stickyNote" and "cachedResult" not in path:
-                for placeholder in sorted(set(INLINE_PLACEHOLDER.findall(value))):
-                    self.group("literal-placeholder", name, f"{placeholder}` in `{path}")
                 for address in sorted(set(EMAIL.findall(value))):
                     self.group("hardcoded-address", name, f"{address}` in `{path}")
 
@@ -526,23 +535,19 @@ class Inventory:
                                      "The model selector is empty, so n8n cannot run this model as exported. Ask which provider and model the Dex llm connection uses.")
         if not self.is_app_node(node) or node.get("disabled"):
             return
+        resource = parameters.get("resource", DEFAULT_RESOURCE.get(kind, "(default)"))
+        self.group("operation-check", "(workflow)", f"{name}: {kind}@{node_version(node):g} {resource}/{parameters.get('operation', DEFAULT_OPERATION.get(kind, '(default)'))}")
         if not node.get("credentials"):
             self.group("missing-credential", f"{kind} nodes", name)
         payload = set(parameters) - STRUCTURAL_PARAMETERS
-        operation = parameters.get("operation", "")
-        missing = [field for field in REQUIRED_PARAMETERS.get(kind, ()) if not parameters.get(field)]
-        if kind == "hubspot" and operation == "update" and not parameters.get("contactId"):
-            missing.append("contactId")
-        if kind == "hubspot" and operation == "create" and not parameters.get("email"):
-            missing.append("email")
-        content_fields = REQUIRED_CONTENT.get(kind, ())
-        is_message_operation = operation in ("", "send", "sendMessage", "reply")
-        if content_fields and is_message_operation and not any(parameters.get(field) for field in content_fields):
-            missing.append(" or ".join(content_fields) + " (message content)")
+        key = (kind, str(parameters.get("resource", DEFAULT_RESOURCE.get(kind, ""))),
+               str(parameters.get("operation", DEFAULT_OPERATION.get(kind, ""))))
+        missing = [field for field in REQUIRED_PARAMETERS.get(key, ()) if not parameters.get(field)]
         if not payload or missing:
-            detail = f"missing {', '.join(missing)}" if missing else "only its resource and operation are set"
+            detail = f"missing required {', '.join(missing)}" if missing else "only its resource and operation are set"
             self.add_finding("high", "hollow-node", name,
-                             f"The node is a placeholder ({detail}), so n8n cannot run it as exported. Its real behavior must come from the user, not from notes or the node name.")
+                             f"The node is a placeholder ({detail}; confirm in the node source at typeVersion {node_version(node):g}), so n8n cannot run it as exported. "
+                             "Its real behavior must come from the user, not from notes or the node name.")
 
     def hint(self, node: dict) -> str:
         kind = short_type(node.get("type", ""))
@@ -601,9 +606,9 @@ class Inventory:
                 parts.append("options: " + (", ".join(sorted(options)) or "none (all defaults)"))
         return "; ".join(part for part in parts if part)
 
-    @staticmethod
-    def short_value(value, limit: int = 60) -> str:
-        text = json.dumps(value) if not isinstance(value, str) else value
+    def short_value(self, value, limit: int = 60) -> str:
+        # Redact before truncating, so a cut inside a secret never leaves its prefix behind.
+        text = self.redact(json.dumps(value) if not isinstance(value, str) else value)
         return text if len(text) <= limit else text[: limit - 1] + "…"
 
     @staticmethod
@@ -774,7 +779,7 @@ class Inventory:
                         f"emailType is {options.get('emailType', parameters.get('emailType', 'html (default)'))}; html mail has no text/plain part, and the message is trimmed. Record the footer as a divergence.")
         elif kind == "emailSend" and version >= 2.1 and options.get("appendAttribution", True):
             note = "Send Email v2.1 appends 'This email was sent automatically with n8n' unless options.appendAttribution is false. Record the footer as a divergence."
-        elif kind == "telegram" and parameters.get("operation", "sendMessage") == "sendMessage":
+        elif kind == "telegram" and parameters.get("resource", "message") == "message" and parameters.get("operation", "sendMessage") == "sendMessage":
             fields = parameters.get("additionalFields", {}) or {}
             parse_mode = fields.get("parse_mode", "Markdown")
             note = f"Telegram sendMessage sends parse_mode {parse_mode} ({'the default when unset' if 'parse_mode' not in fields else 'set'}), so the text is parsed as markup."
@@ -782,9 +787,11 @@ class Inventory:
                 note += " v1.1+ appends 'This message was sent automatically with n8n' unless appendAttribution is false."
             if version >= 1.2:
                 note += " v1.2+ disables link previews by default."
-        elif kind == "slack" and version >= 2.1 and parameters.get("operation", "post") in ("post", "update"):
+        elif (kind == "slack" and version >= 2.1 and parameters.get("operation", "post") in ("post", "update")
+              and (parameters.get("otherOptions", {}) or {}).get("includeLinkToWorkflow", True) is not False):
             note = "Slack v2.1+ appends an 'Automated with this n8n workflow' link unless otherOptions.includeLinkToWorkflow is false. Record it as a divergence."
-        elif kind == "microsoftTeams" and version >= 1.1 and parameters.get("operation", "create") == "create":
+        elif (kind == "microsoftTeams" and version >= 1.1 and parameters.get("operation", "create") == "create"
+              and options.get("includeLinkToWorkflow", True) is not False):
             note = "Microsoft Teams v1.1+ appends a 'Powered by this n8n workflow' link and sends HTML unless includeLinkToWorkflow is false. Record it as a divergence."
         elif kind == "googleCalendar" and parameters.get("operation") == "getAll":
             if not parameters.get("returnAll"):
@@ -914,11 +921,11 @@ class Inventory:
 
     def is_multi_item_read(self, node: dict) -> bool:
         operation = str((node.get("parameters", {}) or {}).get("operation", "")).lower()
-        return operation in MULTI_ITEM_OPERATIONS
+        return operation in MULTI_ITEM_OPERATIONS and not node.get("disabled")
 
     def is_effect_node(self, node: dict) -> bool:
         kind = short_type(node.get("type", ""))
-        if not (self.is_app_node(node) or kind == "httpRequest") or is_trigger(node):
+        if not (self.is_app_node(node) or kind == "httpRequest") or is_trigger(node) or node.get("disabled"):
             return False
         parameters = node.get("parameters", {}) or {}
         if kind == "httpRequest":
@@ -949,25 +956,34 @@ class Inventory:
 
     def check_repeated_effects(self) -> None:
         """A schedule that fires more often than its read window repeats the same effects every execution."""
-        sub_daily = [schedule for schedule in self.schedules if schedule.get("field") in ("seconds", "minutes", "hours")]
-        if not sub_daily:
-            return
-        windowed = sorted({expression["node"] for expression in self.expressions if DAY_WINDOW.search(expression["expression"])})
-        effects = sorted(node.get("name", "") for node in self.nodes if self.is_effect_node(node))
-        if windowed and effects:
-            self.add_finding("high", "repeated-effects", sub_daily[0]["node"],
-                             f"The schedule fires {sub_daily[0]['description']}, but {', '.join(windowed)} read a whole-day window, so every execution repeats "
-                             f"{', '.join(effects)} for the same items; n8n keeps no memory between executions. Record the repetition as source behavior and ask whether Dex keeps it.")
+        for schedule in self.schedules:
+            if schedule.get("field") not in ("seconds", "minutes", "hours"):
+                continue
+            downstream = self.descendants(schedule["node"], "main")
+            # A whole-day window counts only where a read node uses it, not where an effect merely prints the date.
+            windowed = sorted({
+                expression["node"] for expression in self.expressions
+                if expression["node"] in downstream and DAY_WINDOW.search(expression["expression"])
+                and not self.is_effect_node(self.by_name.get(expression["node"], {}))
+                and (self.is_app_node(self.by_name.get(expression["node"], {})) or short_type(self.by_name.get(expression["node"], {}).get("type", "")) == "httpRequest")
+            })
+            effects = sorted({name for read in windowed for name in self.descendants(read, "main") if self.is_effect_node(self.by_name.get(name, {}))})
+            if windowed and effects:
+                self.add_finding("high", "repeated-effects", schedule["node"],
+                                 f"The schedule fires {schedule['description']}, but {', '.join(windowed)} read a whole-day window, so every execution repeats "
+                                 f"{', '.join(effects)} for the same items; n8n keeps no memory between executions. Record the repetition as source behavior and ask whether Dex keeps it.")
+                return
 
     def check_secret_requests(self) -> None:
         """A credential that travels from workflow data into a request belongs to the connector connection."""
         for expression in self.expressions:
             node = self.by_name.get(expression["node"], {})
-            if not (short_type(node.get("type", "")) == "httpRequest" or self.is_app_node(node)):
+            if not (short_type(node.get("type", "")) == "httpRequest" or self.is_app_node(node)) or node.get("disabled"):
                 continue
             parameter = expression["parameter"].lower()
             fields = set(re.findall(r"(?:\$json|\.json)\.([A-Za-z_$][\w$]*)", expression["expression"]))
-            secrets = sorted(field for field in fields if field in self.secret_fields or SECRET_NAME.search(field))
+            secrets = sorted(field for field in fields
+                             if field in self.secret_fields or (CREDENTIAL_FIELD.search(field) and not NON_CREDENTIAL_FIELD.search(field)))
             if not secrets:
                 continue
             where = "URL" if re.split(r"[.\[]", parameter)[-1] == "url" or "queryparameters" in parameter else "request"
@@ -1022,22 +1038,32 @@ class Inventory:
             name = node.get("name", "")
             if name in self.descendants(name):
                 cycle = sorted(other for other in self.descendants(name) if name in self.descendants(other))
+                if any(short_type(self.by_name.get(other, {}).get("type", "")) == "splitInBatches" for other in cycle):
+                    self.add_finding("info", "wait-rate-limit", name,
+                                     f"This Wait paces a Loop Over Items batch loop ({', '.join(cycle)}): a rate limit, not polling. Map it to batched Steps with a Timer between batches.")
+                    continue
                 self.add_finding("medium", "wait-poll-loop", name,
                                  f"This Wait sits in a loop ({', '.join(cycle)}): a fixed delay standing in for an external job finishing. Map the loop to the Dex Polling pattern with a bounded attempt count, not a Timer plus a jump back, and record the source's missing bound if it has none.")
 
     def check_preflight(self) -> None:
         """n8n refuses to start an execution while a main-reachable node lacks a required displayed parameter."""
-        hollow = {item["node"] for item in self.findings if item["kind"] == "hollow-node" and "missing" in item["message"]}
-        reachable = set()
-        for node in self.nodes:
-            if is_trigger(node) and not node.get("disabled"):
-                reachable |= {node.get("name", "")} | self.descendants(node.get("name", ""), "main")
-        blocking = sorted(name for name in hollow if name in reachable and not langchain_sub_node_role(self.by_name.get(name, {})))
-        if blocking:
-            self.add_finding("high", "preflight-fails", "(workflow)",
-                             f"Before the first node runs, n8n checks every enabled node reachable from the trigger for empty required parameters that are displayed at its version, "
-                             f"and fails the whole execution if one is empty. If {', '.join(blocking)} lack such a parameter, the exported workflow has no effect at all for any trigger event. "
-                             "Confirm each parameter in the node source, record the export's effect as none, and do not offer a 'faithful' option that assumes later nodes run. Credentials are not part of this check.")
+        hollow = {item["node"] for item in self.findings if item["kind"] == "hollow-node" and "missing required" in item["message"]}
+        triggers = [node.get("name", "") for node in self.nodes if is_trigger(node) and not node.get("disabled")]
+        failing = {}
+        for trigger in triggers:
+            reachable = {trigger} | self.descendants(trigger, "main")
+            blocking = sorted(name for name in hollow & reachable if not langchain_sub_node_role(self.by_name.get(name, {})))
+            if blocking:
+                failing[trigger] = blocking
+        if not failing:
+            return
+        scope = ("for any trigger event" if len(failing) == len(triggers)
+                 else f"for executions started by {', '.join(sorted(failing))}; executions from other triggers still run")
+        nodes = sorted({name for names in failing.values() for name in names})
+        self.add_finding("high", "preflight-fails", "(workflow)",
+                         "Before the first node runs, n8n checks every enabled node reachable from the starting trigger for empty required parameters that are displayed at its version, "
+                         f"and fails the whole execution if one is empty. If {', '.join(nodes)} lack such a parameter, the exported workflow has no effect {scope}. "
+                         "Confirm each parameter in the node source, record that effect as none, and do not offer a 'faithful' option that assumes later nodes run. Credentials are not part of this check.")
 
     def check_open_triggers(self) -> None:
         for node in self.nodes:
@@ -1260,13 +1286,19 @@ class Inventory:
                 element, notes = "dropped", "no behavior"
             elif name in unreachable:
                 element, notes = "dropped", "unreachable: never runs in production"
+            elif node.get("disabled"):
+                element, notes = "dropped", "disabled: n8n passes its items through unchanged"
             elif kind == "set":
                 element, notes = "folded into the consuming Step", self.hint(node)
             elif kind in ("if", "filter", "switch"):
                 element, notes = "folded into an application Step", "the predicate chooses that Step's movement; port it with the IF semantics in n8n-semantics"
             elif kind == "wait":
                 element = f"application Step {pascal_case(name)}"
-                notes = "WaitFor returns dex.Until(dex.Timer(duration)); Execute builds the next Step's input (a Connector Step cannot wait)"
+                resume = (node.get("parameters", {}) or {}).get("resume", "timeInterval")
+                if resume in ("webhook", "form"):
+                    notes = "WaitFor waits on a Channel or typed RPC resume, plus a Timer only if limitWaitTime is set; Execute builds the next Step's input"
+                else:
+                    notes = "WaitFor returns dex.Until(dex.Timer(duration)); Execute builds the next Step's input (a Connector Step cannot wait)"
             elif is_trigger(node):
                 element, notes = "trigger", self.hint(node)
             elif langchain_sub_node_role(node):
@@ -1323,8 +1355,7 @@ class Inventory:
             "findings": self.findings,
             "connectorMatrix": self.connector_matrix(),
             "planDraft": self.plan_rows(),
-            "ledgerIds": self.ledger_ids or [split_row(line)[0] for line in self.to_markdown().splitlines()
-                                             if line.startswith("| ") and re.fullmatch(LEDGER_ID, split_row(line)[0])],
+            "ledgerIds": self.ledger_ids or [cells[0] for _, cells in ledger_rows(self.to_markdown())],
         }
         return json.loads(self.redact(json.dumps(data)))
 
@@ -1394,8 +1425,9 @@ class Inventory:
         uncredentialed = defaultdict(list)
         for row in self.connector_matrix():
             node = self.by_name.get(row["node"], {})
-            if not node.get("credentials") and not langchain_sub_node_role(node) and row["type"] not in ("httpRequest",):
-                uncredentialed[row["connector"] or row["type"]].append(row["node"])
+            if not node.get("credentials") and self.is_app_node(node) and not node.get("disabled"):
+                connector = row["connector"] if row["connector"] and row["connector"] != "-" else row["type"]
+                uncredentialed[connector].append(row["node"])
         for connector, nodes in uncredentialed.items():
             credential_index += 1
             lines.append(f"| C{credential_index} | (none in the export) | {cell(', '.join(nodes))} | "
@@ -1407,6 +1439,7 @@ class Inventory:
                   "| ID | n8n node | Branch and Dex target | Status | Notes |", "| --- | --- | --- | --- | --- |"]
         branch_nodes = [row["node"] for row in self.connector_matrix()
                         if not langchain_sub_node_role(self.by_name.get(row["node"], {})) and not is_trigger(self.by_name.get(row["node"], {}))
+                        and not self.by_name.get(row["node"], {}).get("disabled")
                         and row["node"] not in {item["node"] for item in self.findings if item["kind"] == "unreachable-node"}]
         for index, node_name in enumerate(branch_nodes, 1):
             lines.append(f"| R{index} | {cell(node_name)} | {BRANCH_PLACEHOLDER} | todo |   |")
@@ -1467,8 +1500,7 @@ class Inventory:
             lines.append("| D1 | none | - | No critical or high finding; add questions found during the semantic review. | todo |   |")
         lines.append("")
         rendered = self.redact("\n".join(lines))
-        self.ledger_ids = [split_row(line)[0] for line in rendered.splitlines()
-                           if line.startswith("| ") and re.fullmatch(LEDGER_ID, split_row(line)[0])]
+        self.ledger_ids = [cells[0] for _, cells in ledger_rows(rendered)]
         return rendered
 
     def behavior_rows(self) -> list[tuple]:
@@ -1477,7 +1509,8 @@ class Inventory:
             if self.is_multi_item_read(node):
                 kept = "alwaysOutputData emits one empty item, so downstream still runs" if node.get("alwaysOutputData") else "downstream nodes do not run and the execution succeeds"
                 rows.append(("Read returns zero items", node.get("name", ""), kept))
-        external = [node for node in self.nodes if (self.is_app_node(node) or short_type(node.get("type", "")) == "httpRequest") and not is_trigger(node)]
+        external = [node for node in self.nodes if (self.is_app_node(node) or short_type(node.get("type", "")) == "httpRequest")
+                    and not is_trigger(node) and not node.get("disabled")]
         if external:
             handled = [node.get("name", "") for node in external if (node.get("onError") or "stopWorkflow") != "stopWorkflow" or node.get("continueOnFail")]
             retried = [node.get("name", "") for node in external if node.get("retryOnFail")]
@@ -1651,9 +1684,26 @@ def load_workflows(path: Path) -> list:
 LEDGER_ID = r"[NEXCSFKBRD]\d+[a-z]?"
 BRANCH_PLACEHOLDER = "(list every branch of the operation's connector.yaml at the release tag)"
 UNVERIFIED_NOTE = re.compile(
-    r"(?i)\b(assum(?:e|ed|es|ing|ption)|unverified|from memory|recalled|i recall|to confirm|needs? confirm\w*|"
-    r"not (?:yet )?confirmed|confirm (?:in|against) (?:the )?source)\b"
+    r"(?i)\b(from memory|unverified|not (?:yet )?verified|unconfirmed|not (?:yet )?confirmed|assum(?:ed|ing|ptions?)|"
+    r"probably|i recall|to be confirmed|needs? (?:source )?verification|confirm (?:in|against|at) (?:the )?(?:n8n )?source)\b"
 )
+
+
+def ledger_rows(text: str):
+    """Yield (line number, cells) for rows of tables whose first header cell is ID."""
+    in_ledger_table = False
+    for number, line in enumerate(text.splitlines(), 1):
+        if not line.startswith("|"):
+            in_ledger_table = False
+            continue
+        cells = split_row(line)
+        if cells and re.fullmatch(r"-{3,}", cells[0]):
+            continue
+        if cells and not re.fullmatch(LEDGER_ID, cells[0]):
+            in_ledger_table = cells[0] == "ID"
+            continue
+        if in_ledger_table and len(cells) >= 3:
+            yield number, cells
 
 
 def split_row(line: str) -> list:
@@ -1661,17 +1711,13 @@ def split_row(line: str) -> list:
     return cells[1:-1] if len(cells) >= 2 else cells
 
 
-def verify(path: Path, is_strict: bool = False) -> int:
+def verify(path: Path, is_strict: bool = False, inventory_path: Path | None = None) -> int:
     problems, counts, seen, by_section = [], defaultdict(int), set(), defaultdict(lambda: defaultdict(int))
     text = path.read_text(encoding="utf-8")
     # A decision is defined by a Decisions table row, or by a bullet or heading that starts with its ID.
     decision_ids = set(re.findall(r"^(?:\|\s*|[-*]\s+(?:\*\*)?|#+\s+)(D\d+[a-z]?)\b", text, re.MULTILINE))
-    for number, line in enumerate(text.splitlines(), 1):
-        if not line.startswith("|"):
-            continue
-        cells = split_row(line)
-        if len(cells) < 3 or not re.fullmatch(LEDGER_ID, cells[0]):
-            continue
+    for number, cells in ledger_rows(text):
+        line = text.splitlines()[number - 1]
         seen.add(cells[0])
         status, notes = cells[-2].lower(), cells[-1]
         allowed = DECISION_STATUSES if cells[0].startswith("D") else STATUSES
@@ -1693,8 +1739,11 @@ def verify(path: Path, is_strict: bool = False) -> int:
             problems.append(f"line {number} {cells[0]}: pending awaits the user's decision")
     if not counts:
         problems.append("no ledger rows found")
-    inventory_path = path.parent / "inventory.json"
-    if inventory_path.exists():
+    inventory_path = inventory_path or path.parent / "inventory.json"
+    if not inventory_path.exists():
+        print(f"warning: {inventory_path} not found, so deleted rows go undetected; keep inventory.json with the ledger or pass --inventory",
+              file=sys.stderr)
+    else:
         try:
             generated = json.loads(inventory_path.read_text(encoding="utf-8")).get("ledgerIds", [])
         except (OSError, ValueError):
@@ -1725,10 +1774,11 @@ def main(argv=None) -> int:
     verify_parser = commands.add_parser("verify", help="check that every ledger row is resolved")
     verify_parser.add_argument("ledger", type=Path)
     verify_parser.add_argument("--strict", action="store_true", help="also fail while any row is pending")
+    verify_parser.add_argument("--inventory", type=Path, help="inventory.json generated with this ledger (default: next to it)")
     arguments = parser.parse_args(argv)
 
     if arguments.command == "verify":
-        return verify(arguments.ledger, arguments.strict)
+        return verify(arguments.ledger, arguments.strict, arguments.inventory)
 
     try:
         workflows = load_workflows(arguments.export)

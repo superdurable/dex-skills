@@ -116,7 +116,10 @@ change between releases without a `typeVersion` change.
   `$itemIndex`, and `$runIndex`. `$vars` and `$env` values are not in the
   export.
 - n8n's expression engine swallows every error inside a `{{ }}` segment except
-  its own `ExpressionError` and syntax errors. A TypeError from calling a
+  its own `ExpressionError` and syntax errors. n8n also adds extension methods
+  to values, such as `.isEmpty()`, `.toNumber()`, and `.first()`, and extended
+  functions such as `$ifEmpty`, so a call that would throw in plain JavaScript
+  can return a value in n8n. A TypeError from calling a
   method on a missing field, such as `{{ $json.title.toLowerCase() }}` on an
   item without `title`, leaves that segment empty and the node continues; a
   whole-value expression yields `undefined`. Trace the empty value to its

@@ -14,10 +14,10 @@
 //     "timezone": "America/New_York"         optional workflow timezone
 //   }
 //
-// In Run Once for All Items mode, $input.item and $json read the first input
-// item, as in n8n. In Run Once for Each Item mode, code that mentions
-// $input.all(), .first(), .last(), or .itemMatching() is rejected before it
-// runs, as in n8n.
+// In Run Once for All Items mode and in a Function node, $input.item and $json
+// read the first input item, as in n8n. In Run Once for Each Item mode, n8n's
+// own check rejects code that uses $input.all(), .first(), .last(), or
+// .itemMatching() before it runs.
 //
 // Prints the normalized output items as JSON on stdout; console output goes to
 // stderr. A thrown error prints to stderr and exits 1, which is itself golden
@@ -27,8 +27,9 @@
 
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { delimiter, dirname, join } from "node:path";
+import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
 import vm from "node:vm";
 import { inspect } from "node:util";
 
@@ -37,13 +38,16 @@ function fail(message, exitCode = 2) {
   process.exit(exitCode);
 }
 
-const argumentsList = process.argv.slice(2);
-const luxonIndex = argumentsList.indexOf("--luxon");
-const luxonDirectory = luxonIndex >= 0 ? argumentsList.splice(luxonIndex, 2)[1] : undefined;
-const [exportPath, nodeName, fixturePath] = argumentsList;
-if (!exportPath || !nodeName || !fixturePath) {
-  fail('usage: node n8n_code_golden.mjs EXPORT.json "Node name" FIXTURE.json [--luxon DIRECTORY]');
+const usage = 'usage: node n8n_code_golden.mjs EXPORT.json "Node name" FIXTURE.json [--luxon DIRECTORY]';
+let parsed;
+try {
+  parsed = parseArgs({ allowPositionals: true, options: { luxon: { type: "string" } } });
+} catch (error) {
+  fail(`${error.message}\n${usage}`);
 }
+if (parsed.positionals.length !== 3) fail(usage);
+const [exportPath, nodeName, fixturePath] = parsed.positionals;
+const luxonDirectory = parsed.values.luxon;
 
 const loaded = JSON.parse(readFileSync(exportPath, "utf8"));
 const workflows = Array.isArray(loaded) ? loaded : [loaded.nodes ? loaded : loaded.data ?? loaded];
@@ -78,13 +82,15 @@ const otherNodes = Object.fromEntries(
   Object.entries(fixture.nodes ?? {}).map(([name, nodeItems]) => [name, nodeItems.map(toItem)]),
 );
 
-// Luxon resolves from --luxon DIRECTORY, N8N_GOLDEN_LUXON, the working directory, this script's directory, or NODE_PATH.
+// Luxon resolves from --luxon DIRECTORY or N8N_GOLDEN_LUXON alone when either is given; otherwise from the
+// working directory, this script's directory, or NODE_PATH.
 function loadLuxon(reason) {
-  const directories = [luxonDirectory, process.env.N8N_GOLDEN_LUXON, process.cwd(), dirname(fileURLToPath(import.meta.url)),
-    ...(process.env.NODE_PATH ?? "").split(delimiter)].filter(Boolean);
+  const pinned = luxonDirectory ?? process.env.N8N_GOLDEN_LUXON;
+  const directories = pinned ? [pinned]
+    : [process.cwd(), dirname(fileURLToPath(import.meta.url)), ...(process.env.NODE_PATH ?? "").split(delimiter)].filter(Boolean);
   for (const directory of directories) {
     try {
-      return createRequire(join(directory, "index.js"))("luxon");
+      return createRequire(join(resolve(directory), "index.js"))("luxon");
     } catch {}
   }
   fail(`${reason} reads time through Luxon, which was not found in ${directories.join(", ")}. Run \`npm install --prefix DIRECTORY luxon@VERSION\` with the Luxon version that packages/workflow/package.json pins at the source n8n release, then pass --luxon DIRECTORY`, 3);
@@ -124,6 +130,8 @@ const sandboxConsole = Object.fromEntries(
 );
 
 let firstItemOnly = false;
+// All-items Code and the legacy Function node bind $json and $input.item to the first input item.
+const readsFirstItem = mode === "runOnceForAllItems" || mode === "function";
 function context(index, item) {
   const perItem = mode === "runOnceForEachItem" || mode === "functionItem";
   const firstItem = () => {
@@ -137,12 +145,12 @@ function context(index, item) {
       first: () => items[0],
       last: () => items[items.length - 1],
       get item() {
-        return perItem ? item : mode === "runOnceForAllItems" ? firstItem() : undefined;
+        return perItem ? item : readsFirstItem ? firstItem() : undefined;
       },
       params: parameters,
     },
     get $json() {
-      return perItem ? item?.json : mode === "runOnceForAllItems" ? firstItem().json : undefined;
+      return perItem ? item?.json : readsFirstItem ? firstItem().json : undefined;
     },
     $: (name) => nodeAccessor(name, index),
     $node: new Proxy({}, { get: (_, name) => ({ json: nodeAccessor(String(name), index).first()?.json }) }),
@@ -173,15 +181,17 @@ function normalize(result, perItem) {
   });
 }
 
+// n8n's own check (JsCodeValidator): the first $input.<method> mention anywhere, comments included, names the
+// method; the node fails when any line that is not a comment contains that method name.
 if (mode === "runOnceForEachItem") {
-  for (const line of code.split("\n")) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) continue;
-    const match = trimmed.match(/\$input\.(all|first|last|itemMatching)\b/);
-    if (match) {
-      process.stderr.write(`node failed: Can't use .${match[1]}() here: this is only available in 'Run Once for All Items' mode\n`);
-      process.exit(1);
-    }
+  const method = code.match(/\$input\.(first|last|all|itemMatching)/)?.[1];
+  const line = method ? code.split("\n").findIndex((text) => {
+    const trimmed = text.trimStart();
+    return trimmed.includes(method) && !trimmed.startsWith("//") && !trimmed.startsWith("/*") && !trimmed.startsWith("*");
+  }) : -1;
+  if (line !== -1) {
+    process.stderr.write(`node failed: Can't use .${method}() here (line ${line + 1}): this is only available in 'Run Once for All Items' mode\n`);
+    process.exit(1);
   }
 }
 
@@ -201,7 +211,7 @@ try {
 }
 
 if (firstItemOnly) {
-  process.stderr.write("note: $input.item or $json in 'Run Once for All Items' mode read only the first input item, as n8n does\n");
+  process.stderr.write("note: $input.item or $json read only the first input item, as n8n does in this mode\n");
 }
 if (positionalPairing) {
   process.stderr.write("note: $('Node').item was resolved by position; confirm the paired-item lineage matches\n");

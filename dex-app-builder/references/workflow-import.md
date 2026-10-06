@@ -226,9 +226,13 @@ node scripts/n8n_expression_golden.mjs /path/to/export.json "Node name" paramete
 ```
 
 An `error` entry means n8n fails the node. An entry with `swallowedErrors`
-means n8n swallowed the error and continued with an empty value, so the ledger
-records that value's downstream effect, not a failure. `--expression` goldens a
-proposed fix without editing the export.
+means n8n swallowed a native JavaScript error and continued with an empty
+value, so the ledger records that value's downstream effect, not a failure. An
+`unsupported` entry, with exit status 3, means the expression needs an n8n
+extension method, extended function, or global that the harness does not
+implement: supply globals such as `$execution` in `fixture.globals`, or capture
+the value from an n8n execution. `--expression` goldens a proposed fix without
+editing the export.
 
 For each Code or Function node, capture golden output with synthetic
 fixtures:
@@ -284,7 +288,8 @@ no row is `pending`. Then build through the normal stages.
 
 ## 8. Accept and cut over
 
-- `python3 scripts/n8n_inventory.py verify ledger.md` passes: no row remains
+- `python3 scripts/n8n_inventory.py verify ledger.md` passes, with
+  `--inventory` naming the generated `inventory.json` when the ledger moved: no row remains
   `todo`, every non-`mapped` row has notes, every decision a note cites exists,
   no `mapped` row rests on an unverified claim, and every row that
   `inventory.json` generated is still present.
