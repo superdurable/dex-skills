@@ -4,8 +4,9 @@ This repository publishes one plugin with three root-level skills:
 
 - `dex-sdk` owns public Dex SDK implementation guidance and its Core and
   language references.
-- `dex-app-builder` owns the business-first product workflow and platform-only
-  constraints. It links to `dex-sdk` instead of copying SDK references.
+- `dex-app-builder` owns the business-first product workflow and its stricter
+  Go-only application constraints. It links to `dex-sdk` instead of copying SDK
+  references.
 - `dex-connector-contributor` is the thin bootstrap for official
   connector-library work. It resolves the checkout and then follows that
   repository's rules, while linking to `dex-sdk` Core/Go when needed.
@@ -23,17 +24,18 @@ the existing visible source link and `dex-source` marker.
 
 `DEX_SERVER_BASELINE` pins the released Server required by App Builder.
 `DEX_CLI_BASELINE` pins the released local tooling and embedded Web v2/FDG 2.0
-implementation. The Server release embeds the same Dex Web source for hosted
-environments.
-`TEMPLATE_BASELINE` pins the published release of the only supported
-application template. Refresh any baseline deliberately and review all affected
+implementation. The Server release embeds the same Dex Web source for deployed
+environments. Refresh any baseline deliberately and review all affected
 guidance.
 
-The scheduled **Update template baseline** workflow discovers a newer stable
-template release, validates that it no longer vendors project-local skills,
-bumps the plugin patch version and manifests, and opens a pull request. Its
-merge publishes a matching Dex Skills release; Superverse then advances both
-exact release pins together in its own reviewed pull request.
+## Open-source product boundary
+
+Dex Skills is open-source Dex material and contains no information about any
+product built on Dex (no product names, template contracts or platform
+concepts). Guidance covers only the Dex SDKs, `dexcli` including `dexcli dev`,
+Dex Server, Dex Web, the FDG analyzer, and the official connectors. Keep
+platform-specific guidance for a product built on Dex in that product's own
+repository.
 
 ## Validate a change
 
@@ -46,8 +48,9 @@ python3 script/check-reference-sources.py \
   --server-root /path/to/dex-server-baseline \
   --cli-root /path/to/dex-cli-baseline
 python3 script/check-upstream-baselines.py \
-  --dex-root /path/to/dex-cli-baseline \
-  --template-root /path/to/dex-template-basic-process
+  --dex-root /path/to/dex-cli-baseline
+python3 -m unittest discover -s test -p 'test_*.py'
+node --test test/version-check.test.mjs
 python3 /path/to/skill-creator/scripts/quick_validate.py dex-sdk
 python3 /path/to/skill-creator/scripts/quick_validate.py dex-app-builder
 python3 /path/to/skill-creator/scripts/quick_validate.py dex-connector-contributor

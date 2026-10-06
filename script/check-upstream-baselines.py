@@ -2,13 +2,10 @@
 # SPDX-License-Identifier: MIT
 
 import argparse
-import json
-import re
 import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 
 
 def fail(message: str) -> None:
@@ -55,14 +52,11 @@ def require_ancestor(checkout: Path, ancestor: str, descendant: str, label: str)
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dex-root", required=True, type=Path)
-    parser.add_argument("--template-root", required=True, type=Path)
     arguments = parser.parse_args()
 
     server_baseline = (ROOT / "DEX_SERVER_BASELINE").read_text().strip()
     cli_baseline = (ROOT / "DEX_CLI_BASELINE").read_text().strip()
-    template_baseline = (ROOT / "TEMPLATE_BASELINE").read_text().strip()
     require_revision(arguments.dex_root, cli_baseline, "Dex CLI")
-    require_revision(arguments.template_root, template_baseline, "template")
     require_ancestor(arguments.dex_root, server_baseline, cli_baseline, "Dex Server baseline")
 
     require_text(
@@ -185,118 +179,7 @@ def main() -> None:
         "projectconfig",
         "APPLICATION_ENVIRONMENT_FORBIDDEN",
     )
-
-    template_manifest = json.loads(
-        (arguments.template_root / ".superverse" / "template.json").read_text()
-    )
-    template_version = template_manifest.get("templateVersion")
-    if not isinstance(template_version, str) or SEMVER.fullmatch(template_version) is None:
-        fail("template baseline must declare a stable templateVersion")
-    expected_commands = {
-        "bootstrap": "make bootstrap",
-        "generate": "make generate",
-        "checkFdgV2": "make check-fdg-v2",
-        "checkContracts": "make check-contracts",
-        "checkStatic": "make check-static",
-        "build": "make build",
-        "dev": "make dev",
-        "releaseArtifacts": "make superverse-release-artifacts",
-        "check": "make check",
-    }
-    if template_manifest.get("commands") != expected_commands:
-        fail("template baseline must expose only the supported lean command set")
-    require_text(
-        arguments.template_root / ".gitignore",
-        "/internal/api/generated/",
-        "/web/src/api/generated/",
-    )
-    require_text(
-        arguments.template_root / "dex-app.yaml",
-        '"schemaVersion": "superverse.dev/dex-app/v1"',
-        '"flowDefinitions"',
-        '"connectors"',
-    )
-    require_text(
-        arguments.template_root / "README.md",
-        "## Hosted release artifacts",
-        "make superverse-release-artifacts",
-        "DEX_PROJECT_*",
-        "projectconfig/provider",
-    )
-    require_text(
-        arguments.template_root / "internal" / "connectorconfiguration" / "configuration.go",
-        "projectconfig.LoadFromEnvironment",
-        "ResolveApplicationEnvironment",
-    )
-    tracked_generated = git(
-        arguments.template_root,
-        "ls-files",
-        "internal/api/generated",
-        "web/src/api/generated",
-    )
-    if tracked_generated:
-        fail("template baseline must not track generated OpenAPI clients")
-    for removed_path in (
-        "cmd/mock-server",
-        "internal/mockserver",
-        "docs/local-mock.md",
-        "scripts/check-generated.sh",
-        "scripts/run-mock-e2e.sh",
-        "scripts/with-mock.sh",
-        "web/e2e/mock-basic-process.spec.ts",
-        "web/src/MockControls.tsx",
-        "internal/process/integration_test.go",
-        "scripts/run-e2e.sh",
-        "web/e2e/basic-process.spec.ts",
-        "web/playwright.config.ts",
-    ):
-        if (arguments.template_root / removed_path).exists():
-            fail(f"template baseline still contains removed scaffolding: {removed_path}")
-    template_web = json.loads((arguments.template_root / "web/package.json").read_text())
-    if "test:e2e" in template_web.get("scripts", {}) or "@playwright/test" in template_web.get("devDependencies", {}):
-        fail("source-only template must not install an application browser test framework")
-    template_cli_baseline = (
-        arguments.template_root / "DEX_CLI_BASELINE"
-    ).read_text().strip()
-    require_ancestor(
-        arguments.dex_root,
-        template_cli_baseline,
-        cli_baseline,
-        "template Dex CLI baseline",
-    )
-    template_server_baseline = (
-        arguments.template_root / "DEX_SERVER_BASELINE"
-    ).read_text().strip()
-    require_ancestor(
-        arguments.dex_root,
-        template_server_baseline,
-        server_baseline,
-        "template Dex Server baseline",
-    )
-    template_go_mod = (arguments.template_root / "go.mod").read_text()
-    template_sdk = re.search(
-        r"(?m)^\s*github\.com/superdurable/dex/sdk-go\s+v([^\s]+)$",
-        template_go_mod,
-    )
-    if template_sdk is None or SEMVER.fullmatch(template_sdk.group(1)) is None:
-        fail("template baseline must pin a stable Dex Go SDK")
-    example = arguments.template_root / "internal" / "process" / "example_flow.go"
-    require_text(
-        example,
-        "type ExampleFlow struct",
-        "type ExampleStep struct",
-        "dex.DefineStartStep(ExampleStep{})",
-        "dex.GracefulComplete(nil)",
-        "GetDexSummary",
-        "GetDexDisplay",
-        "// dex:group",
-        "// dex:explanation",
-    )
-    if (arguments.template_root / "internal" / "process" / "flow.go").exists():
-        fail("template must not retain the old approval scaffold")
-    if "// dex:action" in example.read_text():
-        fail("template must use typed Action registration without dex:action")
-    print("validated Dex Server, CLI, and basic-process template baselines")
+    print("validated Dex Server and CLI baselines")
 
 
 if __name__ == "__main__":

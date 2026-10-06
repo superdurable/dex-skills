@@ -1,8 +1,8 @@
-# Stage 3: design the Flow, Connectors, and OpenAPI contract, then implement the backend
+# Stage 3: design the Flow, Connectors, and API contract, then implement the backend
 
 Read the sibling [Dex SDK skill](../../dex-sdk/SKILL.md) completely, then follow its progressive-disclosure routing with [Go](../../dex-sdk/references/go/go.md) as the only language. Load only the Core and Go references required by the approved design.
 
-Dex SDK supplies the public SDK guidance. The platform constraints in this skill are stricter and take precedence: use only the Go SDK, keep external effects in `Execute`, keep `WaitFor` free of provider or Dex mutations, and require strict FDG 2.0 rendering.
+Dex SDK supplies the public SDK guidance. The App Builder constraints in this skill are stricter and take precedence: use only the Go SDK, keep external effects in `Execute`, keep `WaitFor` free of provider or Dex mutations, and require strict FDG 2.0 rendering.
 
 Read [Flow modeling](../../dex-sdk/references/core/modeling.md), [pattern
 selection](../../dex-sdk/references/core/patterns.md), and [Go FDG
@@ -51,7 +51,7 @@ scale/SLO, assign one authoritative owner for every fact, define projection or
 synchronization and recovery semantics, and test failure and reconciliation.
 “Future flexibility” is not a sufficient reason.
 
-For Custom UI, design the application OpenAPI contract in the same pass as the
+For Custom UI, design the application HTTP API contract in the same pass as the
 Flow and Connector boundaries. Map each approved wireframe action to an
 application-level operation backed by a Flow start, typed RPC, query, or
 confirmed integration ingress. Define authentication and permission checks,
@@ -59,28 +59,27 @@ idempotency, asynchronous status, request and response types, validation,
 errors, retry behavior, and terminal outcomes. Keep Dex Steps, Channels,
 Attributes, and other execution internals out of the public HTTP contract.
 
-Before implementing backend handlers, update `openapi/openapi.yaml` as the
-contract source and run the template generation command. Implement the Go HTTP
-boundary through the generated server interfaces and reserve the generated
-TypeScript client for the later UI integration stage. Never hand-write parallel
-request, response, or client types. Treat `internal/api/generated` and
-`web/src/api/generated` as ignored local build outputs: regenerate them in the
-workspace when needed, but never add them to Git or a pull request.
+Before implementing backend handlers, update the OpenAPI document (or the
+project's existing contract source) and run the project's generation command.
+Implement the Go HTTP boundary through the generated server interfaces and
+reserve the generated TypeScript client for the later UI integration stage.
+Never hand-write parallel request, response, or client types, and never
+hand-edit generated output.
 Do not resume dynamic frontend work while the Go Flow, Connector, and
 application boundary are being implemented.
 
-When the hosting platform already provides native Studio management, use that
-existing surface and its authenticated backend; do not start another management
-server or require Dex Web on its engine Pods. For standalone development, start
-Dex Web as soon as the first Flow graph exists. In that standalone path, the moment
-a Flow source first renders with `dexcli visualize --schema-version 2.0 --json` (even with warnings), and before finishing implementation or tests:
+### Local Dex stack
 
-1. render every Flow file into one persistent `--flow-rendering-dir` directory;
-2. in standalone development, start one long-lived `dexcli dev` for the user in the background on stable ports with persistent state, passing that directory and any `--connector-release-override` a local connector needs; a platform's existing Studio Design/Preview owns this experience and does not need another stack;
+Start Dex Web as soon as the first Flow graph exists. The moment a Flow source
+first renders with `dexcli visualize --schema-version 2.0 --json` (even with
+warnings), and before finishing implementation or tests:
+
+1. render every Flow file into one persistent `--flow-rendering-dir` directory with `dexcli visualize path/to/flow.go --schema-version 2.0 --json --out DIRECTORY/<flow-name>`, which writes `DIRECTORY/<flow-name>.json`;
+2. start one long-lived `dexcli dev` for the user in the background on stable ports with persistent state, passing that directory and any `--connector-release-override` a local connector needs;
 3. give the user the Dex Web URL right away so they can inspect the graph, Connections, and Run views while you continue;
 4. start the application Worker against that stack as soon as it compiles, so Runs appear live.
 
-Keep that stack running for the rest of the task. Re-render the graphs after each Flow change and restart only that stack when Dex Web does not pick them up. Run automated tests on their own isolated stacks with free ports and temporary state, so tests never disturb or replace the stack the user is watching.
+Keep that stack running for the rest of the task. Re-render the graphs after each Flow change and restart only that stack when Dex Web does not pick them up. Run automated tests on their own isolated stacks with free ports and temporary state, so tests never disturb or replace the stack the user is watching. `dexcli dev` binds the next free port when a default port is taken and prints the selected addresses; point the Worker and later CLI commands at those addresses.
 
 Model each human operation as a typed Go Action with one **ActionRequiresPermission** option. Use lowercase domain keys such as **refund.manage** or **refund.message**. An Action RPC rechecks current state and uses business locks when its state check and effect must commit atomically.
 
@@ -150,8 +149,8 @@ Use the manifest-selected authorization method. The user chooses among the
 methods declared by the exact connector release; application code must not
 hard-code OAuth, API-key, or service-account fields outside that contract.
 Local calls resolve the newest credential from the local store and let the
-Connector SDK perform supported on-demand refresh. Project-scoped calls use
-the official SDK storage/credential provider with the deployment's scoped AWS
-identity. It reads the accepted ordinary snapshot and resolves current connection
-credentials separately; business code never handles tokens. Rotation takes effect
-on the next Connector call without changing Flow state or rebuilding the app.
+Connector SDK perform supported on-demand refresh. A deployed Dex Server in
+project Connector mode uses the official Connector SDK configuration loader
+described in [Connector architecture](connector-architecture.md#deployed-configuration-and-credential-boundary);
+business code never handles tokens. Rotation takes effect on the next Connector
+call without changing Flow state or rebuilding the app.

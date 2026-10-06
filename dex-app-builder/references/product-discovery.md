@@ -10,14 +10,15 @@ users to choose SDK methods, compile fixes or another approval of the same scope
 
 Classify the repository before proposing a language or installing anything. A
 repository containing only a README, license, or editor files is effectively
-empty and defaults to the exact stack in the release named by
-`TEMPLATE_BASELINE`. Record the template release as the stack decision; do not
-offer TypeScript, Node, another SDK language, or a freshly selected dependency
-set as equivalent defaults.
+empty and defaults to the exact stack described in
+[workspace bootstrap](workspace-bootstrap.md): a Go backend on an exact released
+Dex Go SDK paired with the installed `dexcli`, plus a React/Vite frontend only
+for a confirmed custom UI. Record the selected releases as the stack decision;
+do not offer TypeScript, Node, or another SDK language as an equivalent default.
 
-Only an explicit user request can replace the template stack for a new
-application. Before accepting that request, explain that Dex App Builder, Dex AI
-Platform, strict FDG 2.0, and the current Connector SDK use the template's Go
+Only an explicit user request can replace the Go backend for a new application.
+Before accepting that request, explain that Dex App Builder, strict FDG 2.0,
+Dex Web v2 management metadata, and the current Connector SDK require a Go
 backend. A requested non-Go backend becomes a standalone `dex-sdk` project
 without Connector SDK support, not a modified App Builder default.
 
@@ -25,10 +26,10 @@ without Connector SDK support, not a modified App Builder default.
 
 Inventory actors first, then derive the minimum authorization model. Start
 with one `admin` role for the trusted maintainers and operators. A requester,
-subscriber, participant, or external system is an actor, not automatically a
-platform role.
+subscriber, participant, or external system is an actor, not automatically an
+authorization role.
 
-| Actor | Authentication boundary | Goal and visibility | Actions and permissions | Platform role | Evidence for another role |
+| Actor | Authentication boundary | Goal and visibility | Actions and permissions | Role | Evidence for another role |
 | --- | --- | --- | --- | --- | --- |
 | Trusted maintainer or operator | authenticated host or reverse proxy | all required operational state | granular approval, edit, recovery, and configuration permissions | `admin` | none by default |
 | Requester or participant | product-specific | only confirmed participant-facing state | typed start, response, or Action when required | none by default | a distinct authenticated membership boundary plus different visibility or allowed operations |
@@ -171,22 +172,21 @@ mapping and designing the Summary RPC, Display RPC, Action RPCs, Indexed
 Attributes, and permissions.
 
 Choose **No custom UI** when those surfaces satisfy operators and maintainers.
-Keep only the template's non-business Hello World/OpenAPI architecture for
-future evolution. Confirm whether the existing host supplies authentication,
-role-to-permission mapping, project/tenant isolation, and a trusted reverse
-proxy. Those controls may still be required, but they are not a second process
-management backend.
+The application then needs no frontend of its own. Confirm what supplies
+authentication, role-to-permission mapping, tenant isolation, and the trusted
+reverse proxy in front of a deployed Dex Web. Those controls may still be
+required, but they are not a second process management backend.
 
 Choose **Custom UI** only for a recorded Dex Web v2 capability gap, such as a
 participant-facing journey, a fundamentally different navigation model, domain
-visualization, or a complex interaction the platform does not provide. Record
+visualization, or a complex interaction Dex Web does not provide. Record
 which requirement forces the custom surface.
 When consequential interaction choices remain unresolved, an optional UI
 checkpoint clarifies the necessary pages, navigation, fields and actions through
 a low-fidelity static wireframe. A clear implementation request already supplies
 confirmation for its stated behavior. It does not authorize an
 interactive mock, visual system, imagery, animation, or other polish before the
-Flow, Connector, and OpenAPI contract are designed.
+Flow, Connector, and API contract are designed.
 
 ## Connector decision
 

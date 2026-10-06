@@ -48,7 +48,7 @@ Always read the entry page for the project's language first:
 
 Before writing or reviewing any Client boundary—including Flow start, RPC, cleanup, admission, waits, or external Stream writes—read [Error handling](references/core/error-handling.md) and the selected language's **error-handling.md**. This is implementation guidance; do not defer it until a failure needs troubleshooting.
 
-For mutations followed by reads or completion checks, also read [Read-after-write consistency](references/core/read-after-write.md). Classify the write/read pair. Direct Temporal RPC state readback is strong; search/projections and triggered business work have separate confirmation boundaries. Do not require polling or callbacks merely because a write uses Signal.
+For mutations followed by reads or completion checks, also read [Read-after-write consistency](references/core/read-after-write.md). Classify the write/read pair. A typed read-only RPC after a successful direct-state RPC write observes the write; search/projections and triggered business work have separate confirmation boundaries. Do not add polling or callbacks to that strong pair.
 
 Then load only the references required by the task:
 
@@ -110,7 +110,7 @@ and Dex search for supported lookup paths, typed RPCs for reads and mutations,
 Channels for queued intent, bounded AttributeMap chunks or partitions for
 growing collections, and Dex blob storage for large values. Assign application indexes explicit
 generic typed slots shared across Flow types; keep business names on Attributes.
-Application run searches constrain FlowType and exclude ContinuedAsNew runs;
+Application run searches constrain FlowType;
 see [core primitives](references/core/primitives.md#attribute).
 For map-wide write invariants, follow the singleton coordination-lock pattern in
 [data handling](references/core/data-handling.md#whole-map-coordination).
@@ -132,7 +132,7 @@ At application boundaries, preserve typed Dex failures until domain policy can d
 
 For terminal business reads, apply the [terminal read RPC rule](references/core/error-handling.md#terminal-read-rpc-rule): inspect RPC options and handler effects, read retained state through a typed read-only RPC, and never replace that snapshot with historical Step-output decoding. Verify this path with the [terminal entity read integration scenario](references/core/testing.md#terminal-entity-reads).
 
-Prefer the nearest official pattern to an ad hoc coordination loop. Preserve its Flow shape while replacing the domain and integrations. When changing a Go or Python Flow, use `dexcli visualize SOURCE` after the shape is explicit; the visualizer does not currently support Java, TypeScript, or Rust. In standalone development, as soon as the first graph renders, write it to a `--flow-rendering-dir`, start a long-lived `dexcli dev` for the user with that directory, and share the Dex Web URL before continuing; keep it running while you implement and test on separate isolated stacks. A platform with existing Studio Design/Preview uses that host instead of starting a second management stack.
+Prefer the nearest official pattern to an ad hoc coordination loop. Preserve its Flow shape while replacing the domain and integrations. When changing a Go or Python Flow, use `dexcli visualize SOURCE` after the shape is explicit; the visualizer does not currently support Java, TypeScript, or Rust. In local development, as soon as the first graph renders, write it to a `--flow-rendering-dir`, start a long-lived `dexcli dev` for the user with that directory, and share the Dex Web URL before continuing; keep it running while you implement and test on separate isolated stacks.
 
 ## Complete the vertical slice
 

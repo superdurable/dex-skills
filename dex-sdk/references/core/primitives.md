@@ -46,7 +46,7 @@ Lock the exact AttributeMap instance when Steps or RPCs can race on it. For an i
 
 Assign every application Indexed Attribute an explicit generic index key from a namespace-wide typed pool: **keyword1**, **keyword2**, **keywordList1**, **keywordList2**, **text1**, **text2**, **int1**, **int2**, **bool1**, **bool2**, **double1**, **double2**, **datetime1**, **datetime2**, and later numbers as capacity permits. Keep the Attribute name meaningful to the business; only its physical search key uses a generic slot. Reuse each slot across Flow types with the same index type, even when its business meaning differs. Two logical indexed fields in one Flow need distinct slots. Do not use business names or the default Attribute-derived key for application indexes. Dex system indexes keep their reserved names.
 
-Generic slots can mean different things for different Flow types. Application run searches using a generic slot must constrain **FlowType** and exclude prior Continue-as-New runs with **ExecutionStatus != "ContinuedAsNew"**. Combine those scope predicates with parenthesized caller filters so an OR cannot bypass them. Include ContinuedAsNew runs only for explicitly requested execution-chain history. Do not index sensitive data or PII. Before assigning many distinct index keys, read [Indexed Attribute capacity](operations.md#indexed-attribute-capacity). The default local **dexcli dev** stack has a smaller SQLite index pool than an Elasticsearch-backed production deployment.
+Generic slots can mean different things for different Flow types. Application run searches using a generic slot must constrain **FlowType**. Combine that scope predicate with parenthesized caller filters so an OR cannot bypass it. Do not index sensitive data or PII. Before assigning many distinct index keys, read [Indexed Attribute capacity](operations.md#indexed-attribute-capacity). The default local **dexcli dev** stack has a smaller SQLite index pool than an Elasticsearch-backed production deployment.
 
 Read [data-handling.md](data-handling.md) for large values, map chunking, BlobCache locality, and external projections.
 
@@ -82,7 +82,7 @@ Use an RPC for every application read or write of Flow-owned Attribute, Attribut
 
 Use a Channel instead when the caller should enqueue work without synchronous application-level handling.
 
-An RPC without Attribute locks or transactional execution starts from a backend query. If its handler returns only output, Dex does not signal the Flow, and a retained terminal execution can serve the query. Success therefore does not prove that the Flow is active. Locks, explicit transactions, returned durable effects, or Server policy can select an active-only Update or Signal path. A query-path handler may run before a later Signal discovers that the Flow is terminal, so keep external mutations idempotent and do not treat `FlowNotActiveOrNotFoundError` as proof that the handler never ran.
+An RPC without Attribute locks or transactional execution runs its handler against a snapshot of the Flow's state. If the handler returns only output, Dex writes nothing to the Flow, and a retained terminal execution can serve the read. Success therefore does not prove that the Flow is active. Locks, explicit transactions, returned durable effects, or a Server policy that runs every RPC transactionally require an active Flow. A non-transactional handler that returns durable effects runs before Dex applies them; if the Flow closes in between, applying the effects fails with a not-active error after the handler ran. Keep external mutations idempotent and do not treat `FlowNotActiveOrNotFoundError` as proof that the handler never ran.
 
 Use a lifecycle API when a response needs current execution status. A read-only RPC returns its application-state snapshot; it does not add terminal status that the application did not persist.
 
@@ -126,7 +126,7 @@ Use a Timer Condition for a durable delay, reminder, deadline branch, or schedul
 
 A Flow timeout handler has Execute semantics. Configure its per-attempt timeout, heartbeat timeout, retry, failure route, durability, locks, and selective state loads through FlowTimeoutHandlerOptions on StartFlowOptions or SubFlowOptions. These options require a positive Flow timeout and the Handler policy. Handler timing starts after the soft timeout fires and may extend beyond the original deadline.
 
-Route exhausted handler retries only to a registered no-input Step. The SDK supplies null or unit input, and the recovery Step reads the final failure from Context. Without a failure target, exhausted retries fail the Flow. Continue-as-new and Flow retry preserve timeout-handler options; Flow retry starts a new soft-timeout budget.
+Route exhausted handler retries only to a registered no-input Step. The SDK supplies null or unit input, and the recovery Step reads the final failure from Context. Without a failure target, exhausted retries fail the Flow. Flow retry preserves timeout-handler options and starts a new soft-timeout budget.
 
 Docs: https://docs.superdurable.io/primitives/timer
 
