@@ -140,6 +140,8 @@ Ensure:
   is recorded;
 - every top-level Flow is justified by its authoritative owner,
   retention/cleanup, independent waits or Timers, and terminal lifecycle;
+- no two Flows exchange RPCs or messages on frequent events, such as every
+  operation, callback or poll;
 - parallel work remains in Steps by default, and every SubFlow has concrete
   evolution evidence, rejected Step/batching/RPC alternatives, a defined
   parent-child lifecycle, and explicit user confirmation;

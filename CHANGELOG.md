@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.34.0 - 2026-10-07
+
+- Add a fourth Flow-boundary question to Core modeling and App Builder product discovery: would the split make the Flows exchange RPCs or Channel messages on frequent events, such as every operation, external callback or poll? A yes rules the split out, because every call between Flows adds to both Flows' history and every RPC, including a read-only one, is a separate engine operation with its own latency and cost. The example is a separate Flow that tracks another Flow's inactivity, which needs a message from every operation; that deadline belongs in the Flow where the operations happen. Calls between Flows stay fine for rare events.
+- Add the rule to the App Builder entrypoint, a column for messages per frequent event to the Flow-boundary table, the messages each business event causes to the business contract, and a check to the build handoff and the modeling review checklist.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.34.0.
+
 ## 0.33.0 - 2026-10-06
 
 - Propose a Dex redesign automatically. The inventory drafts the workflow's intent contract and detects n8n shapes that Dex primitives express better (per-entity Flows instead of schedule polling, cancellable waits, Polling Steps, Dex Web Actions for approvals, Flow identity instead of state tables, per-item recovery, parallel joins, structured generation, typed configuration, collapsed glue nodes) plus source defects worth fixing, as `P` rows. Workflow import then asks the user once whether to optimize for Dex with those improvements or keep the exact n8n behavior and migrate first, together with the remaining facts and their defaults, instead of asking question by question.

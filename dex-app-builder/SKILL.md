@@ -68,6 +68,9 @@ configuration. A missing module is resolved at its exact released version.
   gap and one owner per fact. No speculative database, projection or cache.
 - Use parallel Steps for one lifecycle, independent top-level Flows for separate
   owners, and no SubFlows unless the Core gate and explicit confirmation apply.
+  Never split when the parts would exchange RPCs or messages on frequent events
+  (every operation, callback or poll): each call between Flows adds to both
+  histories and costs an engine operation, even when it only reads.
 - Put provider effects in Execute, with identity, bounded timeout and recovery.
   WaitFor declares durable conditions and performs no provider or Dex mutation.
 - Stable FlowID, complete RequestID, explicit reuse policy and typed error

@@ -69,9 +69,9 @@ Treat three shapes as distinct decisions:
 
 First capture the data-lifecycle boundary:
 
-| Candidate data or process | Authoritative owner | Retention and cleanup | Independent waits, Timers, and terminal outcomes | Pollution if kept in the existing Flow | Top-level Flow decision |
-| --- | --- | --- | --- | --- | --- |
-| Product-specific | stable business owner | product-specific | product-specific | unrelated state the existing Flow would retain or coordinate | keep or split, with evidence |
+| Candidate data or process | Authoritative owner | Retention and cleanup | Independent waits, Timers, and terminal outcomes | Pollution if kept in the existing Flow | RPCs or messages between the Flows per frequent event | Top-level Flow decision |
+| --- | --- | --- | --- | --- | --- | --- |
+| Product-specific | stable business owner | product-specific | product-specific | unrelated state the existing Flow would retain or coordinate | none, or the split is wrong | keep or split, with evidence |
 
 Use these questions together:
 
@@ -81,8 +81,20 @@ Use these questions together:
    `verified`, `expired`, or `cancelled`?
 3. Would putting it in an existing Flow force that Flow to retain, clean up, or
    coordinate state unrelated to its primary lifecycle?
+4. Would the split make the Flows exchange RPCs or Channel messages on frequent
+   events, such as every user operation, every external callback or every poll?
 
-When the answers are collectively yes, create an independent top-level Flow.
+A yes to question 4 rules the split out, whatever the other answers. Every call
+between Flows adds entries to both Flows' history, and every RPC, including a
+read-only one, is a separate engine operation with its own latency and, on
+metered backends, its own cost. A separate Flow that tracks another Flow's
+inactivity, for example, needs a message from every operation; keep that
+deadline in the Flow where the operations happen. Calls between Flows are fine
+for rare events: a start, a completion, a cancellation or an explicit user
+command.
+
+When the answers to questions 1 to 3 are collectively yes and the answer to
+question 4 is no, create an independent top-level Flow.
 Otherwise keep the work in the existing Flow's Steps, Attributes, or
 AttributeMaps. Field count, source size, number of stages, retry policy, code
 reuse, provider neutrality, or ordinary parallelism do not establish a new

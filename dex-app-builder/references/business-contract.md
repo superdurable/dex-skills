@@ -24,8 +24,9 @@ questionnaire before implementation. Identify:
 - durable facts, their owning business identity, expected read/write paths,
   cross-Flow reuse, volume, contention, search, retention, and cleanup;
 - candidate top-level Flows, their independent waits, Timers, and terminal
-  outcomes, and whether embedding their temporary state would pollute a
-  longer-lived owner;
+  outcomes, whether embedding their temporary state would pollute a
+  longer-lived owner, and the RPCs or messages between Flows that each
+  business event would cause;
 - parallel-Step alternatives for every proposed SubFlow and the observed
   complexity or greater-than-200 concurrent-Step requirement behind it;
 - every management list, detail, action, assignment, edit, progress, and

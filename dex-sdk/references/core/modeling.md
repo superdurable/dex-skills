@@ -16,8 +16,20 @@ For each candidate data set or process, ask:
 2. Does it have independent waits, Timers, and terminal outcomes?
 3. Would putting it in an existing Flow force that Flow to retain, clean up, or
    coordinate state unrelated to its primary lifecycle?
+4. Would the split make the Flows exchange RPCs or Channel messages on frequent
+   events, such as every user operation, every external callback or every poll?
 
-When the answers are collectively yes, use an independent top-level Flow.
+A yes to question 4 rules the split out, whatever the other answers. Every call
+between Flows adds entries to both Flows' history, and every RPC, including a
+read-only one, is a separate engine operation with its own latency and, on
+metered backends, its own cost. A separate Flow that tracks another Flow's
+inactivity, for example, needs a message from every operation; keep that
+deadline in the Flow where the operations happen. Calls between Flows are fine
+for rare events: a start, a completion, a cancellation or an explicit user
+command.
+
+When the answers to questions 1 to 3 are collectively yes and the answer to
+question 4 is no, use an independent top-level Flow.
 Start it independently and coordinate through typed RPCs or Channels; it does
 not become a SubFlow merely because another Flow consumes its result. Otherwise
 prefer Steps, Attributes, or AttributeMaps in the existing Flow. Field count,
@@ -143,5 +155,8 @@ Use a new routing flag or Attribute so only new executions enter an incompatible
 - Is fan-out bounded?
 - Is every top-level Flow justified by owner, retention/cleanup, wait, and
   terminal-lifecycle differences?
+- Does any pair of Flows exchange RPCs or messages on frequent events? Then the
+  boundary is wrong: merge them, or move the frequent decision into the Flow
+  where the events happen.
 - Did every SubFlow pass the evolution gate and receive explicit confirmation?
 - Can an operator identify the current business state from Dex Web or dexcli?
