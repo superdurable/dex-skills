@@ -73,6 +73,21 @@ Then load only the references required by the task:
 
 The language directory is the routing unit. Do not load all five languages.
 
+## Check invocation contracts before coding
+
+Before writing a start call, Step, RPC, timeout handler, or shared helper, check
+[primitive invocation rules](references/core/primitives.md) and the selected
+language's **primitives.md** and **gotchas.md**:
+
+- Match the start value to the registered starting Step's input type and codec.
+  Use the SDK's no-input type when the Step needs no payload; Go uses
+  **dex.None** with **nil**, not an empty struct standing in for input.
+- Declare AttributeMap and pending Channel loads for the exact method that
+  reads them. Schema registration and locks do not load their values.
+- Follow helper effects from every caller. Step Stream output and buffered
+  writers belong to Step invocations; an RPC or Flow timeout handler cannot
+  reuse a helper that writes them. Use a Channel or next Step for durable work.
+
 ## Model before implementation
 
 For non-trivial work, first state the Flow identity and lifecycle, typed start input and completion output, Steps and transitions, Flow-level durability default, method-level StepOptions, durable state, messages, synchronous RPCs, best-effort Streams, timers, retries, timeouts, recovery, and SubFlow boundaries.

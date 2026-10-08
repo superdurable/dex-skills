@@ -4,6 +4,12 @@ Verify [read-after-write consistency](read-after-write.md#verification) with fir
 
 Use a real Dex Server integration whenever behavior crosses a Worker, Client, persistence boundary, wait, retry, Timer, RPC, Stream, or SubFlow. A handler-only unit test cannot prove durable coordination.
 
+Before an integration scenario, verify its start payload against the registered
+starting Step. A local payload-validation failure does not establish any
+Server or Worker behavior. Use the SDK's no-input value only for a no-input
+Step; otherwise supply the real typed fixture. Assert the start succeeded
+before checking asynchronous progress, admission, or retry outcomes.
+
 ## Minimum integration harness
 
 Start an isolated Dex development environment, construct the same registry and payload/blob configuration used by the application, start the Worker, and use a Client to drive the Flow through public APIs. Give every test a unique Flow ID and cleanly stop owned processes.

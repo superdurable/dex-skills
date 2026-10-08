@@ -1,5 +1,17 @@
 # Python gotchas
 
+## Invocation contracts
+
+Match each Client start value to the registered starting Step's input and
+codec. Use `Step[None]` and `None` when there is no input; do not replace a required typed payload with `None` or an empty dictionary.
+
+Step Stream writes and invocation-managed buffered writers belong to Step
+WaitFor and Execute, including when called through helpers. RPC and Flow
+timeout handlers should publish a Channel message or schedule a Step instead.
+Select map values and pending Channel messages in the options of the method
+that reads them; schema registration and locks do not load state. See the
+[shared primitive rules](../core/primitives.md).
+
 - The default Flow and Step types are the class names. Name each Flow class after its domain, such as `ApprovalFlow`, never just `Flow`; the module does not separate two classes with the same name.
 - Do not confuse a sync generator Step with an async coroutine: generators yield `StepOutput`; coroutines await heartbeat and return a decision.
 - Do not make an async generator for Execute unless the selected SDK explicitly supports it.

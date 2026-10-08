@@ -32,6 +32,14 @@ These names replace the old not-active-only names without compatibility aliases.
 
 The combined type alone cannot distinguish a missing Flow from an unusable closed target. Interpret it using the actual operation: at a confirmed query-only Get boundary it means missing/unreadable target, while an active-required mutation can also encounter a closed target. Neither outcome proves the requested mutation succeeded. Preserve unrelated Worker, transport, and service failures.
 
+## Validate the start payload
+
+Check the registered starting Step's input and the selected SDK's codec before
+calling StartFlow. A local input or definition error is not a Server rejection,
+an ambiguous accepted start, or a retryable transport failure. Correct the
+caller or Step contract before retrying. A test that fails before the request is
+sent has not exercised Server admission, duplicate-start policy, or recovery.
+
 ## Start identity and duplicate starts
 
 ### Start first; reconcile only after an error

@@ -8,7 +8,9 @@
 - Do not coordinate durable work with process-local mutexes, goroutines, or maps.
 - Put durable business time (TTL, reminders, inactivity) in a WaitFor Timer. `time.Sleep` inside Execute occupies the attempt; use it only between rounds of a heartbeating [Polling](patterns.md#polling) Step.
 - Preserve omitted versus explicit zero in pointer-valued options.
-- `dex.None` is nil-only; pass `nil`, not an invented empty payload.
+- `dex.None` is nil-only; pass `nil`, not an invented empty payload. Use it as the starting Step's input when startup needs no payload. `StartFlow` still checks struct/value inputs locally; `nil` does not supply their zero value.
+- `Stream.Write` and `NewBufferedTextStream` belong to Step WaitFor/Execute contexts. Trace shared helper effects; an RPC or Flow timeout handler cannot call a helper that writes a Step Stream.
+- Load AttributeMap values and pending Channel messages in the reader's WaitFor, Execute, RPC, or timeout options. Enumeration needs a whole-map load; schema registration, locks, and size metadata do not load values.
 - Graceful and force terminal decisions have different parallel/cancellation semantics.
 - Give Client operations deadlines; long-poll expiry is not Flow failure.
 - Validate map instance names: non-empty and no `/`.

@@ -1,5 +1,17 @@
 # TypeScript gotchas
 
+## Invocation contracts
+
+Match each Client start value to the registered starting Step's input and
+codec. Use `void` with `voidCodec` and `undefined` for an explicit no-input Step. Match the starting Step's codec; TypeScript annotations alone do not validate runtime payloads.
+
+Step Stream writes and invocation-managed buffered writers belong to Step
+WaitFor and Execute, including when called through helpers. RPC and Flow
+timeout handlers should publish a Channel message or schedule a Step instead.
+Select map values and pending Channel messages in the options of the method
+that reads them; schema registration and locks do not load state. See the
+[shared primitive rules](../core/primitives.md).
+
 - `getFlowType` and `getStepType` are required. Return a domain Flow type such as `ApprovalFlow`, never just `Flow`, and keep each Flow type unique within one Worker.
 - Types are erased. A `Codec<T>` is the runtime contract; generic annotations do not validate input.
 - `Wait` is a Dex description, not a Promise. Return it from `waitFor`; do not `await` it.

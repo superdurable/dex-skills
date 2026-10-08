@@ -14,6 +14,13 @@ For an explicitly best-effort external `Client.WriteStream`, an `errors.As` matc
 
 ## StartFlow error handling
 
+Check the [start input contract](primitives.md#flow-step-and-decisions) before
+reasoning about a failed start. Passing `nil` to a struct-input Step fails
+locally before a request is sent. Use `dex.None` with `nil` for a no-input Step,
+or pass the required typed value. This is a caller/definition defect, not an
+AlreadyStarted or service-availability outcome.
+
+
 Follow the shared [start-first rule and result matrix](../core/error-handling.md#start-first-reconcile-only-after-an-error). Call `Client.StartFlow` directly; do not preflight with `InvokeRPC`, `GetFlowSummary`, or search merely to avoid AlreadyStarted or retry uncertainty.
 
 For a retry that may attach to the same logical start, pass a pointer to the stable request identity in `StartFlowOptions.RequestID` and set `AlreadyStarted: &dex.AlreadyStartedOptions{IgnoreError: true}`. Preserve both across retries; use `IDReusePolicy: dex.IDReuseDisallow` when this logical start must not create another execution after closure. An intentional new lifecycle needs its own explicit identity/reuse contract. Setting RequestID alone still permits `*dex.FlowAlreadyStartedError`; setting IgnoreError alone does not suppress a conflict with a different Request ID. A nil RequestID makes the SDK generate a fresh UUID for each separate StartFlow call, and a pointer to an empty string is invalid.
