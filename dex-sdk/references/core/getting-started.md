@@ -40,6 +40,8 @@ Add Attributes, Channels, RPCs, Streams, or SubFlows only when the first path ru
 
 The Worker must be reachable from Dex Server. A bind address controls where the Worker listens; an advertised target controls the address Dex Server calls. These differ when containers, proxies, or load balancers are involved.
 
+A Flow keeps the Worker target it started with unless an update to its Flow configuration changes it, and Dex invokes that target for the Flow's later Steps and RPCs, including read-only RPCs on a retained ended execution. Once that Worker is gone, the Flow's RPCs fail, including its typed read RPCs, while Dex's own Flow state, Attribute, and Channel reads still answer. A Flow started on a short-lived Worker therefore cannot serve its business reads afterwards. Start Flows that must stay readable on a long-lived Worker target, and let code that lists or reads many Flows report one unreadable Flow without failing the whole listing.
+
 ## Configuration checks
 
 Before debugging code, verify:

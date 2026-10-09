@@ -144,7 +144,11 @@ Ensure:
   operation, callback or poll;
 - parallel work remains in Steps by default, and every SubFlow has concrete
   evolution evidence, rejected Step/batching/RPC alternatives, a defined
-  parent-child lifecycle, and explicit user confirmation;
+  parent-child lifecycle, and explicit user confirmation, except that a
+  SubFlow isolating a long poll beside other work needs only the lifecycle and
+  the confirmation;
+- no long-running Execute, such as a long poll, runs beside other ongoing
+  work in the same Flow;
 - temporary validation, failure, and expiry state cannot pollute a long-lived
   authoritative Attribute or AttributeMap owner;
 - the authorization model starts with `admin`, keeps Action permissions

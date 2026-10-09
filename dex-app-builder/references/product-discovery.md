@@ -130,6 +130,12 @@ The 200-Step value is an architecture-review threshold, not a claimed Dex
 Server limit. Crossing it permits a SubFlow proposal; it never selects one
 automatically.
 
+One shape skips items 1 to 3: a long-running polling Execute that would run
+beside other ongoing work in the same Flow. Propose it as a single-child
+SubFlow from the start, as [a long poll beside other
+work](../../dex-sdk/references/core/patterns.md#a-long-poll-beside-other-work)
+explains; items 4 and 5 still apply.
+
 ## Storage decision
 
 Default each durable fact to Dex before proposing an external dependency.

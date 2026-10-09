@@ -72,6 +72,8 @@ configuration. A missing module is resolved at its exact released version.
   (every operation, callback or poll): each call between Flows adds to both
   histories and costs an engine operation, even when it only reads.
 - Put provider effects in Execute, with identity, bounded timeout and recovery.
+  Run a long poll that would run beside other ongoing work in its own SubFlow
+  ([Polling](../dex-sdk/references/core/patterns.md#a-long-poll-beside-other-work)).
   WaitFor declares durable conditions and performs no provider or Dex mutation.
 - Stable FlowID, complete RequestID, explicit reuse policy and typed error
   recovery govern starts. An accepted start returns known identity without a

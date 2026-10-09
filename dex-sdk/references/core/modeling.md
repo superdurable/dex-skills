@@ -80,6 +80,12 @@ The 200-Step value is an architecture-review threshold, not a Dex Server
 limit. Crossing it permits a SubFlow proposal; it does not select one
 automatically.
 
+One shape skips items 1 to 3: a long-running polling Execute that would run
+beside other ongoing work in the same Flow. Propose it as a single-child
+SubFlow from the start, as [a long poll beside other
+work](patterns.md#a-long-poll-beside-other-work) explains; items 4 and 5 still
+apply.
+
 ## Turn the business process into a Step graph
 
 For each Step, record:
