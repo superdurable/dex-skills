@@ -8,7 +8,7 @@ Use a real Dex Server integration whenever behavior crosses a Worker, Client, pe
 
 Start an isolated Dex development environment, construct the same registry and payload/blob configuration used by the application, start the Worker, and use a Client to drive the Flow through public APIs. Give every test a unique Flow ID and cleanly stop owned processes.
 
-A Flow stays bound to the Worker target it started with, including for read-only RPCs after it ends ([Worker targets](getting-started.md#required-topology)). A Flow that a test starts on the test's own short-lived Worker cannot be read once that Worker stops. Keep such Flows inside the test, or start Flows that other tests and tools must read later on a long-lived Worker.
+A Flow stays bound to the Worker target it started with, including for read-only RPCs after it ends ([Worker targets](getting-started.md#required-topology)). A Flow that a test starts on the test's own short-lived Worker cannot answer its RPCs once that Worker stops. Keep such Flows inside the test, or start Flows that other tests and tools must read later on a long-lived Worker.
 
 Use deadline-based polling or the SDK's long-poll result API. Do not use a fixed sleep to guess when asynchronous state has converged.
 
