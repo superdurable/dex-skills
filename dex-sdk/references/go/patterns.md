@@ -51,6 +51,29 @@ Apply the Core [Polling pattern](../core/patterns.md#polling) to every wait on a
 - **StepOptions:** `ExecuteMethodTimeout` is the maximum wait; `ExecuteRetry` allows a few attempts with `TotalDuration` equal to the maximum wait (all attempts, measured from the first); keep `HeartbeatTimeout` at one minute with `interval + call timeout <= HeartbeatTimeout - 10s`; `ExecuteDurability: dex.StepDurabilitySync` under an ASYNC Flow default.
 - **Expiry:** set `ExecuteFailure: dex.ProceedToOnExecuteFailure(recordFailureStep, nil)`. The recovery Step reads `ctx.RecoveryError()` (`Detail`, `ErrorType`) and records the business failure; without `ExecuteFailure` the Flow fails.
 - **Forbidden:** a WaitFor Timer plus `GoTo` loop, `RetryAfter` or retry policy as the loop, a hand-written deadline that duplicates `ExecuteMethodTimeout` or `TotalDuration`, and `GoTo` the same Step with a page token.
+- **Beside other work:** when the poll is long and the Flow has other ongoing work, follow the Core [long poll beside other work](../core/patterns.md#a-long-poll-beside-other-work): register a child Flow whose starting Step is the polling Step, return `dex.Until(dex.SubFlow(child, input))` from the parent Step's `WaitFor`, and read the child's output in `Execute` with `dex.SubFlowResult(ctx)` and `DecodeSingleOutput`. Stop an unfinished child through `dex.SubFlowOptions` (`Timeout` with `TimeoutPolicy: dex.TimeoutCancel`), or race it in `dex.AnyOf` and pass `dex.SubFlowID(ctx)` of the losing child to `Client.StopFlow`.
+
+[Pinned SDK README](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-go/README.md)
+<!-- dex-source: sdk-go/README.md -->
+```go
+func (ParentStep) WaitFor(_ dex.Context, input ChargeInput) (*dex.Wait, error) {
+	return dex.Until(dex.SubFlow(ChargeFlow{}, input)), nil
+}
+
+func (ParentStep) Execute(ctx dex.Context, _ ChargeInput) (*dex.StepDecision, error) {
+	result, err := dex.SubFlowResult(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var receipt Receipt
+	if err := result.DecodeSingleOutput(&receipt); err != nil {
+		return nil, err
+	}
+	return dex.GracefulComplete(receipt), nil
+}
+```
+
+In a parent with other ongoing work, this Step runs as one parallel branch, and its `Execute` returns the parent's next decision for the poll's result instead of completing the Flow.
 
 ## Durable Timer
 

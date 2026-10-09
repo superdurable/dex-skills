@@ -21,7 +21,8 @@ source code.
 
 ## Parallel SubFlows
 
-Do not introduce SubFlows in an initial design. These patterns are evolution
+Do not introduce SubFlows in an initial design, except to isolate [a long poll
+beside other work](#a-long-poll-beside-other-work). These patterns are evolution
 tools for an existing Flow whose graph is already impractical to review,
 evolve, or operate, or whose fan-out genuinely exceeds the 200-concurrent-Step
 architecture-review threshold. First reject parallel Steps, batching, Channel
@@ -75,6 +76,18 @@ Never:
 - Call an external system without its own timeout.
 - Hand-write a deadline that duplicates the method timeout or the retry total duration, whether in the loop, the heartbeat checkpoint, or the Step input.
 - Pass a page token to the Step's next execution to iterate; the Iteration pattern is removed.
+
+### A long poll beside other work
+
+A long-running Execute holds back the rest of its Flow once the Flow reaches its operation limit. Step executions (two for a Step with WaitFor) and the Channel messages and RPC writes the Flow receives count toward that limit, 100 operations by default. At the limit, Dex starts no new Step and continues the Flow in a new run only after every running Execute has ended. Pending WaitFor waits (Timers, Channels, RPCs, and SubFlow conditions) carry into the new run and do not hold it back. A polling Execute that runs beside other ongoing work in the same Flow, such as an interactive loop of many short Steps, therefore stalls that work for as long as the poll lasts, which can be many minutes. The same holds for any long Execute; polling is the common case.
+
+Place the poll by what else the Flow does meanwhile:
+
+- **Nothing else (a sequential Flow):** keep the long poll on the main path; no other work waits behind it.
+- **Other ongoing work:** run the long poll in its own Flow, preferably a SubFlow. The parent Step's WaitFor waits until the SubFlow completes and its Execute reads the SubFlow's result, so the parent holds only a WaitFor and keeps starting Steps. The child is a sequential Flow whose polling Step keeps the StepOptions limits above. The child exchanges only its start and its completion with the parent, so this split adds no frequent messages between Flows. It is the one SubFlow that an initial design may propose; see the [SubFlow gate](modeling.md#gate-subflows-as-an-evolution).
+- **Short polls:** a poll whose maximum wait stays well under the time a user would notice can run in any Flow.
+
+Parent completion does not cancel an unfinished SubFlow, so decide how the child stops: its own polling limits, a SubFlow timeout with the cancel policy, or an `AnyOf` race against a cancel Channel followed by stopping the losing child through its SubFlow ID. Raising the Flow's operation limit in its Flow configuration only postpones the stall; it is a mitigation, not a fix.
 
 ## Durable timers
 
