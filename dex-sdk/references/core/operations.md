@@ -53,7 +53,7 @@ cross-origin credential forwarding disabled.
 The codec converts known Dex binary protobuf payloads to ProtoJSON. Unknown
 message types and other encodings pass through unchanged. The same tooling
 applies to all five SDK languages. See the released
-[CLI codec server usage](https://github.com/superdurable/dex/blob/cli-v1.5.0/cli/README.md#view-temporal-protobuf-payloads).
+[CLI codec server usage](https://github.com/superdurable/dex/blob/cli-v1.6.3/cli/README.md#view-temporal-protobuf-payloads).
 
 ## Indexed Attribute capacity
 
@@ -103,34 +103,20 @@ Only the Go Connector SDK currently provides the local file loader. Never put th
 
 Connection credentials and Trigger binding matchers are separate. One connection may serve several Flows without sharing their filters. Trigger delivery is at least once: use deterministic Flow IDs for starts. Application RPCs own their redelivery policy, bounded deduplication state when needed, and business locks.
 
-## Native hosted project configuration
+## Connector configuration boundary
 
-Server and CLI v1.3.0 embed native project configuration. Project Connectors can
-render an exact admitted application manifest before the application's Flow
-definitions exist. Flow operations still require the actual validated definition.
-The configuration scope is immutable server startup configuration; browser
-parameters cannot override it. An authenticated private proxy supplies actor,
-mount, public origin, permissions, and CSRF context and blocks internal
-manifest/validation endpoints from browser routing.
+The released Server and CLI support local Connector setup through loopback-bound
+**dexcli dev**. The local credential file is a development store. Deployed
+applications need an explicit secret and configuration runtime boundary;
+Dex Server does not provide a hosted project configuration store or OAuth
+runtime. Inspect the installed Connector SDK's supported adapters before
+choosing that boundary. Initialize configuration before business clients,
+Workers, HTTP servers, or goroutines. Keep credentials outside Flow state,
+rendered definitions, logs, and browser responses.
 
-Dex and Go applications use the released Connector SDK's `sdkgo/projectconfig`
-storage contract. Ordinary snapshots contain logical connection IDs; credentials
-remain separately versioned private objects. Refresh/replacement applies on the
-next provider call, while ordinary configuration requires validation and a new
-deployment snapshot. OAuth dispatch is admitted before the provider call; an
-uncertain response or restart must be reconciled rather than blindly dispatched
-again. Never persist provider secrets in application Flow state or return them
-to the browser. Other SDK languages need an explicit supported runtime boundary;
-do not invent a language-specific project configuration loader.
-
-The S3 client uses the default AWS credential chain when both static key fields
-are omitted. Configure an explicit region and the workload's intended role;
-reject partially supplied static credentials. Verify real workload role access,
-project-prefix isolation, versioned conditional writes, KMS encryption, and denied
-cross-project access. Host-profile success does not prove workload-role acceptance.
-
-See the pinned [native project protocol](https://github.com/superdurable/dex/blob/server/v1.3.0/web/PROJECT_CONFIGURATION.md)
-and [Web boundary](https://github.com/superdurable/dex/blob/server/v1.3.0/web/README.md).
+See the pinned [Web Connector setup](https://github.com/superdurable/dex/blob/server/v1.5.1/web/README.md#run-through-dexcli)
+for the supported local setup contract. Do not invent equivalent loaders for
+SDK languages that do not expose them.
 
 ## Deploy Dex Server components
 
@@ -211,6 +197,17 @@ Configure Redis with `noeviction` so capacity pressure becomes a visible Stream 
 Blob Store keeps payloads through 100 bytes inline by default and offloads from 101 bytes. Keep the storage ID short because it appears in every durable reference; prefer a name such as `p1` over `production1`. A reference such as `p1|c/ab3de7kp2x` uses the lowercase Base36 day offset from September 1, 2026 UTC and a deterministic lowercase Base36 object ID. It omits the Flow ID and encoding. The Server derives a physical path such as `260913$coding-session--c08256c4/ab3de7kp2x` from trusted context. ASCII letters, digits, hyphens, and underscores remain readable in the Flow ID segment; other UTF-8 bytes use uppercase percent escaping. Run IDs and Step execution IDs in input-snapshot paths remain Base64URL encoded. Object Blobs store the complete EncodedObject. `objectIdLength` defaults to 10; zero selects that default, negative values are invalid, and any positive length is accepted. Every Server sharing a namespace must use the same immutable value. Use 12 or 16 for unusually high per-Flow daily object counts. Values above 50 only add leading zero padding because the ID derives from SHA-256. Readers accept any nonempty lowercase Base36 object ID. Application code must treat references as opaque.
 
 Successful ASYNC local Step input snapshots are disabled by default. Enable `blobStore.asyncStepInputSnapshotsEnabled` only when semantic history must retain the exact inputs sent to those methods. The setting is independent of the payload offload threshold and does not affect Flow execution, retry, or recovery. When disabled, no snapshot objects are written and the corresponding semantic-history inputs are unavailable. SYNC and regular-fallback inputs remain available from Flow history.
+
+RPC direct transport is bounded by **api.grpcMaxMessageBytes** (16 MiB by
+default) and the Worker's receive limit (4 MiB by default in the Go, Python, and
+Java SDKs). Exceeding either request limit returns **WORKER_API_ERROR** with
+**OriginalWorkerErrorStatus=8**. A transactional request rejected by the Server's
+size precheck is not retried. Blob Store does not bypass these transport limits.
+
+Remove **api.includeRPCInputOutputIntoHistory** from existing Server
+configuration files when upgrading to Server v1.5.1 or CLI v1.6.3. The setting
+is retired, and strict configuration parsing rejects it. RPC payload persistence
+follows the [execution-mode rule](data-handling.md#rpc-payload-persistence).
 
 ## Safe recovery
 

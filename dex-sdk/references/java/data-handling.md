@@ -45,3 +45,7 @@ Call `syncToAttributeStore()` on definitions that need an external latest-state 
 - Does each handler load only the collections it reads?
 - Are large mutable aggregates split by locality?
 - Are external effects idempotent with keys derived from durable Flow state?
+
+## RPC payload persistence
+
+Follow the shared [RPC payload persistence rule](../core/data-handling.md#rpc-payload-persistence). Nontransactional RPC input and output use direct transport even when the handler writes state; those state changes still use Blob Store at the configured threshold. Transactional RPC input and output are persisted and eligible for offloading. A read-only handler is not necessarily nontransactional.

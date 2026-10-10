@@ -1,5 +1,17 @@
 # Rust gotchas
 
+## Invocation contracts
+
+Match each Client start value to the registered starting Step's input and
+codec. Use `()` for a no-input Step and start value. Match the starting Step's input type; do not introduce an `Option<()>` wrapper or substitute JSON null for the unit contract.
+
+Step Stream writes and invocation-managed buffered writers belong to Step
+WaitFor and Execute, including when called through helpers. RPC and Flow
+timeout handlers should publish a Channel message or schedule a Step instead.
+Select map values and pending Channel messages in the options of the method
+that reads them; schema registration and locks do not load state. See the
+[shared primitive rules](../core/primitives.md).
+
 ## Stable schema objects
 
 Define each `Attribute`, `Channel`, and `Stream` at module scope with `static LazyLock<T>`. Do the same for map definitions when ownership permits. Do not return a newly constructed definition from a helper on each call. Stable logical names matter more than pointer identity, but one canonical Rust value prevents drift.

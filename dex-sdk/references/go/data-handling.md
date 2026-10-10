@@ -35,3 +35,7 @@ Go nil values use the Value null arm and decode through the requested Go type. I
 ## Evolution
 
 Add payload fields compatibly, keep old variants readable, and never repurpose persisted fields. For breaking changes, add a new Flow/Step type and retain old definitions until open runs drain.
+
+## RPC payload persistence
+
+Follow the shared [RPC payload persistence rule](../core/data-handling.md#rpc-payload-persistence). Nontransactional RPC input and output use direct transport even when the handler writes state; those state changes still use Blob Store at the configured threshold. Transactional RPC input and output are persisted and eligible for offloading. A read-only handler is not necessarily nontransactional.

@@ -19,10 +19,10 @@ For each candidate data set or process, ask:
 4. Would the split make the Flows exchange RPCs or Channel messages on frequent
    events, such as every user operation, every external callback or every poll?
 
-A yes to question 4 rules the split out, whatever the other answers. Every call
-between Flows adds entries to both Flows' history, and every RPC, including a
-read-only one, is a separate engine operation with its own latency and, on
-metered backends, its own cost. A separate Flow that tracks another Flow's
+A yes to question 4 rules the split out, whatever the other answers. Every RPC
+between Flows, including a read-only one, is a separate engine operation with
+its own latency and, on metered backends, its own cost. Nontransactional reads
+do not persist their input or output; returned state changes remain durable. A separate Flow that tracks another Flow's
 inactivity, for example, needs a message from every operation; keep that
 deadline in the Flow where the operations happen. Calls between Flows are fine
 for rare events: a start, a completion, a cancellation or an explicit user

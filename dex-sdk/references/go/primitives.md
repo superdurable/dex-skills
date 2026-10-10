@@ -6,6 +6,18 @@ Read core primitive semantics first. This page supplies Go API shapes at the pin
 
 A Flow implements `dex.Flow`; embedding `dex.FlowDefaults` supplies optional behavior. Register the start Step with `dex.DefineStartStep` and every reachable Step with `dex.DefineStep`. Embed `dex.StepDefaultsNoWaitFor[T]` when there is no WaitFor; otherwise implement both methods. Use the inherited type-name defaults and a domain Flow type name such as `OrderFlow`, never just `Flow`; follow the [production-rename exception](versioning.md#default-flow-and-step-type-names) before adding `GetFlowType` or `GetStepType`.
 
+`Client.StartFlow` accepts `any`, but validates its runtime value against the
+registered starting Step's input before network I/O. A Step expecting a struct
+needs a value of that struct type; passing `nil` or a pointer to it is different.
+A pointer, map, slice, or interface input may accept `nil` when the SDK contract
+allows it. For no input, declare `dex.None` in both Step methods (and in
+`StepDefaultsNoWaitFor[dex.None]` when used), then pass `nil`. Do not invent an
+empty DTO or retain unused startup fields only to satisfy an obsolete input
+shape. A Flow without a starting Step also starts with `nil`.
+
+[Start input validation](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-go/dex/client.go)
+and [None definition](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-go/dex/step.go).
+
 [Pinned runnable source](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/examples/go/primitives/flow/workflow.go)
 <!-- dex-source: examples/go/primitives/flow/workflow.go -->
 ```go
@@ -65,6 +77,13 @@ func (channelWait) WaitFor(_ dex.Context, input int) (*dex.Wait, error) {
 Only methods returned from `GetRPCs` are Worker RPCs. Register direct bound Flow methods with `dex.DefineRPC`. Put timeout, locks, transactions, and selective loads in its `dex.RPCOptions`; `Client.InvokeRPC` takes no options argument. A definition without locks or transactional execution can query a retained terminal run when the handler returns no durable effects. Locks, transactions, returned effects, or Server policy require an active execution. Keep handlers short and lock conflicting Attributes. RPC results may request supported movements, publishing, or cancellation; never emulate transactions with process-local locks.
 
 ## Stream
+
+`Stream.Write` and `NewBufferedTextStream` require a Step WaitFor or Execute
+Context. Neither works in an RPC or Flow timeout handler, even through a
+Flow method or helper. Keep writer creation and writes invocation-local. An
+RPC that needs an activity event can publish a Channel message or return
+`RPCResult.NextSteps` for a Step to emit it. Preserve authoritative state in
+Attributes; an event append is still best effort.
 
 Define a Stream with a byte limit and register it. A Step writes ordered progress; consumers resume from the Client token. A Stream is a feed, not authoritative state.
 

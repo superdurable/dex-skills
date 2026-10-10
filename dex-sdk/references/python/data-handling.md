@@ -23,3 +23,7 @@ ASYNC local Step input snapshots are disabled by default. Enable the Server's `b
 Python `None` uses the Value null arm and decodes back to `None`. In an Attribute write it deletes the Attribute, and as a Flow completion output it is discarded. Return an explicit result object when terminal null and no output must differ.
 
 For incompatible serialization changes, introduce a new Flow/Step type and keep old definitions until open runs drain.
+
+## RPC payload persistence
+
+Follow the shared [RPC payload persistence rule](../core/data-handling.md#rpc-payload-persistence). Nontransactional RPC input and output use direct transport even when the handler writes state; those state changes still use Blob Store at the configured threshold. Transactional RPC input and output are persisted and eligible for offloading. A read-only handler is not necessarily nontransactional.

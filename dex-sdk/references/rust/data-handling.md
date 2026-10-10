@@ -78,3 +78,7 @@ Rust JSON null uses the Value null arm and decodes as `serde_json::Value::Null`.
 ## Attribute Store and search
 
 Mark selected Attributes with `sync_to_attribute_store` only when an external projection needs them. Configure store names in `FlowConfig`. Index only fields needed for search, and keep index keys stable. Search is for discovery; an RPC or Attribute read should confirm current authoritative Flow state before mutation.
+
+## RPC payload persistence
+
+Follow the shared [RPC payload persistence rule](../core/data-handling.md#rpc-payload-persistence). Nontransactional RPC input and output use direct transport even when the handler writes state; those state changes still use Blob Store at the configured threshold. Transactional RPC input and output are persisted and eligible for offloading. A read-only handler is not necessarily nontransactional.

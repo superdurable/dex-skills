@@ -186,51 +186,20 @@ loopback `dexcli dev`. Do not copy it into an image, a deployed volume, or
 source control. Auth selections, configuration values, API keys, OAuth tokens
 and webhook secrets do not belong in source, rendered definitions or Flow state.
 
-A deployed Dex Server can own Connector configuration and OAuth in its project
-Connector mode. Its configuration and credentials live in a private, versioned
-object store, and the application reads them through the released Connector
-SDK `projectconfig` package rather than an application-specific loader. The
-[Connector SDK v0.17.0 loader](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/environment.go),
-its [storage contract](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/README.md),
-and the [Dex Server project configuration protocol](https://github.com/superdurable/dex/blob/server/v1.3.0/web/PROJECT_CONFIGURATION.md)
-are the authority for that boundary; see the Dex SDK
-[operations reference](../../dex-sdk/references/core/operations.md#native-hosted-project-configuration).
-This reference version does not authorize upgrading an application's existing
-Connector pins; inspect its bootstrap and report a compatibility blocker if the
-required loader is absent. Load configuration in `main` before constructing
-business clients, Workers, HTTP servers or goroutines.
+Deployed applications need an explicit secret and configuration runtime boundary.
+Dex Server's local Connector setup does not provide a hosted project store or
+OAuth runtime. Inspect the installed Connector factory, configuration types,
+credential codec, and supported adapters before wiring clients. Load validated
+configuration before constructing business clients, Workers, HTTP servers, or
+goroutines. See the [Core configuration boundary](../../dex-sdk/references/core/operations.md#connector-configuration-boundary).
 
-Connection settings and Step configuration have different identities. Decode a
-Connector's connection-level configuration through the loaded project
-configuration, and load only the exact Flow/Step operation configuration
-declared in FDG for a Step. A valid Worker registration alone cannot establish
-that the provider client received its required connection settings. Read the
-installed Connector factory and configuration types, then verify application
-startup against real configuration before calling a provider.
-
-Inspect the generated Connector's credential codec and the released typed
-adapter before wiring credentials. Secret wrappers may intentionally
-reject JSON marshaling: do not serialize public `Credentials` directly, invent
-field names, or treat a missing key as empty usable credentials. Keep any required
-typed codec at the bootstrap adapter boundary, use the manifest's exact fields,
-and let the official store own credential resolution and refresh.
-
-The official typed adapter resolves current connection credentials at actual
-use. Business code neither reads credential objects nor implements refresh,
-token exchange or token persistence. Refresh requires known expired access
-credentials; unknown expiry or an unclassified HTTP 401 is not permission to
-rotate. A durable CAS/fence admits one provider dispatch. Concurrent or
-restarted callers join and recover a persisted immutable result; timeout, lock
-expiry or response loss never grants a second dispatch. If a provider rotated
-but no private result survived, require reauthorization instead of repeating the
-uncertain exchange. No token or raw provider failure belongs in a Flow or log.
-
-Ordinary configuration is an exact, digest-pinned snapshot read once at
-startup, so a settings change takes effect only when the application restarts
-with the new snapshot; a credential replacement or refresh takes effect on the
-next provider call without a rebuild. Missing configuration, an unsupported capability or a terminal
-refresh failure surfaces as a configuration or reauthorization error. Verify
-real storage, Worker and provider behavior before claiming a deployment works.
+Business code neither reads credential objects nor implements token exchange
+or persistence; a supported runtime adapter owns them. Keep credentials outside
+Flow state, rendered definitions, logs, and browser responses. Secret wrappers may reject JSON marshaling; do not invent credential
+field names or treat missing keys as usable credentials. Resolve replacements
+and refresh through the supported adapter's documented lifecycle, and preserve
+its handling of uncertain provider responses. Verify real storage, Worker, and
+provider behavior before claiming a deployment works.
 
 ## AI agents
 

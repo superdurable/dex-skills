@@ -1,5 +1,17 @@
 # Java gotchas
 
+## Invocation contracts
+
+Match each Client start value to the registered starting Step's input and
+codec. Use the SDK's `Void` input contract with `null` when there is no input; do not pass an empty DTO in place of the registered Step's input type.
+
+Step Stream writes and invocation-managed buffered writers belong to Step
+WaitFor and Execute, including when called through helpers. RPC and Flow
+timeout handlers should publish a Channel message or schedule a Step instead.
+Select map values and pending Channel messages in the options of the method
+that reads them; schema registration and locks do not load state. See the
+[shared primitive rules](../core/primitives.md).
+
 - The default Flow and Step types are the simple class names. Name each Flow class after its domain, such as `ApprovalFlow`, never just `Flow`; the Java package does not separate two classes with the same simple name.
 - `Step<I>` requires a concrete `Class<I>`; use a holder class for generic data.
 - Flows with `@RPC` methods and those methods cannot be `final`, because typed stubs intercept them. Kotlin equivalents must be `open`.

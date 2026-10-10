@@ -8,6 +8,13 @@ Use a Flow as the top-level durable business execution. It owns the Step list, p
 
 Name each Flow type after its domain, such as `ApprovalFlow`, and never just `Flow`. Go, Java, Python, and Rust derive the default Flow type from the type or class name without its package or module, so Flow types must be unique within one Worker registry. Dex Web, run history, and Flow type searches show that name as written.
 
+The starting Step's input type and codec define the start payload contract.
+Match that contract at every Client start call and in integration tests. Do not
+assume null or an empty object matches that contract. When
+the Step truly needs no input, use the selected SDK's no-input type and its
+matching value. If a startup payload becomes unused, update the Step and its
+callers together; retain any fields still required by business initialization.
+
 Docs: https://docs.superdurable.io/primitives/flow
 
 ## Step and Wait
@@ -103,6 +110,14 @@ Docs: https://docs.superdurable.io/primitives/rpc
 ## Stream
 
 Use a Stream for low-latency, best-effort, resumable updates such as progress displayed in a UI. Do not use a Stream when delivery must be durable; use a Channel or Attribute instead.
+
+Only Step WaitFor and Execute invocations can emit Step Stream output or
+create invocation-managed buffered writers. RPC and Flow timeout contexts are
+rejected, including calls through helpers. Trace a helper's effects before
+sharing it between handlers: an RPC may update an Attribute, publish a Channel
+message, or schedule a next Step instead. A separate external Client Stream
+write has its own API and best-effort contract; it does not make Step Stream
+writes available in an RPC.
 
 A Step may append any number of messages to the same or different Streams before its final result. A Step Stream write is fire-and-forget: local encoding or registration can fail immediately, but Dex Server does not acknowledge Stream Store persistence and a Store failure does not fail the Step.
 
