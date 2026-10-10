@@ -83,8 +83,8 @@ def main() -> None:
     )
     require_text(
         arguments.dex_root / "web" / "api" / "v2.go",
-        "V2PermissionModeTrustedHeader",
-        "V2WorkQueuePermissionsHeader",
+        "v2WorkQueuePermissionsIndex",
+        "compileWorkQueuePermissions",
         "Action permission denied",
         'json:"capture,omitempty"',
     )
@@ -161,23 +161,19 @@ def main() -> None:
     )
     require_text(
         arguments.dex_root / "web" / "api" / "v2_start.go",
-        "START_FLOW_DISABLED",
         "WORKER_UNHEALTHY",
         "v2StartStepInput",
         "SkipWaitFor: definition.Start.SkipWaitFor",
-        "hostedStartRequestIdentity",
-        "START_IDENTITY_CONFLICT",
     )
     require_text(
-        arguments.dex_root / "web" / "api" / "v2.go",
-        "requireEmbeddedMutationCSRF",
-        "WEB_MUTATION_CSRF_INVALID",
-        "subtle.ConstantTimeCompare",
+        arguments.dex_root / "server" / "service" / "api" / "service.go",
+        "offloadRPCValue",
+        "shouldInvokeRPCTransactionally",
     )
     require_text(
-        arguments.dex_root / "web" / "project_configuration.go",
-        "projectconfig",
-        "APPLICATION_ENVIRONMENT_FORBIDDEN",
+        arguments.dex_root / "protos" / "dex.proto",
+        "reserved 1, 2;",
+        'reserved "rpc_input", "rpc_output";',
     )
     print("validated Dex Server and CLI baselines")
 

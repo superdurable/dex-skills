@@ -69,8 +69,9 @@ configuration. A missing module is resolved at its exact released version.
 - Use parallel Steps for one lifecycle, independent top-level Flows for separate
   owners, and no SubFlows unless the Core gate and explicit confirmation apply.
   Never split when the parts would exchange RPCs or messages on frequent events
-  (every operation, callback or poll): each call between Flows adds to both
-  histories and costs an engine operation, even when it only reads.
+  (every operation, callback or poll): each RPC between Flows adds
+  latency and costs an engine operation, even when it only reads. A
+  nontransactional read does not persist its input or output.
 - Put provider effects in Execute, with identity, bounded timeout and recovery.
   WaitFor declares durable conditions and performs no provider or Dex mutation.
 - Stable FlowID, complete RequestID, explicit reuse policy and typed error
@@ -80,8 +81,8 @@ configuration. A missing module is resolved at its exact released version.
   selective loads, locks/CAS, retention, retries and uncertain-effect handling
   in the application before coding. Preserve open execution compatibility.
 - Keep credentials outside code, Flow state, logs and definitions. Local
-  development uses the Connector SDK local store that Dex Web configures; a
-  deployed Dex Server uses the official Connector SDK configuration loader.
+  development uses the Connector SDK local store that Dex Web configures; deployed
+  applications need an explicit supported secret/configuration runtime boundary.
 - Browser permission selection grants no authority. Enforce actor permissions
   at the trusted server boundary; use stable granular Action permissions.
 - Do not mutate another repository or publish/deploy without authorization.

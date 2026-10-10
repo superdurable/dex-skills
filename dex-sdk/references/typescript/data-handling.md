@@ -47,3 +47,7 @@ ASYNC local Step input snapshots are disabled by default. Enable the Server's `b
 TypeScript `null` and `undefined` use the Value null arm. The default JSON codec decodes it as `null`; `voidCodec` and `optionalCodec` decode it as `undefined`. In an Attribute write it deletes the Attribute, and as a Flow completion output it is discarded. Return an explicit result object when terminal null and no output must differ.
 
 Attribute Store is an asynchronous latest-state projection. Select Store names in `FlowConfig`; do not wait on projection as a correctness barrier.
+
+## RPC payload persistence
+
+Follow the shared [RPC payload persistence rule](../core/data-handling.md#rpc-payload-persistence). Nontransactional RPC input and output use direct transport even when the handler writes state; those state changes still use Blob Store at the configured threshold. Transactional RPC input and output are persisted and eligible for offloading. A read-only handler is not necessarily nontransactional.

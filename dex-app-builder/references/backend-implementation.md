@@ -149,8 +149,7 @@ Use the manifest-selected authorization method. The user chooses among the
 methods declared by the exact connector release; application code must not
 hard-code OAuth, API-key, or service-account fields outside that contract.
 Local calls resolve the newest credential from the local store and let the
-Connector SDK perform supported on-demand refresh. A deployed Dex Server in
-project Connector mode uses the official Connector SDK configuration loader
+Connector SDK perform supported on-demand refresh. Deployed applications require the supported configuration boundary
 described in [Connector architecture](connector-architecture.md#deployed-configuration-and-credential-boundary);
-business code never handles tokens. Rotation takes effect on the next Connector
-call without changing Flow state or rebuilding the app.
+business code never handles tokens. Follow the installed adapter's documented
+credential replacement and refresh lifecycle.

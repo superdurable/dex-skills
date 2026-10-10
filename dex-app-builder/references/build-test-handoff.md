@@ -182,8 +182,8 @@ Ensure:
 - every Flow source file renders to a `valid: true` FDG 2.0 definition through
   one project command, and the rendered Flow and Step type names match the
   Worker's registrations;
-- for a deployed Dex Server, the packaged definitions, project Connector
-  configuration, and official Connector SDK loader keep credentials out of
+- for a deployed Dex Server, the packaged definitions and supported secret/configuration
+  runtime boundary keep credentials out of
   application code and Flow state;
 - requested acceptance for known token expiry, concurrent calls, credential rotation,
   lost exchange responses and Worker restart records actual results or explicit

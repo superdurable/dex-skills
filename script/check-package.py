@@ -330,15 +330,15 @@ def check_app_builder() -> None:
         "data-lifecycle and execution-shape boundary matrices",
         "Use Dex Flow state as the default durable application store",
         "Do not add an external database, cache, ORM, outbox, or shadow read model",
-        "`projectconfig` package", "## Version pairing",
+        "explicit secret and configuration runtime boundary", "## Version pairing",
         "go get github.com/superdurable/dex/sdk-go@",
         "Only after the real Dex and Connector end-to-end journey passes",
         "Do not create an application-level mock server",
         "Mock evidence never replaces real Dex durability",
         "Default application authoring produces source without integration/browser test",
         "## Local verification with dexcli dev", "## Package Flow definitions",
-        "`active-manifest`", "## Deployment, only when requested",
-        "`trusted-header` mode behind an authenticated reverse proxy",
+        "web.flowRenderingDirectory", "## Deployment, only when requested",
+        "The Work Queue selector does",
     ):
         if text not in guidance:
             fail(f"Dex App Builder guidance must preserve: {text}")
@@ -434,7 +434,7 @@ def check_app_builder() -> None:
         "## Deployed configuration and credential boundary",
         "plaintext development store",
         "Business code neither reads credential objects",
-        "exact, digest-pinned snapshot",
+        "supported runtime adapter",
     ):
         if text not in connector_architecture:
             fail(f"connector architecture must contain: {text}")
@@ -549,11 +549,9 @@ def check_app_builder() -> None:
         "capture:qr-code",
         "without submitting the Action",
         "The embedding host remains responsible for",
-        "Project Connector mode in a deployed Dex Server uses the same release-owned",
-        "browser parameters cannot override it",
-        "Dex owns conditional, versioned native storage and OAuth dispatch",
-        "`X-CSRF-Token` matching one nonempty trusted `X-Dex-Web-CSRF-Token`",
-        "reconcile through `POST /api/v2/start/recover`",
+        "Local Connector setup does not provide deployed project configuration",
+        "application's authentication",
+        "inspect the original Flow ID",
         "parenthesized manifest default",
     ):
         if text not in dex_web:

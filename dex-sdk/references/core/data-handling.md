@@ -115,6 +115,29 @@ RPC registration options describe fixed locks and loads. Invocation options can 
 
 An indexed AttributeMap does not create one searchable entry per instance. Every instance writes the same fixed Flow search field, a later instance can replace the prior indexed value, and the instance key is not searchable. Use a regular Attribute with a keyword-array index for a bounded searchable collection, or an external projection for per-instance queries.
 
+## RPC payload persistence
+
+Choose transactionality for the operation's consistency requirements. A read-only
+handler can still be configured as transactional; inspecting its writes alone
+cannot determine its payload persistence.
+
+| RPC execution | Input and returned output | Returned state changes |
+|---------------|---------------------------|------------------------|
+| Nontransactional, read-only | Direct transport; no new Blob objects | None |
+| Nontransactional, with writes | Direct transport; no new Blob objects | Persisted; large values use Blob Store |
+| Transactional | Persisted; large values use Blob Store | Persisted; large values use Blob Store |
+
+The configured threshold applies only to values Dex persists, when Blob Store
+is enabled. Attribute writes, Channel publications, recorded events, and Step
+inputs remain eligible for offloading even when their RPC input and output use
+direct transport. Existing persisted Attributes can still require Blob reads;
+a read-only RPC avoids new Blob writes, not hydration of stored data.
+
+Direct RPC transport remains subject to message-size limits. Persist large
+state in Attributes or AttributeMaps and return bounded pages when an operation
+would otherwise transfer an oversized request. See [operations](operations.md)
+for transport limits and the retired RPC history configuration.
+
 ## Project Attributes for external queries
 
 When data needs relational queries, independent pagination, cross-Flow access, analytics, or a different retention lifecycle, first consider Dex Attribute Store synchronization instead of application-managed dual writes.

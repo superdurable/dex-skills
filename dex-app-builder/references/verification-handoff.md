@@ -68,26 +68,22 @@ written alongside blocking diagnostics. Regenerate the definitions after every
 Flow change and after upgrading `dexcli`, because the rendered type names must
 match the Worker.
 
-A deployed Dex Web loads the same files from its Flow rendering source:
-`web.flowRenderingSource: local` with `web.flowRenderingDirectory`, or
-`blobstore` with an existing S3 blob storage and prefix
-(`DEX_WEB_FLOW_RENDERING_*` environment variables override the YAML). To
-replace definitions atomically, publish an immutable
-`releases/<release-id>/` directory, verify every object, then replace the
-strict `active-manifest` that names its prefix, file count, and digest. Follow
-the pinned [Dex Web definition source contract](https://github.com/superdurable/dex/blob/server/v1.3.0/web/README.md#dynamic-definition-bundles);
-Dex returns 503 rather than serving a changed, incomplete, or invalid bundle.
+A deployed Dex Web reads the same validated files from
+**web.flowRenderingDirectory**. Package the definition directory with the
+application deployment and configure its path at Server startup. Dex reloads
+files on definition-dependent requests; invalid JSON, unsupported schemas, or
+source failures return a typed 503 and fail readiness. Verify the deployed
+files and Worker type names. See the pinned [definition source contract](https://github.com/superdurable/dex/blob/server/v1.5.1/web/README.md#run-through-dexcli).
 
 ## Deployment, only when requested
 
 The `dex-server` image starts Dex Web, API, and Interpreter in one process,
 with FlowService on port 8801 and Dex Web on port 8802. Before deploying a
 Worker, run `dexcli version check --server ADDRESS` against the target Server
-and make the Worker's advertised target reachable from it. Run Dex Web in
-`trusted-header` mode behind an authenticated reverse proxy that strips
-browser-supplied trusted headers and injects the permission set, and keep port
-8802 unreachable around that proxy. Configure deployed Connectors through the
-Server's project Connector mode, as described in
+and make the Worker's advertised target reachable from it. Protect deployed Dex Web behind the application's authenticated access
+boundary and keep port 8802 unreachable around it. The Work Queue selector does
+not authenticate users or grant permission. Deployed Connector configuration
+needs an explicit supported runtime boundary, as described in
 [Connector architecture](connector-architecture.md#deployed-configuration-and-credential-boundary).
 See the Dex SDK [operations reference](../../dex-sdk/references/core/operations.md)
 for Server components and the Worker protocol check.

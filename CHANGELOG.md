@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.34.2 - 2026-10-09
+
+- Pin Server guidance to server/v1.5.1 and CLI guidance to cli-v1.6.3; refresh source links while retaining the released SDK API baseline.
+- Explain RPC payload persistence in Core and all five language references: nontransactional inputs/outputs use direct transport, returned state changes remain eligible for Blob Store, and transactional payloads are persisted. A read-only handler can still be transactional.
+- Document RPC transport limits, consistent Worker size errors, and removal of api.includeRPCInputOutputIntoHistory from existing configuration.
+- Correct the Flow-boundary guidance so it no longer claims nontransactional read RPC payloads are persisted.
+- Replace retired hosted Web configuration, trusted-header, and start-admission guidance with the supported local Connector and application access boundaries. Validate the current released interfaces.
+- Synchronize Codex, Claude Code, and Cursor manifests at version 0.34.2.
+
 ## 0.34.1 - 2026-10-08
 
 - Check start payloads against the registered starting Step before implementation and tests; use the SDK no-input contract when no payload is needed, including Go dex.None with nil. Distinguish local input validation from Server admission and retry outcomes.
