@@ -89,7 +89,7 @@ metadata currently requires a Go Flow definition.
 
 ## Local Connector credentials
 
-Dex Web v2 can configure exact released official Connector modules for Go Flows during loopback **dexcli dev**. The Flow must use operation-specific factories, a static connection name, and static names for any Trigger bindings. Generic factories, local replacements, unreleased module versions, or version conflicts remain visible but are not configurable.
+Dex Web v2 can configure exact published official Connector modules, a release or a release candidate, for Go Flows during loopback **dexcli dev**. The Flow must use operation-specific factories, a static connection name, and static names for any Trigger bindings. Generic factories, local replacements, unpublished module versions, or version conflicts remain visible but are not configurable.
 
 The default plaintext development store is `~/.dex/connectors/connections.json`. Pass **--connector-config-dir** to choose an isolated directory. Use the absolute path displayed in Connections mode when starting the application:
 
@@ -97,11 +97,13 @@ The default plaintext development store is `~/.dex/connectors/connections.json`.
 DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-command>
 ```
 
-The file survives Dex Web and application restarts. Restarting Dex Web clears pending OAuth/PKCE exchanges, OAuth client secrets, and Studio UI sessions because those remain in memory. Stored short-lived credentials remain until expiry or explicit local deletion. Deletion does not revoke the provider grant.
+The file survives Dex Web and application restarts. Restarting Dex Web clears pending OAuth/PKCE exchanges, submitted OAuth client secrets, and Studio UI sessions because those remain in memory, unless the Connector release maps a client ID or secret to a stored credential. Dex Web stores the access token after checking the granted scopes, does not refresh it, and stores a refresh token only when the release maps one. Stored credentials remain until expiry or explicit local deletion. Deletion does not revoke the provider grant.
 
 Only the Go Connector SDK currently provides the local file loader. Never put the JSON record, access token, API key, or secret-bearing generated value into Flow state, logs, browser messages, or application responses.
 
 Connection credentials and Trigger binding matchers are separate. One connection may serve several Flows without sharing their filters. Trigger delivery is at least once: use deterministic Flow IDs for starts. Application RPCs own their redelivery policy, bounded deduplication state when needed, and business locks.
+
+A release for an authorization server that the connection owner chooses, such as a company identity provider, declares its authorization endpoint, token endpoint, scopes, or identity endpoint as connection settings. Fill those settings before choosing **Authorize**: Dex Web rejects a missing or blank setting, an empty scope list, a URL that is not absolute, or an unsupported client authentication method before it contacts the provider. An endpoint written in a release must use HTTPS. An endpoint typed into a setting may use **http** only when every address its host resolves to is loopback or private, and Dex Web refuses link-local, unspecified, and multicast addresses even over HTTPS. It uses no proxy and follows no redirect for these requests. Over a permitted **http** address the authorization code, client secret, and tokens still cross the network unencrypted.
 
 ## Deployed Connector configuration
 

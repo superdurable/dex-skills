@@ -169,7 +169,7 @@ DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-com
 
 Load the store once with the Connector SDK `localconfig` package and create each generated connection with `NewLocalConnection(store, connectionName)`. Generated Trigger factories decode their named binding separately and wrap the target in a binding-specific disk inbox. A matched event is persisted before provider acknowledgement, removed after Dex accepts it, and replayed after a process restart.
 
-Configuration is fixed at application startup. Credentials are reread for every provider call, so reauthorization takes effect without an application restart. Dex Web and application restarts preserve the JSON file. Restarting Dex Web clears only pending OAuth/PKCE exchanges, submitted client secrets, and UI sessions.
+Configuration is fixed at application startup. Credentials are reread for every provider call, so reauthorization takes effect without an application restart. Dex Web and application restarts preserve the JSON file. Restarting Dex Web clears only pending OAuth/PKCE exchanges, submitted client secrets that the release does not map to stored credentials, and UI sessions.
 
 For a connector authorization method with a refresh driver, the local store
 persists the refresh token and expiry as private `0600` credential material.

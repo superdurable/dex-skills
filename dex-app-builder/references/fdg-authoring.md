@@ -130,8 +130,11 @@ unrelated source. Compile first when the diagnostic reports Go syntax/types.
 | `hidden_dex_decision` | Return Dex decisions directly from Step methods; helpers may compute input or record state. |
 | `unknown_step_target` | Register the target and use its real Go type or exact static Connector Step reference. |
 | `connector_factory_step_type` | Give the operation factory a nonempty compile-time StepType. |
-| `unused_resource` | Make primitive use visible in the Flow's Step or RPC methods; do not retain obsolete scaffold state. |
-| `connector_release_required` | Pin an exact official released module and remove local replacements before handoff. |
+| `unused_resource` | Make primitive use visible in the Flow's Step or RPC methods or in the same-package helpers they call, up to six levels deep; do not retain obsolete scaffold state. |
+| `connector_release_required` | Pin an exact official published module version, a release or an `-rc.N` release candidate, and remove local replacements before handoff. |
+| `attribute_map_read_not_loaded`, `attribute_map_enumeration_not_loaded`, `attribute_map_instance_not_loaded`, `channel_messages_not_loaded` | Select the AttributeMap instance or whole map, or the Channel messages, in the options of the Step, RPC or timeout handler that reads them; an unselected read fails at run time. |
+| `step_progress_outside_step` | Write Stream output only in a Step; an RPC publishes a Channel message or returns `NextSteps` to schedule that Step. |
+| `start_flow_input_type_mismatch` | Pass the starting Step's input type to `StartFlow`, or declare `dex.None` and pass `nil`. |
 
 A successful FDG check proves a definition, not an actual provider call. Keep
 source readiness separate from configured real business acceptance.

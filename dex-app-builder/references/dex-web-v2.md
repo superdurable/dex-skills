@@ -110,7 +110,7 @@ In loopback **dexcli dev**, the **Connectors** tab at `/v2/connectors` groups Co
 
 A connector whose manifest declares `selection: multiple` holds several auth methods in one connection, such as several LLM providers, each added as its own card. Editing a saved connection keeps a stored secret when its field is left blank.
 
-Automatic setup requires an operation-specific factory from an exact official released module, a static `ConnectionName`, and no local module replacement. Different module versions for one connector/name key are a blocking conflict. Generic factories and unsupported dependencies still render the Flow but cannot write credentials.
+Automatic setup requires an operation-specific factory from an exact official published module, a release or an `-rc.N` release candidate, a static `ConnectionName`, and no local module replacement. Different module versions for one connector/name key are a blocking conflict. Generic factories and unsupported dependencies still render the Flow but cannot write credentials.
 
 For connector development only, `dexcli dev` accepts
 `--connector-release-override connector-id=artifact-directory`. Use an artifact
@@ -122,7 +122,9 @@ module cache; that copy persists in `GOMODCACHE` and shadows or conflicts with
 the real release. Use the override, or a temporary `GOMODCACHE` for any
 consumer that must resolve pre-release versions.
 
-Dex Web verifies release metadata and the Studio artifact. A supported Studio bundle runs in an opaque-origin sandbox; otherwise the host renders the manifest form. Neither surface receives stored credential values. OAuth client credentials, PKCE state, and UI sessions are memory-only.
+Dex Web verifies release metadata and the Studio artifact. A supported Studio bundle runs in an opaque-origin sandbox; otherwise the host renders the manifest form. Neither surface receives stored credential values. PKCE state and UI sessions are memory-only, and so are the OAuth client ID and secret unless the release maps them to stored credentials.
+
+A release for an authorization server that the connection owner chooses, such as a company identity provider, writes its authorization endpoint, token endpoint, scopes, or identity endpoint as connection settings instead of constants. Fill those settings in before **Authorize**: Dex Web checks them first and rejects a missing or blank value, an empty scope list, a non-absolute URL, or an unsupported client authentication method, with an error that names the setting. A setting may supply an `http` endpoint only when every resolved address is loopback or private; an endpoint a release writes must use HTTPS. Dex Web does not refresh tokens, so a Connector that renews its own credential reads the saved settings.
 
 Connections presents authorization first, then nested operation and Trigger
 configuration tabs. A Flow's static `ConnectorConfigurationUI` composes ordered
