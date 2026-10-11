@@ -112,8 +112,10 @@ For connectors:
    official SDK call when the connector library already supplies the required
    capability;
 7. give every operation-specific factory a static `ConnectionName` matching
-   the generated Connection's runtime name, and use generated
-   `NewLocalConnection` with the Connector SDK local store for local testing;
+   the generated Connection's runtime name, and open each connection with the
+   generated `NewProjectConnection(project, connectionName)` over
+   `projectconfig.LoadFromEnvironment` (connector releases before v0.21.0
+   generate `NewLocalConnection` instead);
 8. for a public external product with a documented API or official SDK, require
    dedicated Connector Trigger, Query, Mutation, and UI capabilities as needed;
 9. when that public connector or required operation/Trigger is absent or
@@ -148,9 +150,10 @@ Make connector mutations idempotent and reconcile unknown outcomes query-first. 
 Use the manifest-selected authorization method. The user chooses among the
 methods declared by the exact connector release; application code must not
 hard-code OAuth, API-key, or service-account fields outside that contract.
-Local calls resolve the newest credential from the local store and let the
-Connector SDK perform supported on-demand refresh. A deployment takes its
-configuration and credentials from the source settled in
+Each provider call resolves the newest credential through the connection that
+`NewProjectConnection` binds and lets the Connector SDK perform supported
+on-demand refresh. A deployment reads its configuration and credentials through
+the Connector SDK's `sdkgo/projectconfig`, as in
 [Connector architecture](connector-architecture.md#deployed-configuration-and-credential-boundary);
 business code never handles tokens. Rotation takes effect on the next Connector
 call without changing Flow state or rebuilding the app.

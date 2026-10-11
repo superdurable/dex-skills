@@ -45,7 +45,10 @@ Verify on the long-lived `dexcli dev` stack started during implementation:
 2. run the Worker against the Dex Server address that `dexcli dev` printed, so
    the FDG Flow and Step type names match the Worker's registrations;
 3. configure each Connector connection in Dex Web **Connectors** and start the
-   application with **DEX_CONNECTOR_CONFIG_FILE** set to the path Dex Web shows;
+   application with the configuration its pinned connector release reads:
+   **DEX_CONNECTOR_CONFIG_FILE** for releases before v0.21.0, otherwise the
+   project configuration, which `cli-v1.7.0` Dex Web does not write (report that
+   as a blocker; see [Connector architecture](connector-architecture.md#local-development-configuration));
 4. start Runs through the real entry point: a Connector Trigger, the
    application API, Dex Web **Start Flow** (which asks for the reachable Worker
    address in local mode), or `dexcli flow start`;
@@ -91,7 +94,8 @@ and make the Worker's advertised target reachable from it. Dex Web neither
 authenticates users nor enforces authorization, so run it behind a trusted
 application boundary that authenticates users and maps roles to permissions,
 and keep ports 8801 and 8802 unreachable around that boundary. Dex provides no
-deployed Connector configuration; settle it as described in
+deployed Connector configuration; a Go application reads it through the
+Connector SDK's `sdkgo/projectconfig`, as described in
 [Connector architecture](connector-architecture.md#deployed-configuration-and-credential-boundary).
 See the Dex SDK [operations reference](../../dex-sdk/references/core/operations.md)
 for Server components and the Worker protocol check.

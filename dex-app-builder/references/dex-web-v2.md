@@ -131,9 +131,11 @@ configuration tabs. A Flow's static `ConnectorConfigurationUI` composes ordered
 release-owned units. Each binding maps one generated unit port to one declared
 RFC 6901 JSON Pointer; the host rejects undeclared paths. Dex Web writes only
 non-secret operation configuration to sibling `use-configurations.json`, keyed
-by connector, connection, operation, Flow type, and Step type. The application
-loads it once through `localconfig`, so a configuration edit requires an
-application restart.
+by connector, connection, operation, Flow type, and Step type. An application
+whose connector release reads the Dex Web files loads them once at startup, so a
+configuration edit requires an application restart; see
+[connector architecture](connector-architecture.md#local-development-configuration)
+for which releases do.
 
 The connector release owns setup guidance for the complete rendered surface.
 Dex Web shows the authorization guide's provider start URL and ordered steps,
@@ -166,7 +168,9 @@ for each provider call; non-secret connection, binding, and operation
 configuration remains startup-bound in the application.
 
 A deployed Dex Server's Dex Web does not expose Connector setup, OAuth, or
-credential storage; they exist only in loopback `dexcli dev`. See
+credential storage; they exist only in loopback `dexcli dev`. A deployed Go
+application reads its connections through the Connector SDK's
+`sdkgo/projectconfig`; see
 [deployed Connector configuration](../../dex-sdk/references/core/operations.md#deployed-connector-configuration).
 Test the actual native display and declared Action path with the real Worker,
 and separately verify the authentication boundary in front of the deployed Dex

@@ -91,7 +91,7 @@ metadata currently requires a Go Flow definition.
 
 Dex Web v2 can configure exact published official Connector modules, a release or a release candidate, for Go Flows during loopback **dexcli dev**. The Flow must use operation-specific factories, a static connection name, and static names for any Trigger bindings. Generic factories, local replacements, unpublished module versions, or version conflicts remain visible but are not configurable.
 
-The default plaintext development store is `~/.dex/connectors/connections.json`. Pass **--connector-config-dir** to choose an isolated directory. Use the absolute path displayed in Connections mode when starting the application:
+The default plaintext development store is `~/.dex/connectors/connections.json`. Pass **--connector-config-dir** to choose an isolated directory. Use the absolute path displayed in Connections mode when starting an application that reads the file:
 
 ```bash
 DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-command>
@@ -99,7 +99,7 @@ DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-com
 
 The file survives Dex Web and application restarts. Restarting Dex Web clears pending OAuth/PKCE exchanges, submitted OAuth client secrets, and Studio UI sessions because those remain in memory, unless the Connector release maps a client ID or secret to a stored credential. Dex Web stores the access token after checking the granted scopes, does not refresh it, and stores a refresh token only when the release maps one. Stored credentials remain until expiry or explicit local deletion. Deletion does not revoke the provider grant.
 
-Only the Go Connector SDK currently provides the local file loader. Never put the JSON record, access token, API key, or secret-bearing generated value into Flow state, logs, browser messages, or application responses.
+Dex Web only writes this file, and the Connector SDK release line decides whether an application can read it. Connector releases before v0.21.0 generate `NewLocalConnection`, and the SDK's `localconfig.LoadFromEnvironment` reads the file; `sdkgo/localconfig` exists through sdkgo v0.21.0 and is absent from sdkgo v0.22.0. Every connector from v0.21.0 generates only `NewProjectConnection`, which takes the project configuration that `projectconfig.LoadFromEnvironment` loads from S3-compatible object storage (see [Deployed Connector configuration](#deployed-connector-configuration)). `sdkgo/v0.25.0` contains no code that reads `connections.json` or `use-configurations.json`, and its documentation says local development uses a local S3-compatible store (`DEX_PROJECT_ALLOW_LOCAL_STORAGE=true` with `DEX_PROJECT_STORAGE_ENDPOINT`), but `cli-v1.7.0` Dex Web writes only the two files. For a connector at v0.21.0 or later, report that gap as a compatibility blocker and ask the user how the local project configuration is provided; never write a reader for the file. Only the Go Connector SDK provides either loader. Never put the JSON record, access token, API key, or secret-bearing generated value into Flow state, logs, browser messages, or application responses.
 
 Connection credentials and Trigger binding matchers are separate. One connection may serve several Flows without sharing their filters. Trigger delivery is at least once: use deterministic Flow IDs for starts. Application RPCs own their redelivery policy, bounded deduplication state when needed, and business locks.
 
@@ -107,9 +107,17 @@ A release for an authorization server that the connection owner chooses, such as
 
 ## Deployed Connector configuration
 
-Dex Web's Connector setup APIs run only in loopback-bound **dexcli dev** with local Flow Definition Graph files. A deployed Dex Server, its Dex Web, and any non-loopback listener do not expose them, and open-source Dex provides no deployed Connector configuration, OAuth, or credential store. The plaintext `connections.json` is a development store: never copy it into an image or a deployed volume.
+Dex Web's Connector setup APIs run only in loopback-bound **dexcli dev** with local Flow Definition Graph files. A deployed Dex Server, its Dex Web, and any non-loopback listener do not expose them, and Dex (Server and Web) provides no deployed Connector configuration, OAuth, or credential store. The plaintext `connections.json` is a development store: never copy it into an image or a deployed volume.
 
-Decide where a deployment's Connector configuration and credentials come from before handoff. Keep secrets in the deployment's secret management, never in source, Flow state, rendered definitions, or logs, and prove with the real application startup that every Connector connection resolves its required configuration and credentials. Only the Go Connector SDK provides a Connector configuration loader; do not invent one for another SDK language.
+A deployed Go application reads its connections with the Connector SDK's `sdkgo/projectconfig` ([README](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/README.md), [loader](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/environment.go), both at `sdkgo/v0.25.0`):
+
+- At startup it calls `projectconfig.LoadFromEnvironment(ctx)`. The loader reads the `DEX_PROJECT_*` variables (project ID and scope, the exact configuration key, version and digest, the storage bucket and prefix, and the KMS key ARN) and the AWS default credential chain, then loads the pinned, secret-free configuration snapshot from S3-compatible object storage.
+- A hosting platform or operator writes that configuration document and the connection records. The application never writes them.
+- Each connector's generated `NewProjectConnection(project, "connection-name")` decodes the connection's settings once and resolves its credentials from the same storage during every call, so a replaced credential needs no restart and a settings change does. Set the same static `ConnectionName` on every operation-specific factory config.
+- From sdkgo v0.25.0 an entry may carry `sharedConnectionId`. The application then reads the credential from the credential broker that the configuration document declares, keeps it in memory only, and never calls the connector's refresh driver.
+- Refresh of a stored credential is admitted once: only the winning invocation may dispatch the provider exchange, a retry joins the admitted attempt, and expiry never grants a second dispatch.
+
+Decide with the user who writes the configuration, where the storage lives, and how the application role reaches it, before handoff. Keep secrets out of source, Flow state, rendered definitions, and logs, and prove with the real application startup that every Connector connection resolves its settings and credentials. Only the Go Connector SDK provides this loader. For another SDK language no equivalent SDK exists today, so do not invent one.
 
 ## Deploy Dex Server components
 

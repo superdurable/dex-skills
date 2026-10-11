@@ -289,6 +289,18 @@ def check_sdk(baseline: str) -> None:
     ):
         if text not in operations:
             fail(f"Core operations must contain FDG language boundary: {text}")
+    for text in (
+        "## Deployed Connector configuration",
+        "`sdkgo/projectconfig`",
+        "`projectconfig.LoadFromEnvironment(ctx)`",
+        "`NewProjectConnection(project, \"connection-name\")`",
+        "dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/README.md",
+        "dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/environment.go",
+        "`sharedConnectionId`",
+        "no equivalent SDK exists today",
+    ):
+        if text not in operations:
+            fail(f"Core operations must describe the Connector SDK deployment path: {text}")
 
     for language in LANGUAGES:
         handbook = (SDK_REFERENCES / language / f"{language}.md").read_text()
@@ -298,6 +310,13 @@ def check_sdk(baseline: str) -> None:
         ):
             if text not in handbook:
                 fail(f"{language} handbook must contain FDG language boundary: {text}")
+        for text in (
+            "## Deployed configuration and recovery boundary",
+            "`sdkgo/projectconfig`",
+            "projectconfig.LoadFromEnvironment" if language == "go" else "no equivalent",
+        ):
+            if text not in handbook:
+                fail(f"{language} handbook must contain the Connector SDK deployment path: {text}")
 
 
 def check_app_builder() -> None:
@@ -436,6 +455,10 @@ def check_app_builder() -> None:
         "plaintext development store",
         "Business code neither reads credential objects",
         "Open-source Dex provides no deployed Connector configuration",
+        "`sdkgo/projectconfig`",
+        "`projectconfig.LoadFromEnvironment`",
+        "`NewProjectConnection(project, connectionName)`",
+        "sdkgo/v0.25.0",
     ):
         if text not in connector_architecture:
             fail(f"connector architecture must contain: {text}")
@@ -970,19 +993,29 @@ REMOVED_DEX_CONTRACTS = (
     "start/recover",
     "flowRenderingSource",
     "local-selector",
-    "projectconfig",
     "project Connector mode",
     "native-hosted-project-configuration",
 )
 
 
+# The Connector SDK removed its local loader in sdkgo v0.22.0; connectors from v0.21.0 generate only
+# NewProjectConnection. Text may name the older loader only next to the release boundary.
+OLDER_CONNECTOR_LOADER_TERMS = ("localconfig", "NewLocalConnection")
+
+
 def check_removed_dex_contracts() -> None:
-    """Dex Server v1.6.1 and Dex CLI v1.7.0 no longer define these Dex Web contracts."""
+    """Dex Server v1.6.1 and Dex CLI v1.7.0 no longer define these Dex Web contracts.
+
+    The Connector SDK's own sdkgo/projectconfig package still exists and is cited for deployed Go applications.
+    """
     for markdown in sorted([ROOT / "README.md", *ROOT.glob("dex-*/**/*.md")]):
         content = markdown.read_text()
         for removed in REMOVED_DEX_CONTRACTS:
             if removed in content:
                 fail(f"{markdown.relative_to(ROOT)} cites a Dex Web contract that the baselines removed: {removed}")
+        for term in OLDER_CONNECTOR_LOADER_TERMS:
+            if term in content and "v0.21.0" not in content:
+                fail(f"{markdown.relative_to(ROOT)} names the older Connector loader {term} without the v0.21.0 release boundary")
 
 
 def check_open_source_boundary() -> None:

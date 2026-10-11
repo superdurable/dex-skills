@@ -10,7 +10,7 @@ Keep Flow/Step definitions separate from HTTP handlers, construct all Flow insta
 
 ## Connector runtime support
 
-The Connector local JSON loader and generated `NewLocalConnection` API are Go-only. Do not invent a TypeScript loader or deserialize Dex Web's credential file into Flow state. For a TypeScript application, keep provider credentials behind an application-owned secret/runtime adapter until an official TypeScript Connector SDK exposes the same contract.
+The Connector SDK's `projectconfig.LoadFromEnvironment` loader and the generated `NewProjectConnection` API are Go-only, and no equivalent TypeScript SDK exists today. Do not invent a TypeScript loader or deserialize Dex Web's credential file into Flow state. For a TypeScript application, keep provider credentials behind an application-owned secret/runtime adapter until an official TypeScript Connector SDK exposes the same contract.
 
 ## Raw Temporal payload inspection
 
@@ -21,11 +21,12 @@ local UI ports need no additional server arguments.
 
 ## Deployed configuration and recovery boundary
 
-Dex provides no deployed Connector configuration or credential store; see
+Dex provides no deployed Connector configuration or credential store. A deployed Go
+application reads its connections with the Connector SDK's `sdkgo/projectconfig`, but
+no equivalent TypeScript SDK exists today; see
 [deployed Connector configuration](../core/operations.md#deployed-connector-configuration).
 Keep credentials behind the deployment's secret management; a browser, Flow input,
-or ordinary Attribute cannot select secret storage. Only the Go Connector SDK
-provides a Connector configuration loader, so do not invent one for this SDK.
+or ordinary Attribute cannot select secret storage.
 For recovery after a Worker fix, preserve the original resource and Flow ID,
 reconcile external effects, and use an explicitly authorized, recorded Step
 boundary as described in [safe recovery](../core/operations.md#safe-recovery).
