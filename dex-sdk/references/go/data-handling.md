@@ -32,6 +32,14 @@ ASYNC local Step input snapshots are disabled by default. Enable the Server's `b
 
 Go nil values use the Value null arm and decode through the requested Go type. In an Attribute write null deletes the Attribute, and as a Flow completion output it is discarded. Return an explicit result struct when terminal null and no output must differ.
 
+## Attribute Store projection
+
+Opt a definition in with `dex.SyncToAttributeStore()` and select Server-configured stores in `dex.FlowConfig.AttributeStoreNames`. The projection is an asynchronous latest-state copy and the Flow stays authoritative. For a store that sets `rowKey`, `columnNaming`, or `attributeMaps` (Dex Server v1.6.0 or later), follow the Core [row keys, column names, and AttributeMap tables](../core/data-handling.md#row-keys-column-names-and-attributemap-tables) guidance.
+
+- Derive each Flow ID in exactly the format the store's `rowKey` template expects. A Flow ID that does not match skips its batch.
+- A struct-valued AttributeMap instance is encoded with `encoding/json`, so its `json` tag names, or its exported field names when untagged, are the top-level fields that become the columns of an AttributeMap table. Under `columnNaming: snake_case` an untagged `DeploymentURL` field writes the `deployment_url` column. A value that does not encode to a JSON object, such as a `string`, number, `bool`, or slice, is written to the `value` column.
+- The instance name passed to the map is stored in `instanceKeyColumn` as written. Deleting the instance deletes its row in an AttributeMap table, while deleting a plain opted-in Attribute writes SQL `NULL`.
+
 ## Evolution
 
 Add payload fields compatibly, keep old variants readable, and never repurpose persisted fields. For breaking changes, add a new Flow/Step type and retain old definitions until open runs drain.

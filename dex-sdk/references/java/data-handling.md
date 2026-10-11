@@ -36,7 +36,11 @@ Java `null` uses the Value null arm and decodes back to `null`. In an Attribute 
 
 ## Attribute Store
 
-Call `syncToAttributeStore()` on definitions that need an external latest-state projection and select Store names in `FlowConfig`. Projection is asynchronous and does not replace Flow state. Deletion projects null. Never make correctness depend on projection timing.
+Call `syncToAttributeStore()` on definitions that need an external latest-state projection and select Store names in `FlowConfig`. Projection is asynchronous and does not replace Flow state. Deletion projects null. Never make correctness depend on projection timing. For a store that sets `rowKey`, `columnNaming`, or `attributeMaps` (Dex Server v1.6.0 or later), follow the Core [row keys, column names, and AttributeMap tables](../core/data-handling.md#row-keys-column-names-and-attributemap-tables) guidance.
+
+- Derive each Flow ID in exactly the format the store's `rowKey` template expects. A Flow ID that does not match skips its batch.
+- A DTO or record AttributeMap instance is serialized by the configured Jackson `ObjectMapper`, so its property names, including `@JsonProperty` renames and any naming strategy, are the top-level fields that become the columns of an AttributeMap table. Under `columnNaming: snake_case` a `deploymentUrl` property writes the `deployment_url` column. A scalar wrapper, `List`, or array value is written to the `value` column; a `Map` serializes as a JSON object.
+- The instance key is stored in `instanceKeyColumn` as written. Deleting the instance deletes its row in an AttributeMap table, while deleting a plain opted-in Attribute projects null.
 
 ## Schema review
 

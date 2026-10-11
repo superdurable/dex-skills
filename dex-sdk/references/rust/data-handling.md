@@ -78,3 +78,9 @@ Rust JSON null uses the Value null arm and decodes as `serde_json::Value::Null`.
 ## Attribute Store and search
 
 Mark selected Attributes with `sync_to_attribute_store` only when an external projection needs them. Configure store names in `FlowConfig`. Index only fields needed for search, and keep index keys stable. Search is for discovery; an RPC or Attribute read should confirm current authoritative Flow state before mutation.
+
+For a store that sets `rowKey`, `columnNaming`, or `attributeMaps` (Dex Server v1.6.0 or later), follow the Core [row keys, column names, and AttributeMap tables](../core/data-handling.md#row-keys-column-names-and-attributemap-tables) guidance.
+
+- Derive each Flow ID in exactly the format the store's `rowKey` template expects. A Flow ID that does not match skips its batch.
+- A struct AttributeMap instance is serialized with serde, so its serialized field names, including `#[serde(rename = "...")]` and `rename_all`, are the top-level fields that become the columns of an AttributeMap table. Rust field names are snake_case already, so `columnNaming: snake_case` matters when `rename_all = "camelCase"` or `"PascalCase"` applies: `deploymentUrl` writes the `deployment_url` column. A `String`, number, `bool`, or `Vec` value is written to the `value` column.
+- The instance key is stored in `instanceKeyColumn` as written. Deleting the instance deletes its row in an AttributeMap table, while deleting a plain opted-in Attribute writes SQL `NULL`.

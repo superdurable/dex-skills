@@ -46,4 +46,8 @@ ASYNC local Step input snapshots are disabled by default. Enable the Server's `b
 
 TypeScript `null` and `undefined` use the Value null arm. The default JSON codec decodes it as `null`; `voidCodec` and `optionalCodec` decode it as `undefined`. In an Attribute write it deletes the Attribute, and as a Flow completion output it is discarded. Return an explicit result object when terminal null and no output must differ.
 
-Attribute Store is an asynchronous latest-state projection. Select Store names in `FlowConfig`; do not wait on projection as a correctness barrier.
+Attribute Store is an asynchronous latest-state projection. Select Store names in `FlowConfig`; do not wait on projection as a correctness barrier. For a store that sets `rowKey`, `columnNaming`, or `attributeMaps` (Dex Server v1.6.0 or later), follow the Core [row keys, column names, and AttributeMap tables](../core/data-handling.md#row-keys-column-names-and-attributemap-tables) guidance.
+
+- Derive each Flow ID in exactly the format the store's `rowKey` template expects. A Flow ID that does not match skips its batch.
+- A `jsonCodec` AttributeMap instance is written with `JSON.stringify`, or from the result of the codec's `encode`, so the object keys are the top-level fields that become the columns of an AttributeMap table. Under `columnNaming: snake_case` a `deploymentUrl` key writes the `deployment_url` column. A scalar-codec value such as `stringCodec` or `booleanCodec` output, or a JSON array, is written to the `value` column.
+- The instance key is stored in `instanceKeyColumn` as written. Deleting the instance deletes its row in an AttributeMap table, while deleting a plain opted-in Attribute writes SQL `NULL`.

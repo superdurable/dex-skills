@@ -22,4 +22,12 @@ ASYNC local Step input snapshots are disabled by default. Enable the Server's `b
 
 Python `None` uses the Value null arm and decodes back to `None`. In an Attribute write it deletes the Attribute, and as a Flow completion output it is discarded. Return an explicit result object when terminal null and no output must differ.
 
+## Attribute Store projection
+
+Opt a definition in with `sync_to_attribute_store=True` and select Server-configured stores with `FlowConfig(attribute_store_names=[...])`. The projection is an asynchronous latest-state copy and the Flow stays authoritative. For a store that sets `rowKey`, `columnNaming`, or `attributeMaps` (Dex Server v1.6.0 or later), follow the Core [row keys, column names, and AttributeMap tables](../core/data-handling.md#row-keys-column-names-and-attributemap-tables) guidance.
+
+- Derive each Flow ID in exactly the format the store's `rowKey` template expects. A Flow ID that does not match skips its batch.
+- A dataclass AttributeMap instance is encoded as a JSON object of its field names (`dataclasses.asdict`), so those names are the columns of an AttributeMap table. Python field names are usually already snake_case, so `columnNaming: snake_case` matters mostly for camelCase Attribute names. A `str`, number, `bool`, or list value is written to the `value` column.
+- The instance key is stored in `instanceKeyColumn` as written. Deleting the instance deletes its row in an AttributeMap table, while deleting a plain opted-in Attribute writes SQL `NULL`.
+
 For incompatible serialization changes, introduce a new Flow/Step type and keep old definitions until open runs drain.
