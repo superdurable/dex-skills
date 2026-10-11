@@ -212,6 +212,12 @@ Blob Store keeps payloads through 100 bytes inline by default and offloads from 
 
 Successful ASYNC local Step input snapshots are disabled by default. Enable `blobStore.asyncStepInputSnapshotsEnabled` only when semantic history must retain the exact inputs sent to those methods. The setting is independent of the payload offload threshold and does not affect Flow execution, retry, or recovery. When disabled, no snapshot objects are written and the corresponding semantic-history inputs are unavailable. SYNC and regular-fallback inputs remain available from Flow history.
 
+## Attribute Store destinations
+
+Create every destination table or collection before starting the Server. Dex never creates, migrates, or backfills a destination, and one invalid destination fails Server startup. Startup validates each SQL table's primary key and columns, and every schema refresh (one minute by default) validates them again: a new nullable or defaulted column needs no restart, while removing or changing a column makes later writes be filtered or retried.
+
+The `rowKey`, `columnNaming`, and `attributeMaps` store settings need Dex Server v1.6.0 or later, and an older Server rejects them at startup. Upgrade every Server before adding them to a shared configuration. With `rowKey` the key columns come from the Flow ID, so a Flow ID that does not match its template skips the batch with an error log. Watch the Server log for filtered writes, skipped batches, and exhausted retries, because a projection failure does not roll back Flow state. Design guidance is in [row keys, column names, and AttributeMap tables](data-handling.md#row-keys-column-names-and-attributemap-tables), and the full contract is the [Custom Attribute Store](https://docs.superdurable.io/production/attribute-store) page.
+
 ## Safe recovery
 
 Diagnosis is read-only by default. Stop, time travel, publish, invoke, skip a Timer, or mutate Attributes only when the user asks to change the Flow.
