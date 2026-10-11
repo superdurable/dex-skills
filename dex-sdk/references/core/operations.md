@@ -53,7 +53,7 @@ cross-origin credential forwarding disabled.
 The codec converts known Dex binary protobuf payloads to ProtoJSON. Unknown
 message types and other encodings pass through unchanged. The same tooling
 applies to all five SDK languages. See the released
-[CLI codec server usage](https://github.com/superdurable/dex/blob/cli-v1.5.0/cli/README.md#view-temporal-protobuf-payloads).
+[CLI codec server usage](https://github.com/superdurable/dex/blob/cli-v1.7.0/cli/README.md#view-temporal-protobuf-payloads).
 
 ## Indexed Attribute capacity
 
@@ -103,34 +103,11 @@ Only the Go Connector SDK currently provides the local file loader. Never put th
 
 Connection credentials and Trigger binding matchers are separate. One connection may serve several Flows without sharing their filters. Trigger delivery is at least once: use deterministic Flow IDs for starts. Application RPCs own their redelivery policy, bounded deduplication state when needed, and business locks.
 
-## Native hosted project configuration
+## Deployed Connector configuration
 
-Server and CLI v1.3.0 embed native project configuration. Project Connectors can
-render an exact admitted application manifest before the application's Flow
-definitions exist. Flow operations still require the actual validated definition.
-The configuration scope is immutable server startup configuration; browser
-parameters cannot override it. An authenticated private proxy supplies actor,
-mount, public origin, permissions, and CSRF context and blocks internal
-manifest/validation endpoints from browser routing.
+Dex Web's Connector setup APIs run only in loopback-bound **dexcli dev** with local Flow Definition Graph files. A deployed Dex Server, its Dex Web, and any non-loopback listener do not expose them, and open-source Dex provides no deployed Connector configuration, OAuth, or credential store. The plaintext `connections.json` is a development store: never copy it into an image or a deployed volume.
 
-Dex and Go applications use the released Connector SDK's `sdkgo/projectconfig`
-storage contract. Ordinary snapshots contain logical connection IDs; credentials
-remain separately versioned private objects. Refresh/replacement applies on the
-next provider call, while ordinary configuration requires validation and a new
-deployment snapshot. OAuth dispatch is admitted before the provider call; an
-uncertain response or restart must be reconciled rather than blindly dispatched
-again. Never persist provider secrets in application Flow state or return them
-to the browser. Other SDK languages need an explicit supported runtime boundary;
-do not invent a language-specific project configuration loader.
-
-The S3 client uses the default AWS credential chain when both static key fields
-are omitted. Configure an explicit region and the workload's intended role;
-reject partially supplied static credentials. Verify real workload role access,
-project-prefix isolation, versioned conditional writes, KMS encryption, and denied
-cross-project access. Host-profile success does not prove workload-role acceptance.
-
-See the pinned [native project protocol](https://github.com/superdurable/dex/blob/server/v1.3.0/web/PROJECT_CONFIGURATION.md)
-and [Web boundary](https://github.com/superdurable/dex/blob/server/v1.3.0/web/README.md).
+Decide where a deployment's Connector configuration and credentials come from before handoff. Keep secrets in the deployment's secret management, never in source, Flow state, rendered definitions, or logs, and prove with the real application startup that every Connector connection resolves its required configuration and credentials. Only the Go Connector SDK provides a Connector configuration loader; do not invent one for another SDK language.
 
 ## Deploy Dex Server components
 

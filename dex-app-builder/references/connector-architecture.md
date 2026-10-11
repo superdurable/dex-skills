@@ -186,22 +186,19 @@ loopback `dexcli dev`. Do not copy it into an image, a deployed volume, or
 source control. Auth selections, configuration values, API keys, OAuth tokens
 and webhook secrets do not belong in source, rendered definitions or Flow state.
 
-A deployed Dex Server can own Connector configuration and OAuth in its project
-Connector mode. Its configuration and credentials live in a private, versioned
-object store, and the application reads them through the released Connector
-SDK `projectconfig` package rather than an application-specific loader. The
-[Connector SDK v0.17.0 loader](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/environment.go),
-its [storage contract](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/README.md),
-and the [Dex Server project configuration protocol](https://github.com/superdurable/dex/blob/server/v1.3.0/web/PROJECT_CONFIGURATION.md)
-are the authority for that boundary; see the Dex SDK
-[operations reference](../../dex-sdk/references/core/operations.md#native-hosted-project-configuration).
-This reference version does not authorize upgrading an application's existing
+Open-source Dex provides no deployed Connector configuration, OAuth, or
+credential store: Dex Web's Connector setup runs only in loopback `dexcli dev`,
+as the Dex SDK
+[operations reference](../../dex-sdk/references/core/operations.md#deployed-connector-configuration)
+states. Settle with the user where a deployment's Connector configuration and
+credentials come from, and keep them in the deployment's secret management. This
+reference version does not authorize upgrading an application's existing
 Connector pins; inspect its bootstrap and report a compatibility blocker if the
 required loader is absent. Load configuration in `main` before constructing
 business clients, Workers, HTTP servers or goroutines.
 
 Connection settings and Step configuration have different identities. Decode a
-Connector's connection-level configuration through the loaded project
+Connector's connection-level configuration through the loaded
 configuration, and load only the exact Flow/Step operation configuration
 declared in FDG for a Step. A valid Worker registration alone cannot establish
 that the provider client received its required connection settings. Read the
@@ -225,12 +222,12 @@ expiry or response loss never grants a second dispatch. If a provider rotated
 but no private result survived, require reauthorization instead of repeating the
 uncertain exchange. No token or raw provider failure belongs in a Flow or log.
 
-Ordinary configuration is an exact, digest-pinned snapshot read once at
-startup, so a settings change takes effect only when the application restarts
-with the new snapshot; a credential replacement or refresh takes effect on the
-next provider call without a rebuild. Missing configuration, an unsupported capability or a terminal
-refresh failure surfaces as a configuration or reauthorization error. Verify
-real storage, Worker and provider behavior before claiming a deployment works.
+Ordinary configuration is read once at startup, so a settings change takes
+effect only when the application restarts; a credential replacement or refresh
+takes effect on the next provider call without a rebuild. Missing configuration,
+an unsupported capability or a terminal refresh failure surfaces as a
+configuration or reauthorization error. Verify real configuration, Worker and
+provider behavior before claiming a deployment works.
 
 ## AI agents
 

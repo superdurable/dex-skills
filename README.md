@@ -343,8 +343,7 @@ Web configures released connectors in its local **Connectors** view; the
 default plaintext development store is `~/.dex/connectors/connections.json`,
 and the application starts with **DEX_CONNECTOR_CONFIG_FILE** set to the path
 Dex Web shows. The same validated definitions can be packaged for a deployed
-Dex Web, which loads them from a definition directory or an atomic definition
-bundle.
+Dex Web, which loads them from a definition directory.
 
 UI test doubles validate component behavior only; they cannot prove Dex
 durability, Worker replacement, Timer, RPC, Connector, or application E2E

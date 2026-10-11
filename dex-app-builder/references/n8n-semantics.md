@@ -404,8 +404,9 @@ list.
 ## Credentials and identities
 
 - Each credential type and account becomes a connection for the matching
-  connector. Authorize it in Dex Web **Connectors** for local development; a
-  deployed Dex Server uses project Connector configuration. When reading and
+  connector. Authorize it in Dex Web **Connectors** for local development; Dex
+  has no deployed Connector configuration, so a deployment's source is
+  settled separately. When reading and
   sending use different accounts, keep two connections. Same-type nodes with
   different `authentication` settings may act for different accounts.
 - A literal key in a parameter, such as an API key in a Set node or a URL, is
