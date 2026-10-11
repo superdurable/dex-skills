@@ -165,6 +165,8 @@ attributeStore:
   - The store row and all its instance rows are written in one transaction. Do not add foreign keys between the tables: a violated constraint fails the whole batch and holds back the Flow's later writes until the retry budget runs out.
   - Dex never deletes rows when a Flow closes, so the destination needs its own retention. A Flow writes each AttributeMap only to the selected stores that declare it; other selected stores project its instances as ordinary Attributes.
 
+A migration that adds a column to a store table or an AttributeMap table needs no Dex restart, as long as it completes before the Workers that write the column start. From Dex Server v1.6.1 a batch that writes a column missing from the current schema refreshes the store's schema before it writes, and an earlier Server picks the column up at its periodic refresh (one minute by default).
+
 The tables stay an eventual, latest-state projection. Never read them to make a Flow decision.
 
 ## Verify the deployment
