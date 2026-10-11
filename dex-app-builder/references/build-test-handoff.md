@@ -83,7 +83,9 @@ typed RPCs, partitioning/chunking, blob storage, and Attribute Store projection
 cannot satisfy. Remove an unneeded dependency when Dex meets the requirement.
 When external storage is justified, test its declared authority boundary,
 projection/synchronization lag, retry behavior, outage handling, and
-reconciliation instead of treating a successful happy-path write as proof.
+reconciliation instead of treating a successful happy-path write as proof. For a
+`rowKey` store, also test the Flow ID to key-column mapping and an ID that does
+not match its template.
 
 Only actual dependency calls establish Dex durability, Worker replacement,
 Timer, RPC, retry, provider or application E2E behavior.
