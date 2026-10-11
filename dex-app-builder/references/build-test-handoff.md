@@ -189,9 +189,8 @@ Ensure:
   Flow state;
 - requested acceptance for known token expiry, concurrent calls, credential rotation,
   lost exchange responses and Worker restart records actual results or explicit
-  gaps, without recreating the released Connector's test suite in the app;
-  retries join an admitted exchange and only an immutable result authorizes
-  recovery. Unknown expiry or an unclassified 401 never triggers refresh;
+  gaps, without recreating the released Connector's test suite in the app.
+  Unknown expiry or an unclassified 401 never triggers refresh;
 - connector fork/PR status and any release blocker are explicit;
 - no `go.work`, local `replace`, branch, pseudo-version, or commit SHA remains
   in the production dependency graph;

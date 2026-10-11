@@ -216,11 +216,7 @@ The official typed adapter resolves current connection credentials at actual
 use. Business code neither reads credential objects nor implements refresh,
 token exchange or token persistence. Refresh requires known expired access
 credentials; unknown expiry or an unclassified HTTP 401 is not permission to
-rotate. A durable CAS/fence admits one provider dispatch. Concurrent or
-restarted callers join and recover a persisted immutable result; timeout, lock
-expiry or response loss never grants a second dispatch. If a provider rotated
-but no private result survived, require reauthorization instead of repeating the
-uncertain exchange. No token or raw provider failure belongs in a Flow or log.
+rotate. No token or raw provider failure belongs in a Flow or log.
 
 Ordinary configuration is read once at startup, so a settings change takes
 effect only when the application restarts; a credential replacement or refresh
