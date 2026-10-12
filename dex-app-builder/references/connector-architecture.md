@@ -161,23 +161,17 @@ Flow Definition Graph metadata exposes each static Trigger binding even though i
 
 The default store is `~/.dex/connectors/connections.json`. Use `dexcli dev --connector-config-dir DIRECTORY` to isolate a stack; Dex Web always displays the resolved absolute file path. The file contains plaintext development credentials, so never commit, upload, log, or copy it into Flow state.
 
-Start the Go application with the path shown by Dex Web:
+Dex Web displays the launch command for an application that reads the file:
 
 ```bash
 DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-command>
 ```
 
-Load the store once with the Connector SDK `localconfig` package and create each generated connection with `NewLocalConnection(store, connectionName)`. Generated Trigger factories decode their named binding separately and wrap the target in a binding-specific disk inbox. A matched event is persisted before provider acknowledgement, removed after Dex accepts it, and replayed after a process restart.
+Which connector releases read that file is a Connector SDK fact, not a Dex Web one. Connector releases before v0.21.0 generate `NewLocalConnection(store, connectionName)` over the SDK's `localconfig` store, which reads the file. Every connector from v0.21.0 generates only `NewProjectConnection(project, connectionName)` over `projectconfig.LoadFromEnvironment`, which reads project configuration from S3-compatible object storage and not this file. `cli-v1.7.0` Dex Web writes only `connections.json` and `use-configurations.json`, and `sdkgo` through v0.27.0 has no code that reads them, so a v0.21.0 or later connector cannot read what the Connectors page saves. Report that gap as a compatibility blocker and ask the user how the local project configuration is provided ([Local Connector credentials](../../dex-sdk/references/core/operations.md#local-connector-credentials) has the details); never write a reader for the file. The library tracks the gap in [dex-connectors-library#230](https://github.com/superdurable/dex-connectors-library/issues/230).
 
-Configuration is fixed at application startup. Credentials are reread for every provider call, so reauthorization takes effect without an application restart. Dex Web and application restarts preserve the JSON file. Restarting Dex Web clears only pending OAuth/PKCE exchanges, submitted client secrets, and UI sessions.
+A connector with Triggers provides one project runner, such as Gmail's `NewProjectMessageTriggerRunner`. It loads every binding's stored configuration, fails when a binding is missing, and keeps acknowledged events in the binding's durable project inbox until its target consumes them. Connectors before v0.21.0 instead wrap the target in a per-binding disk inbox that replays after a restart.
 
-For a connector authorization method with a refresh driver, the local store
-persists the refresh token and expiry as private `0600` credential material.
-The Connector SDK resolves the latest file on every provider call, performs
-single-flight on-demand refresh near expiry, atomically preserves refresh-token
-rotation, and marks terminal grants such as `invalid_grant` for
-reauthorization. Deleting a local credential removes only the file record; it
-does not revoke the provider grant.
+Settings are fixed at application startup. Credentials are resolved for every provider call, so reauthorization takes effect without an application restart. Dex Web and application restarts preserve the JSON file. Restarting Dex Web clears only pending OAuth/PKCE exchanges, submitted client secrets that the release does not map to stored credentials, and UI sessions. Deleting a local credential removes only the file record; it does not revoke the provider grant.
 
 ## Deployed configuration and credential boundary
 
@@ -186,51 +180,78 @@ loopback `dexcli dev`. Do not copy it into an image, a deployed volume, or
 source control. Auth selections, configuration values, API keys, OAuth tokens
 and webhook secrets do not belong in source, rendered definitions or Flow state.
 
-A deployed Dex Server can own Connector configuration and OAuth in its project
-Connector mode. Its configuration and credentials live in a private, versioned
-object store, and the application reads them through the released Connector
-SDK `projectconfig` package rather than an application-specific loader. The
-[Connector SDK v0.17.0 loader](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/environment.go),
-its [storage contract](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.17.0/sdkgo/projectconfig/README.md),
-and the [Dex Server project configuration protocol](https://github.com/superdurable/dex/blob/server/v1.3.0/web/PROJECT_CONFIGURATION.md)
-are the authority for that boundary; see the Dex SDK
-[operations reference](../../dex-sdk/references/core/operations.md#native-hosted-project-configuration).
+Open-source Dex provides no deployed Connector configuration, OAuth, or
+credential store: Dex Web's Connector setup runs only in loopback `dexcli dev`,
+as the Dex SDK
+[operations reference](../../dex-sdk/references/core/operations.md#deployed-connector-configuration)
+states. A deployed Go application reads its connections with the Connector
+SDK's `sdkgo/projectconfig` (pinned to `sdkgo/v0.25.0`: its
+[README](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/README.md) and
+[loader](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/environment.go)).
+At startup it calls `projectconfig.LoadFromEnvironment`, which reads the
+`DEX_PROJECT_*` variables and the pinned configuration snapshot from
+S3-compatible object storage, and opens each connection with the connector's
+generated `NewProjectConnection(project, connectionName)`. A hosting platform
+or operator writes the configuration document and the connection records; the
+application never does. From sdkgo v0.25.0 an entry may carry
+`sharedConnectionId`, and the application then reads the credential from the
+credential broker the document declares, keeps it in memory only, and never
+refreshes it itself.
+A host platform may let users configure a connection once and share it: the
+application declares connection names only, and the platform decides which
+connection each name uses and with which settings. Two uses with different
+settings need two connection names. From sdkgo v0.26.0 the broker never sends
+host-kept credential fields (refresh tokens, client secrets, service account
+keys), and a connector decodes a shared credential without them through its
+generated `UnmarshalSharedCredential`. A new selection or a settings edit reaches
+the application only through a new configuration document, at the next Preview
+start or Live deployment; `CONNECTION_NOT_SELECTED` is always a terminal error
+and the application never follows a changed selection
+([shared connections](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.27.0/sdkgo/projectconfig/README.md#shared-connections)).
+Settle with the user who writes the configuration and where the storage lives.
 This reference version does not authorize upgrading an application's existing
 Connector pins; inspect its bootstrap and report a compatibility blocker if the
-required loader is absent. Load configuration in `main` before constructing
-business clients, Workers, HTTP servers or goroutines.
+required loader is absent, such as a pin before v0.21.0 that has only
+`NewLocalConnection`. Load configuration in `main` before constructing business
+clients, Workers, HTTP servers or goroutines.
 
-Connection settings and Step configuration have different identities. Decode a
-Connector's connection-level configuration through the loaded project
-configuration, and load only the exact Flow/Step operation configuration
-declared in FDG for a Step. A valid Worker registration alone cannot establish
-that the provider client received its required connection settings. Read the
-installed Connector factory and configuration types, then verify application
-startup against real configuration before calling a provider.
+Connection settings and Step configuration have different identities.
+`NewProjectConnection` decodes the connection-level settings from the loaded
+project configuration. Load only the exact Flow/Step operation configuration
+declared in FDG for a Step, with `provider.LoadOperationConfiguration[T]`
+(connector ID, connection name, operation ID, Flow type, and Step type); an
+absent value matches `projectconfig.ErrObjectNotFound`, and retries never reread
+it. A valid Worker registration alone cannot establish that the provider client
+received its required connection settings. Read the installed Connector factory
+and configuration types, then verify application startup against real
+configuration before calling a provider.
 
-Inspect the generated Connector's credential codec and the released typed
-adapter before wiring credentials. Secret wrappers may intentionally
-reject JSON marshaling: do not serialize public `Credentials` directly, invent
-field names, or treat a missing key as empty usable credentials. Keep any required
-typed codec at the bootstrap adapter boundary, use the manifest's exact fields,
-and let the official store own credential resolution and refresh.
+Applications never write credential codecs or call credential provider
+constructors: the generated code binds them, and it chooses a refreshing
+provider when the manifest declares `auth.refreshable`. Credential wire values
+become `SecretString` only at that boundary, and secret wrappers reject JSON
+marshaling, so do not serialize public `Credentials`, invent field names, or
+treat a missing key as empty usable credentials.
 
-The official typed adapter resolves current connection credentials at actual
-use. Business code neither reads credential objects nor implements refresh,
-token exchange or token persistence. Refresh requires known expired access
-credentials; unknown expiry or an unclassified HTTP 401 is not permission to
-rotate. A durable CAS/fence admits one provider dispatch. Concurrent or
-restarted callers join and recover a persisted immutable result; timeout, lock
-expiry or response loss never grants a second dispatch. If a provider rotated
-but no private result survived, require reauthorization instead of repeating the
-uncertain exchange. No token or raw provider failure belongs in a Flow or log.
+The provider resolves current connection credentials at actual use.
+Business code neither reads credential objects nor implements refresh, token
+exchange or token persistence. It refreshes before a call when the stored access expiry has
+elapsed or the connector's driver requires it, and an unclassified HTTP 401
+refreshes only when the stored expiry has elapsed. A refresh is admitted once:
+only the winning invocation may dispatch the provider exchange, a retry joins
+the admitted attempt, and expiry never grants a second dispatch. A refresh that
+fails or is ambiguous keeps the prior credential and returns an error, and the
+next call refreshes again. If a provider rotated just before the process died
+without persisting the result, the prior credential stays current and the
+provider's next refusal requires reauthorization. No token or raw provider
+failure belongs in a Flow or log.
 
-Ordinary configuration is an exact, digest-pinned snapshot read once at
-startup, so a settings change takes effect only when the application restarts
-with the new snapshot; a credential replacement or refresh takes effect on the
-next provider call without a rebuild. Missing configuration, an unsupported capability or a terminal
-refresh failure surfaces as a configuration or reauthorization error. Verify
-real storage, Worker and provider behavior before claiming a deployment works.
+Ordinary settings are read once at startup, so a settings change takes effect
+only when the application restarts; a credential replacement or refresh takes
+effect on the next provider call without a rebuild. Missing configuration, an
+unsupported capability or a terminal refresh failure surfaces as a
+configuration or reauthorization error. Verify real configuration, Worker and
+provider behavior before claiming a deployment works.
 
 ## AI agents
 
@@ -303,8 +324,10 @@ decision and the resulting reuse limitation in the handoff.
 
 ## Released Trigger examples
 
-Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.11.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, application-owned channel/poster/text filters, thread query, typed reply RPC, thread-reply Mutation, and composed configuration UI units.
+Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.21.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, application-owned channel/poster/text filters, thread query, typed reply RPC, thread-reply Mutation, and composed configuration UI units.
 
-Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.13.0/connectors/google/gmail/examples/thread-reply) for a polled root message, application-owned sender/text filters, message query, typed reply RPC, email-reply Mutation, and composed configuration UI units. Its polling transport is a local alpha path, not a production push-delivery design.
+Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.21.0/connectors/google/gmail/examples/thread-reply) for a polled root message, application-owned sender/text filters, message query, typed reply RPC, email-reply Mutation, and composed configuration UI units. Its polling transport is a local alpha path, not a production push-delivery design.
+
+Slack v1.0.0 makes `app_token` optional. With a connection that has an `app_token` (the user's own Slack app) the connector keeps Socket Mode. With a shared connection that has none, such as a host platform's shared Slack app, the host relays Slack events over HTTP to the connector's relayed trigger receiver. The application mounts the project runner on its own HTTP server at `slack.RelayedTriggerPath(connectionName)` (`/triggers/slack/` plus the connection name in unpadded base64url), and the runner registers the connection name with the host through `projectconfig.LoadedProject.RegisterRelayedTrigger` and verifies each request with `VerifyRelayedRequest` (sdkgo v0.27.0). See the [Slack connector README](https://github.com/superdurable/dex-connectors-library/blob/connectors/slack/v1.0.0/connectors/slack/README.md#relayed-events).
 
 Both examples derive one stable Flow ID from provider thread identity. They absorb root redelivery through deterministic starts, handle reply redelivery in bounded application-owned thread state, and move uncertain or rejected external writes into explicit recovery instead of blind resend.

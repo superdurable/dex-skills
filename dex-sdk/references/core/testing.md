@@ -51,7 +51,7 @@ Also assert that the business read performs no `WaitForFlow`, history lookup, or
 
 ## Data and deployment scenarios
 
-For large Attributes, replace the serving Worker and verify cold BlobCache hydration. For AttributeMap concurrency, race writers on the same instance and verify the lock-protected invariant. For Attribute Store synchronization, verify the Flow remains authoritative and the projection can reconcile after a transient failure.
+For large Attributes, replace the serving Worker and verify cold BlobCache hydration. For AttributeMap concurrency, race writers on the same instance and verify the lock-protected invariant. For Attribute Store synchronization, verify the Flow remains authoritative and the projection can reconcile after a transient failure. Against a real destination table, also verify that each Flow ID format a `rowKey` store accepts lands in the expected key columns, that a Flow ID that does not match writes no row, and that rewriting and deleting an AttributeMap instance replaces and removes its row in an AttributeMap table.
 
 For version changes, run an open Flow on the old Worker, deploy the new registry, and finish that same execution. A test that starts only after deployment does not prove open-Flow compatibility.
 

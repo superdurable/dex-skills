@@ -24,7 +24,7 @@ This guarantee requires a successful write, a read initiated afterward, the same
 | `StopFlow` CANCEL/default or FAIL | `WaitForFlow` and explicit terminal status | **Asynchronous terminal completion.** The stop requests cooperative cleanup; terminalization and Attribute Store draining can finish later or fail. CANCEL, FAIL and TERMINATE are different outcomes. |
 | `StopFlow` TERMINATE | Terminal status | Ends the Flow without cooperative cleanup. It does not prove provider compensation or projection completion. |
 | Any indexed Attribute write | `SearchFlows`, CLI search, or Dex Web work discovery | **Eventual.** A search miss is not proof the write failed. Confirm through the typed read RPC, or bound a search retry when the caller needs the index itself. |
-| Any Attribute Store-enabled write | External Attribute Store query | **Eventual latest-state projection.** Valid direct Flow state can be readable before the projection finishes. Projection failures do not roll back Flow state; retry exhaustion can prevent convergence. |
+| Any Attribute Store-enabled write | External Attribute Store query | **Eventual latest-state projection.** Valid direct Flow state can be readable before the projection finishes. Projection failures do not roll back Flow state; retry exhaustion can prevent convergence, and so does a Flow ID that does not match the store's `rowKey` template, whose batches are skipped. |
 | RPC Step movements, cancellation or close decisions | Named Step wait, Attribute-match or business condition, or terminal result | **Asynchronous business completion.** Cancellation can yield before later Step movements are queued; a direct Attribute snapshot is not a scheduling or completion barrier. |
 | Server `SetAttributes`, `PublishToChannel`, or `DeleteChannelMessage` | Server Attribute or Channel read, or a typed application snapshot | Same direct-state guarantee as an RPC write. These Server APIs are not public SDK state APIs; applications use typed RPCs. |
 | SubFlow completion delivered to its parent | Parent's SubFlow condition, parent Step completion, or business state | Delivery is not proof that the parent consumed the result or completed subsequent work. It is internal, not a Client completion API. |
@@ -61,9 +61,9 @@ Use a controlled gate on a subsequent business Step or projection writer to prov
 
 The following links explain the existing semantics at the bundle's immutable baselines. Preserve installed project versions and inspect version-matched source before writing exact API calls. This reference introduces no new API.
 
-- [Server RPC routing](https://github.com/superdurable/dex/blob/server/v1.3.0/server/service/api/service.go)
-- [Attribute writes](https://github.com/superdurable/dex/blob/server/v1.3.0/server/service/interpreter/persistence.go)
-- [Attribute Store scheduling](https://github.com/superdurable/dex/blob/server/v1.3.0/server/service/interpreter/attributeSynchronizer.go)
+- [Server RPC routing](https://github.com/superdurable/dex/blob/server/v1.6.1/server/service/api/service.go)
+- [Attribute writes](https://github.com/superdurable/dex/blob/server/v1.6.1/server/service/interpreter/persistence.go)
+- [Attribute Store scheduling](https://github.com/superdurable/dex/blob/server/v1.6.1/server/service/interpreter/attributeSynchronizer.go)
 - [Go Client](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-go/dex/client.go), [Python Client](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-python/dex/client.py), [Python AsyncClient](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-python/dex/async_client.py), [Java Client](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-java/src/main/java/io/superdurable/dex/Client.java), [TypeScript Client](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-typescript/src/client.ts), [Rust Client](https://github.com/superdurable/dex/blob/sdk-go/v1.5.0/sdk-rust/crates/dex-sdk/src/client.rs)
-- [CLI operations and success fields](https://github.com/superdurable/dex/blob/cli-v1.5.0/cli/internal/command/flow_client_operations.go)
-- [Web action RPC routing](https://github.com/superdurable/dex/blob/server/v1.3.0/web/api/v2.go)
+- [CLI operations and success fields](https://github.com/superdurable/dex/blob/cli-v1.7.0/cli/internal/command/flow_client_operations.go)
+- [Web action RPC routing](https://github.com/superdurable/dex/blob/server/v1.6.1/web/api/v2.go)

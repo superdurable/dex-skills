@@ -83,7 +83,9 @@ typed RPCs, partitioning/chunking, blob storage, and Attribute Store projection
 cannot satisfy. Remove an unneeded dependency when Dex meets the requirement.
 When external storage is justified, test its declared authority boundary,
 projection/synchronization lag, retry behavior, outage handling, and
-reconciliation instead of treating a successful happy-path write as proof.
+reconciliation instead of treating a successful happy-path write as proof. For a
+`rowKey` store, also test the Flow ID to key-column mapping and an ID that does
+not match its template.
 
 Only actual dependency calls establish Dex durability, Worker replacement,
 Timer, RPC, retry, provider or application E2E behavior.
@@ -177,19 +179,21 @@ Ensure:
 - each Connector Step branch receives only its current operation result, while application Attributes retain domain context;
 - every Connector factory uses pure `MapToOperationInput` and graph-only `Annotations`;
 - each Connector Trigger binding has a static binding name, application-owned Flow ID resolver, and typed target;
-- for local configuration, the displayed connection path and
-  **DEX_CONNECTOR_CONFIG_FILE** launch command work after a Dex Web restart;
+- for local configuration, the application starts with the configuration its
+  pinned connector release reads (the displayed **DEX_CONNECTOR_CONFIG_FILE**
+  launch command for releases before v0.21.0, the project configuration
+  otherwise) and survives a Dex Web restart, or the gap is an explicit blocker;
 - every Flow source file renders to a `valid: true` FDG 2.0 definition through
   one project command, and the rendered Flow and Step type names match the
   Worker's registrations;
-- for a deployed Dex Server, the packaged definitions, project Connector
-  configuration, and official Connector SDK loader keep credentials out of
-  application code and Flow state;
+- for a deployment, the packaged definitions and the project configuration that
+  `projectconfig.LoadFromEnvironment` loads keep credentials out of application
+  code and Flow state;
 - requested acceptance for known token expiry, concurrent calls, credential rotation,
   lost exchange responses and Worker restart records actual results or explicit
-  gaps, without recreating the released Connector's test suite in the app;
-  retries join an admitted exchange and only an immutable result authorizes
-  recovery. Unknown expiry or an unclassified 401 never triggers refresh;
+  gaps, without recreating the released Connector's test suite in the app.
+  Retries join an admitted refresh, and an unclassified 401 refreshes only after
+  the stored expiry has elapsed;
 - connector fork/PR status and any release blocker are explicit;
 - no `go.work`, local `replace`, branch, pseudo-version, or commit SHA remains
   in the production dependency graph;

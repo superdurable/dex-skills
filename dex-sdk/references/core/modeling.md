@@ -115,7 +115,7 @@ requirements. Consider an external store only for a confirmed query,
 contention, transaction, analytics, or retention requirement that Dex cannot
 reasonably satisfy.
 
-Use Indexed Attributes for bounded lookup and operational search. Use Attribute Store sync when an application-owned database needs a durable projection.
+Use Indexed Attributes for bounded lookup and operational search. Use Attribute Store sync when an application-owned database needs a durable projection. When the store splits Flow IDs into key columns with `rowKey`, the Flow ID format is part of that projection contract; see [row keys, column names, and AttributeMap tables](data-handling.md#row-keys-column-names-and-attributemap-tables).
 
 Do not use Channels as generic storage. A Channel message is consumed by a matching wait. Use Attributes for current state and Channels for ordered durable messages.
 

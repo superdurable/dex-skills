@@ -45,7 +45,10 @@ Verify on the long-lived `dexcli dev` stack started during implementation:
 2. run the Worker against the Dex Server address that `dexcli dev` printed, so
    the FDG Flow and Step type names match the Worker's registrations;
 3. configure each Connector connection in Dex Web **Connectors** and start the
-   application with **DEX_CONNECTOR_CONFIG_FILE** set to the path Dex Web shows;
+   application with the configuration its pinned connector release reads:
+   **DEX_CONNECTOR_CONFIG_FILE** for releases before v0.21.0, otherwise the
+   project configuration, which `cli-v1.7.0` Dex Web does not write (report that
+   as a blocker; see [Connector architecture](connector-architecture.md#local-development-configuration));
 4. start Runs through the real entry point: a Connector Trigger, the
    application API, Dex Web **Start Flow** (which asks for the reachable Worker
    address in local mode), or `dexcli flow start`;
@@ -68,26 +71,31 @@ written alongside blocking diagnostics. Regenerate the definitions after every
 Flow change and after upgrading `dexcli`, because the rendered type names must
 match the Worker.
 
-A deployed Dex Web loads the same files from its Flow rendering source:
-`web.flowRenderingSource: local` with `web.flowRenderingDirectory`, or
-`blobstore` with an existing S3 blob storage and prefix
-(`DEX_WEB_FLOW_RENDERING_*` environment variables override the YAML). To
-replace definitions atomically, publish an immutable
-`releases/<release-id>/` directory, verify every object, then replace the
-strict `active-manifest` that names its prefix, file count, and digest. Follow
-the pinned [Dex Web definition source contract](https://github.com/superdurable/dex/blob/server/v1.3.0/web/README.md#dynamic-definition-bundles);
-Dex returns 503 rather than serving a changed, incomplete, or invalid bundle.
+A deployed Dex Web loads the same files from a directory: set
+`web.flowRenderingDirectory`, or `DEX_WEB_FLOW_RENDERING_DIRECTORY`, which
+overrides the YAML. Dex scans the directory recursively on every
+definition-dependent request, so a change becomes visible without restarting Dex
+Web, and the directory has no manifest, bundle, or atomic switch. Publish only a
+complete set of validated definitions: an invalid JSON file, an unsupported
+schema version, or a source read failure returns a 503 and fails `/readyz`, and
+two valid definitions for one Flow type make the source invalid. After
+publishing, confirm that `/readyz` reports the expected definition count and
+`GET /api/v2/catalog` lists every Flow type. See the [Dex Web
+definition directory](https://github.com/superdurable/dex/blob/server/v1.6.1/web/README.md#run-through-dexcli)
+and [Dex Server image](https://github.com/superdurable/dex/blob/server/v1.6.1/web/README.md#run-through-the-dex-server-image)
+contracts.
 
 ## Deployment, only when requested
 
 The `dex-server` image starts Dex Web, API, and Interpreter in one process,
 with FlowService on port 8801 and Dex Web on port 8802. Before deploying a
 Worker, run `dexcli version check --server ADDRESS` against the target Server
-and make the Worker's advertised target reachable from it. Run Dex Web in
-`trusted-header` mode behind an authenticated reverse proxy that strips
-browser-supplied trusted headers and injects the permission set, and keep port
-8802 unreachable around that proxy. Configure deployed Connectors through the
-Server's project Connector mode, as described in
+and make the Worker's advertised target reachable from it. Dex Web neither
+authenticates users nor enforces authorization, so run it behind a trusted
+application boundary that authenticates users and maps roles to permissions,
+and keep ports 8801 and 8802 unreachable around that boundary. Dex provides no
+deployed Connector configuration; a Go application reads it through the
+Connector SDK's `sdkgo/projectconfig`, as described in
 [Connector architecture](connector-architecture.md#deployed-configuration-and-credential-boundary).
 See the Dex SDK [operations reference](../../dex-sdk/references/core/operations.md)
 for Server components and the Worker protocol check.

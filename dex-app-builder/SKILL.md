@@ -80,8 +80,9 @@ configuration. A missing module is resolved at its exact released version.
   selective loads, locks/CAS, retention, retries and uncertain-effect handling
   in the application before coding. Preserve open execution compatibility.
 - Keep credentials outside code, Flow state, logs and definitions. Local
-  development uses the Connector SDK local store that Dex Web configures; a
-  deployed Dex Server uses the official Connector SDK configuration loader.
+  development configures connections in Dex Web, and a Go application reads
+  them through the Connector SDK's `sdkgo/projectconfig`, whose configuration a
+  hosting platform or operator provides (Dex hosts none).
 - Browser permission selection grants no authority. Enforce actor permissions
   at the trusted server boundary; use stable granular Action permissions.
 - Do not mutate another repository or publish/deploy without authorization.

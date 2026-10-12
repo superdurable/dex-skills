@@ -126,7 +126,7 @@ String and Boolean Attributes support equal and not-equal. Integer and floating-
 
 ## Entity store
 
-Represent one entity lifecycle as a Flow, keep its current state in Attributes, mutate it through RPCs or Channels, and synchronize selected Attributes to an application-owned relational schema when external queries need them. Define optimistic concurrency, deletion, retention, and open-Flow compatibility.
+Represent one entity lifecycle as a Flow, keep its current state in Attributes, mutate it through RPCs or Channels, and synchronize selected Attributes to an application-owned relational schema when external queries need them. Define optimistic concurrency, deletion, retention, and open-Flow compatibility. A store with a `rowKey` template (Dex Server v1.6.0 or later) can key the projected row by the entity's business ID taken from the Flow ID, and an AttributeMap table can project the entity's keyed records as rows of their own. Choose the Flow ID format and the template together; see [row keys, column names, and AttributeMap tables](data-handling.md#row-keys-column-names-and-attributemap-tables).
 
 ## Partitioned AttributeMap state
 

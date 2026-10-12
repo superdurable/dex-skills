@@ -121,7 +121,7 @@ When data needs relational queries, independent pagination, cross-Flow access, a
 
 Attribute Store synchronization is opt-in for each Attribute or AttributeMap, and a Flow selects one or more Server-configured stores. Dex asynchronously projects latest-state writes and retries transient failures. A projection failure does not roll back the Flow Attribute, and retry exhaustion does not automatically replay or backfill the missed batch. Keep Dex authoritative unless the documented storage decision assigns a fact to an external system of record, and make important projections reconcilable.
 
-The built-in Attribute Store targets are currently PostgreSQL and MySQL. They project into columns of an existing table keyed by Flow ID; Dex does not create the table. They are not direct Elasticsearch or vector-store connectors, and synchronization does not generate embeddings or transform documents.
+The built-in Attribute Store targets are PostgreSQL, MySQL, Databricks, Snowflake, and MongoDB. A SQL target projects into the columns of an existing table and MongoDB into the fields of one document per Flow; Dex never creates, migrates, or backfills the destination. They are not direct Elasticsearch or vector-store connectors, and synchronization does not generate embeddings or transform documents.
 
 For Elasticsearch or a vector database, choose among:
 
@@ -129,9 +129,45 @@ For Elasticsearch or a vector database, choose among:
 - run an explicit durable projection Step when chunking, embedding, deletion, or version checks are required
 - add a Dex Attribute Store backend when direct projection is a product requirement
 
-An AttributeMap does not automatically become child rows or vector records in the built-in SQL stores. Verify how every physical instance name maps to the destination schema before enabling synchronization for a dynamic map.
+By default an AttributeMap instance is projected as an ordinary Attribute named by the map and the instance key, so an instance without a matching destination column is filtered. Either verify how every physical instance name maps to the destination schema before enabling synchronization for a dynamic map, or give the map its own table as described under row keys, column names, and AttributeMap tables below.
 
 Do not introduce an external projection merely to avoid repeat reads of unchanged large Attributes; BlobCache and Worker locality already address that path.
+
+### Row keys, column names, and AttributeMap tables
+
+Dex Server v1.6.0 or later adds three optional settings to a PostgreSQL or MySQL store: `rowKey`, `columnNaming`, and `attributeMaps`. A store without them behaves as before. Databricks, Snowflake, and MongoDB stores reject all three at startup, and so does a Server before v1.6.0, which does not know the keys. The full contract is in the [Custom Attribute Store](https://docs.superdurable.io/production/attribute-store) operations page.
+
+```yaml
+attributeStore:
+  stores:
+    orders:
+      type: postgres
+      dsn: postgres://user:password@host/database
+      tableName: public.orders
+      rowKey: order-{customer_id}-{order_id}
+      columnNaming: snake_case
+      attributeMaps:
+        LineItems:
+          tableName: public.order_line_items
+          instanceKeyColumn: line_item_id
+```
+
+- **`rowKey` makes the Flow ID format a storage contract.** The template splits each Flow ID into the table's primary-key columns instead of storing the whole ID in one key column. Use it when a business ID is part of the Flow ID and consumers query by that ID, or when several Flow types describe one entity.
+  - A template is literal text and placeholders. `{column}` stores the captured text in that key column, and `{*}` matches without storing. Each placeholder captures up to the next literal text and the last one captures the rest. Literal text must separate two placeholders and no capture may be empty: `order-{customer_id}-{order_id}` splits `order-c1-o-7` into `customer_id` c1 and `order_id` o-7.
+  - A Flow ID that does not match the template skips its whole batch with an error log, and a retry cannot change that. Select a `rowKey` store only on Flow types whose IDs match, and settle the Flow ID format and the template together before the first write. Dex never migrates or backfills rows, so a later change to either is a data migration the application owns.
+  - Startup requires the table's primary key to be exactly the template's columns, all character columns. Attributes cannot write a key column.
+  - Several stores may name one table, and each upsert sets only the columns of its own batch. `customer-{customer_id}` and `onboarding-{customer_id}-{*}` therefore write different columns of one customer row; give each column one owning Flow type.
+- **`columnNaming: snake_case`** writes each Attribute, and each field of an AttributeMap instance, to its snake_case column: `DeploymentURL` becomes `deployment_url`. Two names in one batch that map to the same column are both filtered. Without it, names must equal the column names exactly.
+- **`attributeMaps`** writes each instance of a named AttributeMap as one row of its own table. The table's primary key is the store's key columns plus `instanceKeyColumn`, which holds the instance key as the application wrote it. For the `orders` store above, `LineItems` needs the key `customer_id`, `order_id`, `line_item_id`.
+  - Writing an instance replaces its row, and deleting the instance deletes the row. A JSON object value writes each top-level field to the column of the same name, and columns the value omits return to their default or NULL. Any other value, such as a string, number, or list, goes to a column named `value`.
+  - Write each instance as one complete value, because the row always equals its latest value and a partial write erases the omitted columns.
+  - A field without a column is skipped with a one-time warning, a field that maps to a key column is skipped, and a value that does not convert is logged and skipped while the row still records the instance. Keep value field names aligned with the table's columns.
+  - The store row and all its instance rows are written in one transaction. Do not add foreign keys between the tables: a violated constraint fails the whole batch and holds back the Flow's later writes until the retry budget runs out.
+  - Dex never deletes rows when a Flow closes, so the destination needs its own retention. A Flow writes each AttributeMap only to the selected stores that declare it; other selected stores project its instances as ordinary Attributes.
+
+A migration that adds a column to a store table or an AttributeMap table needs no Dex restart, as long as it completes before the Workers that write the column start. From Dex Server v1.6.1 a batch that writes a column missing from the current schema refreshes the store's schema before it writes, and an earlier Server picks the column up at its periodic refresh (one minute by default).
+
+The tables stay an eventual, latest-state projection. Never read them to make a Flow decision.
 
 ## Verify the deployment
 

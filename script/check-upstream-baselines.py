@@ -83,8 +83,8 @@ def main() -> None:
     )
     require_text(
         arguments.dex_root / "web" / "api" / "v2.go",
-        "V2PermissionModeTrustedHeader",
-        "V2WorkQueuePermissionsHeader",
+        "V2DefinitionRevisionHeader",
+        'json:"workQueuePermissions"',
         "Action permission denied",
         'json:"capture,omitempty"',
     )
@@ -103,6 +103,7 @@ def main() -> None:
         arguments.dex_root / "cli" / "internal" / "flowviz" / "go_connector_factory.go",
         "parseConnectorFactoryStep",
         "parseConnectorAnnotations",
+        r"(?:-rc\.[0-9]+)?",
         '"annotations"',
         '"connectionName"',
         '"moduleVersion"',
@@ -161,23 +162,62 @@ def main() -> None:
     )
     require_text(
         arguments.dex_root / "web" / "api" / "v2_start.go",
-        "START_FLOW_DISABLED",
         "WORKER_UNHEALTHY",
+        "BypassWorkerHealthCheck",
         "v2StartStepInput",
         "SkipWaitFor: definition.Start.SkipWaitFor",
-        "hostedStartRequestIdentity",
-        "START_IDENTITY_CONFLICT",
+        "requestID := uuid.NewString()",
     )
     require_text(
-        arguments.dex_root / "web" / "api" / "v2.go",
-        "requireEmbeddedMutationCSRF",
-        "WEB_MUTATION_CSRF_INVALID",
-        "subtle.ConstantTimeCompare",
+        arguments.dex_root / "web" / "flow_definition_provider.go",
+        "filepath.WalkDir",
+        "FLOW_DEFINITION_INVALID",
+        "FLOW_DEFINITION_SOURCE_UNAVAILABLE",
     )
     require_text(
-        arguments.dex_root / "web" / "project_configuration.go",
-        "projectconfig",
-        "APPLICATION_ENVIRONMENT_FORBIDDEN",
+        arguments.dex_root / "server" / "config" / "config.go",
+        'yaml:"flowRenderingDirectory"',
+        'yaml:"startFlowWorkerTargetHeadless"',
+        'yaml:"rowKey"',
+        'yaml:"columnNaming"',
+        'yaml:"attributeMaps"',
+        'yaml:"instanceKeyColumn"',
+    )
+    require_text(
+        arguments.dex_root / "server" / "service" / "common" / "attributestore" / "sql_store.go",
+        "confirmedMissingColumns",
+        "needsColumnRefresh",
+        "refresh Attribute Store schema for an unknown column",
+    )
+    require_text(
+        arguments.dex_root / "web" / "connector_release_oauth_settings.go",
+        "fromSetting",
+    )
+    require_text(
+        arguments.dex_root / "web" / "connector_oauth.go",
+        "CONNECTOR_OAUTH_SETTING_INVALID",
+        "client_secret_basic",
+    )
+    require_text(
+        arguments.dex_root / "web" / "connector_address_policy.go",
+        "IsLinkLocalUnicast",
+        "IsPrivate",
+        "connectorAWSIPv6MetadataAddress",
+    )
+    require_text(
+        arguments.dex_root / "cli" / "internal" / "flowviz" / "go_state_loads.go",
+        "attribute_map_read_not_loaded",
+        "attribute_map_enumeration_not_loaded",
+        "attribute_map_instance_not_loaded",
+        "channel_messages_not_loaded",
+    )
+    require_text(
+        arguments.dex_root / "cli" / "internal" / "flowviz" / "go_analyzer.go",
+        "step_progress_outside_step",
+    )
+    require_text(
+        arguments.dex_root / "cli" / "internal" / "flowviz" / "go_start_flow_inputs.go",
+        "start_flow_input_type_mismatch",
     )
     print("validated Dex Server and CLI baselines")
 

@@ -23,7 +23,7 @@ Defaults use Dex `localhost:8801`, Worker `127.0.0.1:8803`, and HTTP `127.0.0.1:
 
 ## Connector runtime support
 
-The Connector local JSON loader and generated `NewLocalConnection` API are Go-only. Do not invent a Python loader or deserialize Dex Web's credential file into Flow state. For a Python application, keep provider credentials behind an application-owned secret/runtime adapter until an official Python Connector SDK exposes the same contract.
+The Connector SDK's `projectconfig.LoadFromEnvironment` loader and the generated `NewProjectConnection` API are Go-only, and no equivalent Python SDK exists today. Do not invent a Python loader or deserialize Dex Web's credential file into Flow state. For a Python application, keep provider credentials behind an application-owned secret/runtime adapter until an official Python Connector SDK exposes the same contract.
 
 ## Raw Temporal payload inspection
 
@@ -32,13 +32,14 @@ in Temporal Cloud or a local Temporal Web UI. Follow the shared
 [codec-server guidance](../core/operations.md#inspect-raw-temporal-payloads);
 local UI ports need no additional server arguments.
 
-## Hosted configuration and recovery boundary
+## Deployed configuration and recovery boundary
 
-Use the [Core native project configuration contract](../core/operations.md#native-hosted-project-configuration)
-for Server v1.3.0. Keep project scope and credentials behind the supported runtime
-boundary; a browser, Flow input, or ordinary Attribute cannot select secret
-storage. The Go Connector SDK has the released project configuration package;
-that capability does not create equivalent APIs in every Dex SDK language.
+Dex provides no deployed Connector configuration or credential store. A deployed Go
+application reads its connections with the Connector SDK's `sdkgo/projectconfig`, but
+no equivalent Python SDK exists today; see
+[deployed Connector configuration](../core/operations.md#deployed-connector-configuration).
+Keep credentials behind the deployment's secret management; a browser, Flow input,
+or ordinary Attribute cannot select secret storage.
 For recovery after a Worker fix, preserve the original resource and Flow ID,
 reconcile external effects, and use an explicitly authorized, recorded Step
 boundary as described in [safe recovery](../core/operations.md#safe-recovery).

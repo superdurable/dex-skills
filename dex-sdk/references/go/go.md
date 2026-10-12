@@ -21,11 +21,11 @@ make bins
 
 Defaults use Dex at `localhost:8801`, a Worker listener at `127.0.0.1:8803`, and HTTP at `127.0.0.1:8080`. `DEX_WORKER_TARGET` is the address advertised to Dex and can differ from the bind address.
 
-## Local Connector configuration
+## Connector configuration
 
-Official Go connectors can load the Dex Web development store with `localconfig.LoadFromEnvironment`. Create each generated connection with `NewLocalConnection(store, "connection-name")`, and set the same static `ConnectionName` on every operation-specific factory config. Start the application with **DEX_CONNECTOR_CONFIG_FILE** set to the absolute path shown by Dex Web.
+Official Go connectors from v0.21.0 open each connection with the generated `NewProjectConnection(project, "connection-name")`, where `project` comes from `projectconfig.LoadFromEnvironment(ctx)` in the Connector SDK's `sdkgo/projectconfig`. Set the same static `ConnectionName` on every operation-specific factory config. Earlier connector releases generate `NewLocalConnection(store, "connection-name")` and read the Dex Web development store with `localconfig.LoadFromEnvironment`, started with **DEX_CONNECTOR_CONFIG_FILE**. [Local Connector credentials](../core/operations.md#local-connector-credentials) says which release line reads what, and [Deployed Connector configuration](../core/operations.md#deployed-connector-configuration) describes the project configuration.
 
-Configuration is captured when the store loads. Credentials are reread for each provider call, so reauthorization does not require a restart; configuration changes do. Keep generated secret values outside Flow state and logs.
+Settings are captured when the application starts. Credentials are resolved for each provider call, so reauthorization does not require a restart; settings changes do. Keep generated secret values outside Flow state and logs.
 
 Connector Step branch targets receive only the current generated result alias. Query aliases resolve to `sdkgo.QueryResult[OUT]`; Mutation aliases resolve to `sdkgo.MutationResult[OUT]`. `MapToOperationInput` is a pure mapping from the current application Step input into provider input; it has no error result, and the application input is not present in the operation result. Persist business context with an application Step and Attribute before the Connector call, then reload it in success, failure, RPC, and recovery Steps. Use `Annotations` for graph group and explanation metadata; do not use it for visual styling.
 
@@ -37,7 +37,7 @@ The filter runs before identity resolution, input mapping, or any Dex call. Retu
 
 For RPC delivery, register the application's bound method with application-owned `dex.RPCOptions`, then pass that method directly to `NewDexRPCTriggerTarget`. The application decides whether stable provider event IDs need deduplication, stores only bounded domain state, and locks only the business state or effect that must commit atomically.
 
-Use the released [Slack example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.11.0/connectors/slack/examples/thread-approval) and [Gmail example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.13.0/connectors/google/gmail/examples/thread-reply) as exact integration references. Their modules pin the exact Connector SDK releases they support.
+Use the released [Slack example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.21.0/connectors/slack/examples/thread-approval) and [Gmail example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.21.0/connectors/google/gmail/examples/thread-reply) as exact integration references. Their modules pin the exact Connector SDK releases they support.
 
 ## Raw Temporal payload inspection
 
@@ -46,13 +46,13 @@ in Temporal Cloud or a local Temporal Web UI. Follow the shared
 [codec-server guidance](../core/operations.md#inspect-raw-temporal-payloads);
 local UI ports need no additional server arguments.
 
-## Hosted configuration and recovery boundary
+## Deployed configuration and recovery boundary
 
-Use the [Core native project configuration contract](../core/operations.md#native-hosted-project-configuration)
-for Server v1.3.0. Keep project scope and credentials behind the supported runtime
-boundary; a browser, Flow input, or ordinary Attribute cannot select secret
-storage. The Go Connector SDK has the released project configuration package;
-that capability does not create equivalent APIs in every Dex SDK language.
+Dex provides no deployed Connector configuration or credential store. A deployed
+Go application reads its connections with the Connector SDK's `sdkgo/projectconfig`,
+as described in [deployed Connector configuration](../core/operations.md#deployed-connector-configuration).
+Keep production credentials behind that storage and the deployment's secret
+management; a browser, Flow input, or ordinary Attribute cannot select secret storage.
 For recovery after a Worker fix, preserve the original resource and Flow ID,
 reconcile external effects, and use an explicitly authorized, recorded Step
 boundary as described in [safe recovery](../core/operations.md#safe-recovery).

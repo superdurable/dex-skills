@@ -1,12 +1,12 @@
 # Dex Web v2 and FDG 2.0
 
-Reference capability baselines: Dex Server `v1.3.0`, Dex CLI `v1.5.0`, and
+Reference capability baselines: Dex Server `v1.6.1`, Dex CLI `v1.7.0`, and
 the SDK source baseline in [bundle-baselines.md](../../dex-sdk/references/core/bundle-baselines.md).
 These validate the guidance, not an instruction to upgrade an application.
 An application retains its pinned Server, CLI, and Go SDK versions unless the
-user authorizes an upgrade. Both Server and CLI embed Web v2, trusted embedded
-starts, project Connector configuration, permission-based Work Queue, and
-release-owned Connector setup.
+user authorizes an upgrade. Both Server and CLI embed Web v2, Start Flow with a
+reachable Worker address, and the permission-based Work Queue. Release-owned
+Connector setup runs only in loopback `dexcli dev`.
 
 Released connector modules may require an older Connector SDK; at connectors
 `main` `980a6f9`, modules require exact releases from `sdkgo/v0.7.0` through
@@ -43,20 +43,20 @@ Design those contracts before proposing a custom management backend or UI. A
 custom surface requires a recorded interaction Dex Web v2 cannot provide; the
 fact that a product needs administration does not establish such a gap.
 
-In development `local-selector` mode, **Working as** selects one declared Action permission and filters Work Queue candidates. It does not authenticate a user or grant permission.
+**Working as** selects one declared Action permission and filters Work Queue candidates. The request carries it as `workQueuePermissions`. Dex Web neither authenticates a user nor enforces authorization, and the selection grants nothing. It refuses an Action whose required permission is missing from the request's `workQueuePermissions` with 403, but it reads that list from the request itself, so the check is a consistency check, not authorization.
 
-A deployed Dex Web uses `trusted-header` behind an authenticated reverse proxy. The boundary strips browser-supplied permission headers, maps authenticated roles to permissions, and injects exactly one **X-Dex-Work-Queue-Permissions** header. Dex Web hides the selector, ignores request-body permissions, and authorizes Search and Actions against that trusted set. Port 8802 must not be reachable around the proxy.
+A deployed Dex Web sits behind a trusted application boundary that authenticates users, maps roles to permissions, and limits which permissions it sends. Do not expose Dex Web or the FlowService API directly to the public Internet.
 
 ## Start Flow
 
-The v2 Run workspace shows **Start Flow** when the admitted definition has a
-supported typed Start schema and the deployment admits starts. In local-selector
-mode, the operator enters a reachable Worker address. Trusted hosted mode requires
-an authenticated private proxy to inject `flows.start`, actor identity, a fixed
-Worker target, an instance-bound target revision, and embedding CSRF context.
-The browser enters business input and retains its original Flow and operation
-IDs; it cannot select or override the hosted target. The proxy strips incoming
-trusted context headers, and port 8802 remains unreachable around that boundary.
+The v2 Run workspace shows **Start Flow** when the selected definition has a
+supported typed Start schema. The operator enters a Flow ID, a reachable
+plaintext Worker gRPC address, and the typed input. Dex Web checks the Worker
+`host:port` with a TCP connection when the address loses focus and again before
+starting, and an unreachable port blocks the start until the operator selects
+**Bypass worker health check**. The browser cannot supply Step options or
+headless routing; `web.startFlowWorkerTargetHeadless` sets the routing for every
+Flow started from that Dex Web.
 
 Dex Web validates input and derives `skipWaitFor` from the validated Start
 phase: `execute` skips WaitFor, while `wait_for+execute` retains it. Missing,
@@ -64,12 +64,15 @@ repeated, or unknown phases are invalid definitions. Do not rewrite an
 execute-only application Step into a dummy WaitFor to work around admission.
 Check the actual graph, source, installed Server, and Worker registration.
 
-Keep the original request UUID and body after an uncertain start response;
-reconcile through `POST /api/v2/start/recover`. Target/definition revisions,
-Worker override, permission, CSRF, typed input, and changed operation identity
-must fail with their actual coded errors. A new UUID is a new operation, not a
-safe retry. Connector Trigger applications still use the real Trigger for
-their Trigger acceptance path.
+Dex Web generates a new request ID for every start and sets no ID reuse
+policy, so the Server's default, which disallows reusing an existing Flow ID,
+rejects a second submission of the same Flow ID. That rejection is not a
+recovery path. After an uncertain start response, read the Flow ID with the
+bounded read-only `dexcli flow summary` before submitting again, and treat a
+different Flow ID as a different business operation. Definition revision,
+Worker address, and typed input errors must fail with their actual coded
+errors. Connector Trigger applications still use the real Trigger for their
+Trigger acceptance path.
 
 Observed with Dex CLI v0.13.8 and Go SDK v0.12.1:
 
@@ -86,8 +89,8 @@ Observed with Dex CLI v0.13.8 and Go SDK v0.12.1:
   diagnose the analyzer/SDK version or generated metadata; do not implement
   `GetFlowType` and `GetStepType` on every Flow and Step as a Web workaround.
 - Those older versions invoked `WaitFor` on an execute-only Start Step and
-  failed before Execute. Server v1.3.0 derives the correct option from its
-  validated graph; preserve the real Step semantics and inspect any existing
+  failed before Execute. Server v1.3.0 and later derive the correct option from
+  their validated graph; preserve the real Step semantics and inspect any existing
   failed execution before an authorized recovery.
 - FDG 2.0 requires `GetDexSummary` and `GetDexDisplay`, both registered as
   RPCs, even when a Flow has little to show (`v2_view_rpc`).
@@ -107,7 +110,7 @@ In loopback **dexcli dev**, the **Connectors** tab at `/v2/connectors` groups Co
 
 A connector whose manifest declares `selection: multiple` holds several auth methods in one connection, such as several LLM providers, each added as its own card. Editing a saved connection keeps a stored secret when its field is left blank.
 
-Automatic setup requires an operation-specific factory from an exact official released module, a static `ConnectionName`, and no local module replacement. Different module versions for one connector/name key are a blocking conflict. Generic factories and unsupported dependencies still render the Flow but cannot write credentials.
+Automatic setup requires an operation-specific factory from an exact official published module, a release or an `-rc.N` release candidate, a static `ConnectionName`, and no local module replacement. Different module versions for one connector/name key are a blocking conflict. Generic factories and unsupported dependencies still render the Flow but cannot write credentials.
 
 For connector development only, `dexcli dev` accepts
 `--connector-release-override connector-id=artifact-directory`. Use an artifact
@@ -119,16 +122,20 @@ module cache; that copy persists in `GOMODCACHE` and shadows or conflicts with
 the real release. Use the override, or a temporary `GOMODCACHE` for any
 consumer that must resolve pre-release versions.
 
-Dex Web verifies release metadata and the Studio artifact. A supported Studio bundle runs in an opaque-origin sandbox; otherwise the host renders the manifest form. Neither surface receives stored credential values. OAuth client credentials, PKCE state, and UI sessions are memory-only.
+Dex Web verifies release metadata and the Studio artifact. A supported Studio bundle runs in an opaque-origin sandbox; otherwise the host renders the manifest form. Neither surface receives stored credential values. PKCE state and UI sessions are memory-only, and so are the OAuth client ID and secret unless the release maps them to stored credentials.
+
+A release for an authorization server that the connection owner chooses, such as a company identity provider, writes its authorization endpoint, token endpoint, scopes, or identity endpoint as connection settings instead of constants. Fill those settings in before **Authorize**: Dex Web checks them first and rejects a missing or blank value, an empty scope list, a non-absolute URL, or an unsupported client authentication method, with an error that names the setting. A setting may supply an `http` endpoint only when every resolved address is loopback or private; an endpoint a release writes must use HTTPS. Dex Web does not refresh tokens, so a Connector that renews its own credential reads the saved settings.
 
 Connections presents authorization first, then nested operation and Trigger
 configuration tabs. A Flow's static `ConnectorConfigurationUI` composes ordered
 release-owned units. Each binding maps one generated unit port to one declared
 RFC 6901 JSON Pointer; the host rejects undeclared paths. Dex Web writes only
 non-secret operation configuration to sibling `use-configurations.json`, keyed
-by connector, connection, operation, Flow type, and Step type. The application
-loads it once through `localconfig`, so a configuration edit requires an
-application restart.
+by connector, connection, operation, Flow type, and Step type. An application
+whose connector release reads the Dex Web files loads them once at startup, so a
+configuration edit requires an application restart; see
+[connector architecture](connector-architecture.md#local-development-configuration)
+for which releases do.
 
 The connector release owns setup guidance for the complete rendered surface.
 Dex Web shows the authorization guide's provider start URL and ordered steps,
@@ -160,23 +167,14 @@ pending OAuth/PKCE exchanges and UI sessions. Credential replacement is read
 for each provider call; non-secret connection, binding, and operation
 configuration remains startup-bound in the application.
 
-Project Connector mode in a deployed Dex Server uses the same release-owned
-authorization and field UI. Its configuration scope comes from immutable Dex
-startup configuration and the trusted proxy; browser parameters cannot override it.
-Dex owns conditional, versioned native storage and OAuth dispatch. Application
-replicas consume validated immutable ordinary snapshots and separately resolved
-credentials through the released Go project configuration package. The trusted
-proxy blocks internal configuration endpoints from browser routing. No secret
-values, S3 keys, local paths, or launch commands enter the browser. See
-[native project configuration](../../dex-sdk/references/core/operations.md#native-hosted-project-configuration).
-
-Embedded Action and Display-edit mutations require exactly one browser
-`X-CSRF-Token` matching one nonempty trusted `X-Dex-Web-CSRF-Token`; the host
-must validate the browser token and inject its own trusted context. Missing,
-duplicate, or mismatched tokens fail before Flow access. Malformed trusted
-context is rejected by the embedding ingress before mutation-specific checks.
-Test the actual native display and declared Action path, with the real Worker,
-and separately verify the embedding proxy's authentication boundary.
+A deployed Dex Server's Dex Web does not expose Connector setup, OAuth, or
+credential storage; they exist only in loopback `dexcli dev`. A deployed Go
+application reads its connections through the Connector SDK's
+`sdkgo/projectconfig`; see
+[deployed Connector configuration](../../dex-sdk/references/core/operations.md#deployed-connector-configuration).
+Test the actual native display and declared Action path with the real Worker,
+and separately verify the authentication boundary in front of the deployed Dex
+Web.
 
 Configuration fields that can be obtained from verified claims, profile APIs,
 or declared read-only setup commands render as derived read-only values rather
@@ -221,8 +219,7 @@ access in its Permissions Policy. A denied permission, missing camera, or
 insecure context leaves manual input available. Scanning does not authenticate
 the operator, grant a permission, satisfy an Action condition, validate the
 business value, or bypass the RPC. The embedding host remains responsible for
-identity, role-to-permission mapping, trusted-header injection, and the camera
-policy.
+identity, role-to-permission mapping, and the camera policy.
 
 ## Permission projection
 
@@ -232,7 +229,7 @@ The Server overlays those business writes on authoritative Attribute state, eval
 
 Dex Web follows the same rule for editable fields: only `SetAttributes` calls that modify an Action condition source include the complete mapping. An Action definition is a stable contract for an active Flow. A changed definition is evaluated on a later source write or a new Flow. Removing or renaming a permission does not clear existing history.
 
-Permission history is discovery data, not authorization evidence or proof that an Action remains eligible. Every Action RPC rechecks current business state. Hosted callers authorize the RPC against the trusted permission set.
+Permission history is discovery data, not authorization evidence or proof that an Action remains eligible. Every Action RPC rechecks current business state. The trusted application boundary authorizes who may invoke the RPC.
 
 ## Validation
 

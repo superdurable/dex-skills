@@ -289,6 +289,22 @@ def check_sdk(baseline: str) -> None:
     ):
         if text not in operations:
             fail(f"Core operations must contain FDG language boundary: {text}")
+    for text in (
+        "## Deployed Connector configuration",
+        "`sdkgo/projectconfig`",
+        "`projectconfig.LoadFromEnvironment(ctx)`",
+        "`NewProjectConnection(project, \"connection-name\")`",
+        "dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/README.md",
+        "dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/environment.go",
+        "`sharedConnectionId`",
+        "`UnmarshalSharedCredential`",
+        "`CONNECTION_NOT_SELECTED`",
+        "never follows a changed selection",
+        "different settings need a different connection name",
+        "no equivalent SDK exists today",
+    ):
+        if text not in operations:
+            fail(f"Core operations must describe the Connector SDK deployment path: {text}")
 
     for language in LANGUAGES:
         handbook = (SDK_REFERENCES / language / f"{language}.md").read_text()
@@ -298,6 +314,13 @@ def check_sdk(baseline: str) -> None:
         ):
             if text not in handbook:
                 fail(f"{language} handbook must contain FDG language boundary: {text}")
+        for text in (
+            "## Deployed configuration and recovery boundary",
+            "`sdkgo/projectconfig`",
+            "projectconfig.LoadFromEnvironment" if language == "go" else "no equivalent",
+        ):
+            if text not in handbook:
+                fail(f"{language} handbook must contain the Connector SDK deployment path: {text}")
 
 
 def check_app_builder() -> None:
@@ -330,15 +353,16 @@ def check_app_builder() -> None:
         "data-lifecycle and execution-shape boundary matrices",
         "Use Dex Flow state as the default durable application store",
         "Do not add an external database, cache, ORM, outbox, or shadow read model",
-        "`projectconfig` package", "## Version pairing",
+        "## Version pairing",
         "go get github.com/superdurable/dex/sdk-go@",
         "Only after the real Dex and Connector end-to-end journey passes",
         "Do not create an application-level mock server",
         "Mock evidence never replaces real Dex durability",
         "Default application authoring produces source without integration/browser test",
         "## Local verification with dexcli dev", "## Package Flow definitions",
-        "`active-manifest`", "## Deployment, only when requested",
-        "`trusted-header` mode behind an authenticated reverse proxy",
+        "`web.flowRenderingDirectory`", "## Deployment, only when requested",
+        "ports 8801 and 8802 unreachable around that boundary",
+        "deployed Connector configuration",
     ):
         if text not in guidance:
             fail(f"Dex App Builder guidance must preserve: {text}")
@@ -434,7 +458,11 @@ def check_app_builder() -> None:
         "## Deployed configuration and credential boundary",
         "plaintext development store",
         "Business code neither reads credential objects",
-        "exact, digest-pinned snapshot",
+        "Open-source Dex provides no deployed Connector configuration",
+        "`sdkgo/projectconfig`",
+        "`projectconfig.LoadFromEnvironment`",
+        "`NewProjectConnection(project, connectionName)`",
+        "sdkgo/v0.25.0",
     ):
         if text not in connector_architecture:
             fail(f"connector architecture must contain: {text}")
@@ -549,11 +577,9 @@ def check_app_builder() -> None:
         "capture:qr-code",
         "without submitting the Action",
         "The embedding host remains responsible for",
-        "Project Connector mode in a deployed Dex Server uses the same release-owned",
-        "browser parameters cannot override it",
-        "Dex owns conditional, versioned native storage and OAuth dispatch",
-        "`X-CSRF-Token` matching one nonempty trusted `X-Dex-Web-CSRF-Token`",
-        "reconcile through `POST /api/v2/start/recover`",
+        "does not expose Connector setup, OAuth, or",
+        "`workQueuePermissions`",
+        "`dexcli flow summary` before submitting again",
         "parenthesized manifest default",
     ):
         if text not in dex_web:
@@ -961,6 +987,41 @@ def check_agent_rules() -> None:
             fail(f"application template baseline mechanism must not return: {removed.relative_to(ROOT)}")
 
 
+REMOVED_DEX_CONTRACTS = (
+    "PROJECT_CONFIGURATION.md",
+    "dynamic-definition-bundles",
+    "active-manifest",
+    "trusted-header",
+    "X-Dex-Work-Queue-Permissions",
+    "X-Dex-Web-CSRF-Token",
+    "start/recover",
+    "flowRenderingSource",
+    "local-selector",
+    "project Connector mode",
+    "native-hosted-project-configuration",
+)
+
+
+# The Connector SDK removed its local loader in sdkgo v0.22.0; connectors from v0.21.0 generate only
+# NewProjectConnection. Text may name the older loader only next to the release boundary.
+OLDER_CONNECTOR_LOADER_TERMS = ("localconfig", "NewLocalConnection")
+
+
+def check_removed_dex_contracts() -> None:
+    """Dex Server v1.6.1 and Dex CLI v1.7.0 no longer define these Dex Web contracts.
+
+    The Connector SDK's own sdkgo/projectconfig package still exists and is cited for deployed Go applications.
+    """
+    for markdown in sorted([ROOT / "README.md", *ROOT.glob("dex-*/**/*.md")]):
+        content = markdown.read_text()
+        for removed in REMOVED_DEX_CONTRACTS:
+            if removed in content:
+                fail(f"{markdown.relative_to(ROOT)} cites a Dex Web contract that the baselines removed: {removed}")
+        for term in OLDER_CONNECTOR_LOADER_TERMS:
+            if term in content and "v0.21.0" not in content:
+                fail(f"{markdown.relative_to(ROOT)} names the older Connector loader {term} without the v0.21.0 release boundary")
+
+
 def check_open_source_boundary() -> None:
     for relative_path in git_output("ls-files").splitlines():
         path = ROOT / relative_path
@@ -1021,6 +1082,7 @@ def main() -> None:
     check_standalone_bundle(current_version)
     check_manifests(current_version)
     check_agent_rules()
+    check_removed_dex_contracts()
     check_open_source_boundary()
     if arguments.base_ref:
         check_release_change(arguments.base_ref, current_version)
