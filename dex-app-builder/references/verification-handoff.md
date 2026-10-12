@@ -45,10 +45,9 @@ Verify on the long-lived `dexcli dev` stack started during implementation:
 2. run the Worker against the Dex Server address that `dexcli dev` printed, so
    the FDG Flow and Step type names match the Worker's registrations;
 3. configure each Connector connection in Dex Web **Connectors** and start the
-   application with the configuration its pinned connector release reads:
-   **DEX_CONNECTOR_CONFIG_FILE** for releases before v0.21.0, otherwise the
-   project configuration, which `cli-v1.7.0` Dex Web does not write (report that
-   as a blocker; see [Connector architecture](connector-architecture.md#local-development-configuration));
+   application with the displayed **DEX_CONNECTOR_CONFIG_FILE** launch command;
+   a connector at v0.21.0 or later needs `sdkgo` v0.28.0 or later to read it
+   (report an older pin as a blocker; see [Connector architecture](connector-architecture.md#local-development-configuration));
 4. start Runs through the real entry point: a Connector Trigger, the
    application API, Dex Web **Start Flow** (which asks for the reachable Worker
    address in local mode), or `dexcli flow start`;

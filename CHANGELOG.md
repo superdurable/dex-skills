@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.35.1 - 2026-10-12
+
+- Replace the local Connector configuration blocker. With Connector SDK `sdkgo` v0.28.0 or later, `projectconfig.LoadFromEnvironment` reads the Dex Web `connections.json` and `use-configurations.json` when **DEX_CONNECTOR_CONFIG_FILE** names the file, so a connector at v0.21.0 or later works with the launch command Dex Web displays and needs no `DEX_PROJECT_*` variables or object storage (dex-connectors-library#230). Settings, Trigger bindings, and operation settings are read at startup and need an application restart to change; reauthorizing in Dex Web does not. A refreshed credential is written back to the file and Trigger inboxes persist beside it, so run one application per directory. An application that pins an older `sdkgo` is still reported as a compatibility blocker. Core operations, Connector architecture, the verification and build handoffs, and the Go handbook state this.
+- Synchronize the Codex, Claude Code, and Cursor plugin manifests at version 0.35.1.
+
 ## 0.35.0 - 2026-10-11
 
 - Document the three optional settings Dex Server v1.6.0 adds to PostgreSQL and MySQL Attribute Store entries. Core data handling gains a section on when to use each: `rowKey` splits a Flow ID into the table's primary-key columns and so makes the Flow ID format a storage contract (placeholder rules, a non-matching Flow ID skips its batch, a primary key of exactly the template's columns, several stores writing different columns of one row), `columnNaming: snake_case` maps Attribute and instance field names to snake_case columns, and `attributeMaps` writes each AttributeMap instance as one row of its own table (a write replaces the row and a delete removes it, a non-object value goes to the `value` column, fields without a column are skipped with a warning, one transaction per batch, no foreign keys, and no row cleanup when a Flow closes). Databricks, Snowflake, and MongoDB stores, and any Server before v1.6.0, reject the new keys at startup.
