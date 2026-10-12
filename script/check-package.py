@@ -297,6 +297,10 @@ def check_sdk(baseline: str) -> None:
         "dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/README.md",
         "dex-connectors-library/blob/sdkgo/v0.25.0/sdkgo/projectconfig/environment.go",
         "`sharedConnectionId`",
+        "`UnmarshalSharedCredential`",
+        "`CONNECTION_NOT_SELECTED`",
+        "never follows a changed selection",
+        "different settings need a different connection name",
         "no equivalent SDK exists today",
     ):
         if text not in operations:
