@@ -181,8 +181,8 @@ Ensure:
 - each Connector Trigger binding has a static binding name, application-owned Flow ID resolver, and typed target;
 - for local configuration, the application starts with the configuration its
   pinned connector release reads (the displayed **DEX_CONNECTOR_CONFIG_FILE**
-  launch command for releases before v0.21.0, the project configuration
-  otherwise) and survives a Dex Web restart, or the gap is an explicit blocker;
+  launch command; `sdkgo` v0.28.0 or later for v0.21.0 or later connectors)
+  and survives a Dex Web restart, or the gap is an explicit blocker;
 - every Flow source file renders to a `valid: true` FDG 2.0 definition through
   one project command, and the rendered Flow and Step type names match the
   Worker's registrations;
