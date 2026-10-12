@@ -167,7 +167,7 @@ Dex Web displays the launch command for an application that reads the file:
 DEX_CONNECTOR_CONFIG_FILE="$HOME/.dex/connectors/connections.json" <your-app-command>
 ```
 
-Which connector releases read that file is a Connector SDK fact, not a Dex Web one. Connector releases before v0.21.0 generate `NewLocalConnection(store, connectionName)` over the SDK's `localconfig` store, which reads the file. Every connector from v0.21.0 generates only `NewProjectConnection(project, connectionName)` over `projectconfig.LoadFromEnvironment`, which reads project configuration from S3-compatible object storage and not this file. `cli-v1.7.0` Dex Web writes only `connections.json` and `use-configurations.json`, and `sdkgo/v0.25.0` has no code that reads them, so a v0.21.0 or later connector cannot read what the Connectors page saves. Report that gap as a compatibility blocker and ask the user how the local project configuration is provided ([Local Connector credentials](../../dex-sdk/references/core/operations.md#local-connector-credentials) has the details); never write a reader for the file.
+Which connector releases read that file is a Connector SDK fact, not a Dex Web one. Connector releases before v0.21.0 generate `NewLocalConnection(store, connectionName)` over the SDK's `localconfig` store, which reads the file. Every connector from v0.21.0 generates only `NewProjectConnection(project, connectionName)` over `projectconfig.LoadFromEnvironment`, which reads project configuration from S3-compatible object storage and not this file. `cli-v1.7.0` Dex Web writes only `connections.json` and `use-configurations.json`, and `sdkgo` through v0.27.0 has no code that reads them, so a v0.21.0 or later connector cannot read what the Connectors page saves. Report that gap as a compatibility blocker and ask the user how the local project configuration is provided ([Local Connector credentials](../../dex-sdk/references/core/operations.md#local-connector-credentials) has the details); never write a reader for the file. The library tracks the gap in [dex-connectors-library#230](https://github.com/superdurable/dex-connectors-library/issues/230).
 
 A connector with Triggers provides one project runner, such as Gmail's `NewProjectMessageTriggerRunner`. It loads every binding's stored configuration, fails when a binding is missing, and keeps acknowledged events in the binding's durable project inbox until its target consumes them. Connectors before v0.21.0 instead wrap the target in a per-binding disk inbox that replays after a restart.
 
@@ -197,6 +197,17 @@ application never does. From sdkgo v0.25.0 an entry may carry
 `sharedConnectionId`, and the application then reads the credential from the
 credential broker the document declares, keeps it in memory only, and never
 refreshes it itself.
+A host platform may let users configure a connection once and share it: the
+application declares connection names only, and the platform decides which
+connection each name uses and with which settings. Two uses with different
+settings need two connection names. From sdkgo v0.26.0 the broker never sends
+host-kept credential fields (refresh tokens, client secrets, service account
+keys), and a connector decodes a shared credential without them through its
+generated `UnmarshalSharedCredential`. A new selection or a settings edit reaches
+the application only through a new configuration document, at the next Preview
+start or Live deployment; `CONNECTION_NOT_SELECTED` is always a terminal error
+and the application never follows a changed selection
+([shared connections](https://github.com/superdurable/dex-connectors-library/blob/sdkgo/v0.27.0/sdkgo/projectconfig/README.md#shared-connections)).
 Settle with the user who writes the configuration and where the storage lives.
 This reference version does not authorize upgrading an application's existing
 Connector pins; inspect its bootstrap and report a compatibility blocker if the
@@ -316,5 +327,7 @@ decision and the resulting reuse limitation in the handoff.
 Use the [Slack thread approval example](https://github.com/superdurable/dex-connectors-library/tree/connectors/slack/v0.21.0/connectors/slack/examples/thread-approval) for a Socket Mode root event, application-owned channel/poster/text filters, thread query, typed reply RPC, thread-reply Mutation, and composed configuration UI units.
 
 Use the [Gmail thread reply example](https://github.com/superdurable/dex-connectors-library/tree/connectors/google/gmail/v0.21.0/connectors/google/gmail/examples/thread-reply) for a polled root message, application-owned sender/text filters, message query, typed reply RPC, email-reply Mutation, and composed configuration UI units. Its polling transport is a local alpha path, not a production push-delivery design.
+
+Slack v1.0.0 makes `app_token` optional. With a connection that has an `app_token` (the user's own Slack app) the connector keeps Socket Mode. With a shared connection that has none, such as a host platform's shared Slack app, the host relays Slack events over HTTP to the connector's relayed trigger receiver. The application mounts the project runner on its own HTTP server at `slack.RelayedTriggerPath(connectionName)` (`/triggers/slack/` plus the connection name in unpadded base64url), and the runner registers the connection name with the host through `projectconfig.LoadedProject.RegisterRelayedTrigger` and verifies each request with `VerifyRelayedRequest` (sdkgo v0.27.0). See the [Slack connector README](https://github.com/superdurable/dex-connectors-library/blob/connectors/slack/v1.0.0/connectors/slack/README.md#relayed-events).
 
 Both examples derive one stable Flow ID from provider thread identity. They absorb root redelivery through deterministic starts, handle reply redelivery in bounded application-owned thread state, and move uncertain or rejected external writes into explicit recovery instead of blind resend.
