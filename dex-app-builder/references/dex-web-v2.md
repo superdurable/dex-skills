@@ -23,7 +23,9 @@ Dex Web derives its experience from:
 - indexed Attributes for list and search columns;
 - `GetDexSummary` for additional read-only list fields;
 - `GetDexDisplay` for run detail fields;
-- Step groups and explanations for the run timeline;
+- Step groups and explanations for the run timeline and the Flow canvas, which
+  folds a group into a stage only when it is one run or one choice and draws
+  failure handling only on request;
 - waits on Channels/ChannelMaps for actionable human work;
 - eligible Action RPCs for operator operations.
 
