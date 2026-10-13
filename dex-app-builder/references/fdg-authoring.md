@@ -24,6 +24,27 @@ Each ordinary Step type has one group and explanation:
 // dex:explanation text:"Perform the accepted operation."
 ```
 
+A group of two or more Steps does one thing, so Dex Web can fold it into one
+stage that opens in place. Make it one run, where ordinary transitions inside
+the group join all of its Steps, or one choice, where one Step outside the group
+leads into every part, such as an agent's decision Step and its tools. The
+analyzer warns about any other group with `v2_step_group_shape` and names the
+parts it falls into; Dex Web then shows those Steps in the group's band instead
+of folding them.
+
+Groups are judged on the Flow's main story. A Step that only failure
+transitions reach, directly or through other such Steps, is failure handling:
+Dex Web leaves it out of the drawing, counts the failures on the Step card they
+leave, and draws them beside that Step when it is selected or a run went
+through them. A failure transition joins no group, and a failure-handling
+Step's group is not checked, so give it the group of the Step it handles.
+
+When a Step only records breakage, such as exhausted retries or an uncertain
+outcome, make it the failing Step's Execute failure route
+(`ProceedToOnExecuteFailure`) rather than an ordinary decision, so that Dex Web
+shows it as failure handling. Business rejections and connector outcome
+branches stay ordinary decisions and stay in the main story.
+
 Every indexed Attribute also has a matching directive:
 
 ```go
@@ -135,6 +156,7 @@ unrelated source. Compile first when the diagnostic reports Go syntax/types.
 | `attribute_map_read_not_loaded`, `attribute_map_enumeration_not_loaded`, `attribute_map_instance_not_loaded`, `channel_messages_not_loaded` | Select the AttributeMap instance or whole map, or the Channel messages, in the options of the Step, RPC or timeout handler that reads them; an unselected read fails at run time. |
 | `step_progress_outside_step` | Write Stream output only in a Step; an RPC publishes a Channel message or returns `NextSteps` to schedule that Step. |
 | `start_flow_input_type_mismatch` | Pass the starting Step's input type to `StartFlow`, or declare `dex.None` and pass `nil`. |
+| `v2_step_group_shape` | A warning, never blocking: the group is neither one run nor one choice, and the message names its parts. Split it so that each group does one thing; failure-handling Steps are not part of the check. |
 
 A successful FDG check proves a definition, not an actual provider call. Keep
 source readiness separate from configured real business acceptance.
