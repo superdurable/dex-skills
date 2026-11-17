@@ -24,8 +24,9 @@ An operation-specific factory creates a Connector Step. The application maps the
 - The provider call runs in Execute and inherits Dex retry, timeout, durability, and recovery.
 - The result holds the operation output, a receipt, the selected branch, and a safe failure classification. It does not carry the previous Step input. Persist business context in an Attribute, or pass it through an application Step first.
 - A Mutation uses a stable idempotency key derived from the Step execution.
-- Each operation has an effect class. A Query is a read and changes nothing when repeated. A Mutation the Connector marks safe to repeat is an idempotent write: a repeat with the same idempotency key makes no second effect. Every other Mutation is a non-idempotent write and can make a second effect when repeated.
-- When a Mutation's outcome is unknown, the Connector selects an uncertainty branch. Wire it to a Step that queries and reconciles. Never resend blindly.
+- Each operation has an effect class. A Query is a read and changes nothing when repeated. A Mutation the Connector marks safe to repeat is an idempotent write: a repeat with the same idempotency key makes no second effect. Every other Mutation, including one that declares a bounded resend limit, is a non-idempotent write and can make a second effect when repeated.
+- When a Mutation's outcome is unknown, a Connector operation that declares a bounded resend limit may resend within that limit. It reads the write back first when the provider supports it. If the outcome is still unknown, the Connector selects an uncertainty branch. See [Bounded resends](https://docs.superdurable.io/reference/agents/connector-tools#bounded-resends).
+- Wire the uncertainty branch to a Step that queries and reconciles. Application code never resends a Mutation on its own.
 - Only the happy-path branch must be wired. Selecting an unwired optional branch fails the Flow, which keeps the provider outcome visible for recovery.
 - Use the operation-specific generated factories and a static connection name on every operation config.
 
@@ -36,8 +37,9 @@ A Trigger is a long-running event source outside the Flow. It delivers each even
 - The application supplies the final filter, resolves the Flow ID, and maps the event to typed input.
 - It chooses to start a Flow or invoke a typed RPC on an existing Flow. A Trigger binding does not store an RPC name; the application registers the RPC definition the Trigger runner uses.
 - A root start uses the provider event ID as its start Request ID and a deterministic Flow ID.
-- An RPC target needs its own bounded duplicate handling in application state, plus its own locks.
-- Local Trigger runners persist a matched event before acknowledging it and replay pending deliveries after a restart.
+- Duplicate deliveries need a clear dedup boundary. Where the connector SDK sends a stable request ID for an RPC target, a transactional RPC applies each event's Flow changes at most once while Dex Server keeps that request ID. See [RPC request IDs](https://docs.superdurable.io/reference/server/runtime-data#rpc-request-ids) and [Connector Triggers](https://docs.superdurable.io/reference/agents/connector-triggers).
+- Otherwise the RPC target handles duplicates in its own bounded application state, plus its own locks.
+- A durable inbox records a matched event before the provider is acknowledged and replays pending deliveries after a restart. Use the Trigger runner path that provides it.
 - A connection's credentials and each Trigger binding's matchers are separate. One connection can serve several Flows, each with its own binding filters.
 
 ## Credentials and connections
